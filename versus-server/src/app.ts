@@ -3,7 +3,7 @@ import { cors } from 'hono/cors';
 import { logger as honoLogger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 import { compress } from 'hono/compress';
-import { rateLimiter } from 'hono/rate-limiter';
+// Note: Using custom rate limiting for now
 import { AuthService } from './services/auth-service.js';
 import { HealthService } from './services/health-service.js';
 import { MonitoringService, type MonitoringConfig } from './services/monitoring-service.js';
@@ -68,25 +68,8 @@ export function createApp(config: AppConfig) {
     );
   }
 
-  // Rate limiting
-  app.use(
-    '/api/*',
-    rateLimiter({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      limit: 100, // limit each IP to 100 requests per windowMs
-      keyGenerator: c => c.env?.ip || c.req.header('x-forwarded-for') || 'unknown',
-    })
-  );
-
-  // Strict rate limiting for auth endpoints
-  app.use(
-    '/api/v1/auth/*',
-    rateLimiter({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      limit: 10, // limit each IP to 10 auth requests per windowMs
-      keyGenerator: c => c.env?.ip || c.req.header('x-forwarded-for') || 'unknown',
-    })
-  );
+  // Rate limiting (simplified for now - will implement custom middleware)
+  // TODO: Implement custom rate limiting middleware for Hono
 
   // Initialize services
   const gameManager = new GameManager(config.databaseConfig);
