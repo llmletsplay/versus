@@ -21,6 +21,9 @@ export abstract class DatabaseProvider {
   abstract initialize(): Promise<void>;
   abstract close(): Promise<void>;
 
+  // Generic query operations for auth and other custom queries
+  abstract query(sql: string, params?: any[]): Promise<any[]>;
+
   // Game stats operations
   abstract saveGameStats(_gameStats: GameStats): Promise<void>;
   abstract getGameStats(_gameId: string): Promise<GameStats | null>;
@@ -95,6 +98,27 @@ export class SQLiteProvider extends DatabaseProvider {
     if (this.db) {
       this.db.close();
       this.db = null;
+    }
+  }
+
+  async query(sql: string, params: any[] = []): Promise<any[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      if (sql.trim().toLowerCase().startsWith('select')) {
+        const stmt = this.db.prepare(sql);
+        return stmt.all(...params);
+      } else {
+        // For INSERT, UPDATE, DELETE operations
+        const stmt = this.db.prepare(sql);
+        stmt.run(...params);
+        return [];
+      }
+    } catch (error) {
+      console.error('SQLite query error:', error);
+      throw error;
     }
   }
 
@@ -309,6 +333,23 @@ export class PostgreSQLProvider extends DatabaseProvider {
     if (this.pool) {
       await this.pool.end();
       this.pool = null;
+    }
+  }
+
+  async query(sql: string, params: any[] = []): Promise<any[]> {
+    if (!this.pool) {
+      throw new Error('Database not initialized');
+    }
+
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query(sql, params);
+      return result.rows;
+    } catch (error) {
+      console.error('PostgreSQL query error:', error);
+      throw error;
+    } finally {
+      client.release();
     }
   }
 
