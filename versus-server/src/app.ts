@@ -6,6 +6,8 @@ import { compress } from 'hono/compress';
 import { rateLimiter } from 'hono/rate-limiter';
 import { AuthService } from './services/auth-service.js';
 import { HealthService } from './services/health-service.js';
+import { MonitoringService, type MonitoringConfig } from './services/monitoring-service.js';
+import { BackupService, type BackupConfig } from './services/backup-service.js';
 import { GameManager } from './core/game-manager.js';
 import { createGameRoutes } from './routes/game-routes.js';
 import { createAuthRoutes } from './routes/auth-routes.js';
@@ -18,6 +20,8 @@ export interface AppConfig {
   corsOrigin: string;
   nodeEnv: string;
   jwtSecret?: string;
+  monitoring?: MonitoringConfig;
+  backup?: BackupConfig;
 }
 
 export function createApp(config: AppConfig) {
@@ -89,6 +93,19 @@ export function createApp(config: AppConfig) {
   const authService = new AuthService();
   const healthService = new HealthService(gameManager['database'] || gameManager['db']);
   const errorHandler = ErrorHandler.getInstance();
+
+  // Initialize monitoring if configured
+  let monitoringService: MonitoringService | undefined;
+  if (config.monitoring) {
+    monitoringService = new MonitoringService(config.monitoring);
+    monitoringService.initialize();
+  }
+
+  // Initialize backup service if configured
+  let backupService: BackupService | undefined;
+  if (config.backup) {
+    backupService = new BackupService(gameManager['database'] || gameManager['db'], config.backup);
+  }
 
   // Comprehensive health check endpoint
   app.get('/api/v1/health', async c => {
@@ -181,5 +198,5 @@ export function createApp(config: AppConfig) {
     );
   });
 
-  return { app, gameManager, authService };
+  return { app, gameManager, authService, monitoringService, backupService };
 }
