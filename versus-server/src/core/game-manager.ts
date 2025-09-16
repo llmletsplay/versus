@@ -1,27 +1,24 @@
 import { AbstractGame } from '../types/game.js';
 import type { GameState, GameMove, GameConfig, GameMetadata } from '../types/game.js';
 import { StatsService } from './stats-service.js';
-import type { DatabaseConfig } from './database.js';
+import { DatabaseProvider, createDatabaseProvider, type DatabaseConfig } from './database.js';
 import { memoryManager } from '../utils/memory-manager.js';
 import { logger } from '../utils/logger.js';
 import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
-import fs from 'fs/promises';
 
 export interface GameConstructor {
-  new (_gameId: string): AbstractGame;
+  new (_gameId: string, _database: DatabaseProvider): AbstractGame;
 }
 
 export class GameManager {
   private gameTypes: Map<string, GameConstructor> = new Map();
   private activeGames: Map<string, AbstractGame> = new Map();
-  private gameDataPath: string;
+  private database: DatabaseProvider;
   private statsService: StatsService;
 
-  constructor(gameDataPath: string = './game_data', databaseConfig?: DatabaseConfig) {
-    this.gameDataPath = gameDataPath;
-    this.statsService = new StatsService(gameDataPath, databaseConfig);
-    this.ensureGameDataDirectory();
+  constructor(databaseConfig: DatabaseConfig) {
+    this.database = createDatabaseProvider(databaseConfig);
+    this.statsService = new StatsService(databaseConfig);
 
     // Set up memory management
     memoryManager.setCleanupCallback(async (gameId: string) => {
@@ -30,22 +27,16 @@ export class GameManager {
   }
 
   async initialize(): Promise<void> {
+    await this.database.initialize();
     await this.statsService.initialize();
     memoryManager.start();
-    logger.info('Game manager initialized with memory management');
+    logger.info('Game manager initialized with database storage and memory management');
   }
 
   async close(): Promise<void> {
     memoryManager.stop();
     await this.statsService.close();
-  }
-
-  private async ensureGameDataDirectory(): Promise<void> {
-    try {
-      await fs.access(this.gameDataPath);
-    } catch {
-      await fs.mkdir(this.gameDataPath, { recursive: true });
-    }
+    await this.database.close();
   }
 
   registerGame(gameType: string, gameClass: GameConstructor): void {
@@ -87,7 +78,7 @@ export class GameManager {
     }
 
     const gameId = `${gameType}-${uuidv4()}`;
-    const game = new GameClass(gameId);
+    const game = new GameClass(gameId, this.database);
 
     await game.initializeGame(config);
     this.activeGames.set(gameId, game);

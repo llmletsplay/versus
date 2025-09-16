@@ -44,14 +44,8 @@ export interface GlobalStats {
 export class StatsService {
   private db: DatabaseProvider;
 
-  constructor(dataPath: string = './game_data', databaseConfig?: DatabaseConfig) {
-    // Default to SQLite if no config provided
-    const config = databaseConfig || {
-      type: 'sqlite' as const,
-      sqlitePath: path.join(dataPath, 'stats.db'),
-    };
-
-    this.db = createDatabaseProvider(config);
+  constructor(databaseConfig: DatabaseConfig) {
+    this.db = createDatabaseProvider(databaseConfig);
   }
 
   async initialize(): Promise<void> {

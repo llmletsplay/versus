@@ -18,12 +18,28 @@ export interface ActivityLog {
   players?: string;
 }
 
+export interface GameStateData {
+  gameId: string;
+  gameType: string;
+  gameState: any;
+  moveHistory: any[];
+  players: string[];
+  status: 'active' | 'waiting' | 'completed' | 'abandoned';
+}
+
 export abstract class DatabaseProvider {
   abstract initialize(): Promise<void>;
   abstract close(): Promise<void>;
 
   // Generic query operations for auth and other custom queries
   abstract query(sql: string, params?: any[]): Promise<any[]>;
+
+  // Game state operations
+  abstract saveGameState(_gameStateData: GameStateData): Promise<void>;
+  abstract getGameState(_gameId: string): Promise<GameStateData | null>;
+  abstract deleteGameState(_gameId: string): Promise<void>;
+  abstract getActiveGames(): Promise<GameStateData[]>;
+  abstract getGamesByPlayer(_playerId: string): Promise<GameStateData[]>;
 
   // Game stats operations
   abstract saveGameStats(_gameStats: GameStats): Promise<void>;
@@ -78,11 +94,25 @@ export class SQLiteProvider extends DatabaseProvider {
           players TEXT,
           created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
         );
+
+        CREATE TABLE IF NOT EXISTS game_states (
+          game_id TEXT PRIMARY KEY,
+          game_type TEXT NOT NULL,
+          game_state TEXT NOT NULL,
+          move_history TEXT NOT NULL DEFAULT '[]',
+          players TEXT NOT NULL,
+          status TEXT NOT NULL CHECK (status IN ('active', 'waiting', 'completed', 'abandoned')) DEFAULT 'waiting',
+          created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+          updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+        );
         
         CREATE INDEX IF NOT EXISTS idx_game_stats_type ON game_stats(game_type);
         CREATE INDEX IF NOT EXISTS idx_game_stats_status ON game_stats(status);
         CREATE INDEX IF NOT EXISTS idx_activity_timestamp ON activity_log(timestamp);
         CREATE INDEX IF NOT EXISTS idx_activity_game_type ON activity_log(game_type);
+        CREATE INDEX IF NOT EXISTS idx_game_states_type ON game_states(game_type);
+        CREATE INDEX IF NOT EXISTS idx_game_states_status ON game_states(status);
+        CREATE INDEX IF NOT EXISTS idx_game_states_updated ON game_states(updated_at);
       `);
 
       logger.info('💾 SQLite database initialized successfully');
@@ -120,6 +150,98 @@ export class SQLiteProvider extends DatabaseProvider {
       logger.error('SQLite query error', { error: error instanceof Error ? error.message : error });
       throw error;
     }
+  }
+
+  async saveGameState(gameStateData: GameStateData): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO game_states
+      (game_id, game_type, game_state, move_history, players, status, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, strftime('%s', 'now'))
+    `);
+
+    stmt.run(
+      gameStateData.gameId,
+      gameStateData.gameType,
+      JSON.stringify(gameStateData.gameState),
+      JSON.stringify(gameStateData.moveHistory),
+      JSON.stringify(gameStateData.players),
+      gameStateData.status
+    );
+  }
+
+  async getGameState(gameId: string): Promise<GameStateData | null> {
+    if (!this.db) {
+      return null;
+    }
+
+    const stmt = this.db.prepare('SELECT * FROM game_states WHERE game_id = ?');
+    const row = stmt.get(gameId);
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      gameId: row.game_id,
+      gameType: row.game_type,
+      gameState: JSON.parse(row.game_state),
+      moveHistory: JSON.parse(row.move_history),
+      players: JSON.parse(row.players),
+      status: row.status,
+    };
+  }
+
+  async deleteGameState(gameId: string): Promise<void> {
+    if (!this.db) {
+      return;
+    }
+
+    const stmt = this.db.prepare('DELETE FROM game_states WHERE game_id = ?');
+    stmt.run(gameId);
+  }
+
+  async getActiveGames(): Promise<GameStateData[]> {
+    if (!this.db) {
+      return [];
+    }
+
+    const stmt = this.db.prepare(
+      "SELECT * FROM game_states WHERE status IN ('active', 'waiting') ORDER BY updated_at DESC"
+    );
+    const rows = stmt.all();
+
+    return rows.map(row => ({
+      gameId: row.game_id,
+      gameType: row.game_type,
+      gameState: JSON.parse(row.game_state),
+      moveHistory: JSON.parse(row.move_history),
+      players: JSON.parse(row.players),
+      status: row.status,
+    }));
+  }
+
+  async getGamesByPlayer(playerId: string): Promise<GameStateData[]> {
+    if (!this.db) {
+      return [];
+    }
+
+    const stmt = this.db.prepare(
+      'SELECT * FROM game_states WHERE players LIKE ? ORDER BY updated_at DESC'
+    );
+    const rows = stmt.all(`%"${playerId}"%`);
+
+    return rows.map(row => ({
+      gameId: row.game_id,
+      gameType: row.game_type,
+      gameState: JSON.parse(row.game_state),
+      moveHistory: JSON.parse(row.move_history),
+      players: JSON.parse(row.players),
+      status: row.status,
+    }));
   }
 
   async saveGameStats(gameStats: GameStats): Promise<void> {
@@ -318,11 +440,25 @@ export class PostgreSQLProvider extends DatabaseProvider {
           players TEXT,
           created_at TIMESTAMP NOT NULL DEFAULT NOW()
         );
+
+        CREATE TABLE IF NOT EXISTS game_states (
+          game_id VARCHAR(255) PRIMARY KEY,
+          game_type VARCHAR(100) NOT NULL,
+          game_state TEXT NOT NULL,
+          move_history TEXT NOT NULL DEFAULT '[]',
+          players TEXT NOT NULL,
+          status VARCHAR(20) NOT NULL CHECK (status IN ('active', 'waiting', 'completed', 'abandoned')) DEFAULT 'waiting',
+          created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
         
         CREATE INDEX IF NOT EXISTS idx_game_stats_type ON game_stats(game_type);
         CREATE INDEX IF NOT EXISTS idx_game_stats_status ON game_stats(status);
         CREATE INDEX IF NOT EXISTS idx_activity_timestamp ON activity_log(timestamp);
         CREATE INDEX IF NOT EXISTS idx_activity_game_type ON activity_log(game_type);
+        CREATE INDEX IF NOT EXISTS idx_game_states_type ON game_states(game_type);
+        CREATE INDEX IF NOT EXISTS idx_game_states_status ON game_states(status);
+        CREATE INDEX IF NOT EXISTS idx_game_states_updated ON game_states(updated_at);
       `);
     } finally {
       client.release();
@@ -350,6 +486,142 @@ export class PostgreSQLProvider extends DatabaseProvider {
         error: error instanceof Error ? error.message : error,
       });
       throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async saveGameState(gameStateData: GameStateData): Promise<void> {
+    if (!this.pool) {
+      throw new Error('Database not initialized');
+    }
+
+    const client = await this.pool.connect();
+    try {
+      await client.query(
+        `INSERT INTO game_states
+         (game_id, game_type, game_state, move_history, players, status, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())
+         ON CONFLICT (game_id)
+         DO UPDATE SET
+           game_state = EXCLUDED.game_state,
+           move_history = EXCLUDED.move_history,
+           players = EXCLUDED.players,
+           status = EXCLUDED.status,
+           updated_at = NOW()`,
+        [
+          gameStateData.gameId,
+          gameStateData.gameType,
+          JSON.stringify(gameStateData.gameState),
+          JSON.stringify(gameStateData.moveHistory),
+          JSON.stringify(gameStateData.players),
+          gameStateData.status,
+        ]
+      );
+    } catch (error) {
+      logger.error('Error saving game state', { gameId: gameStateData.gameId, error });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getGameState(gameId: string): Promise<GameStateData | null> {
+    if (!this.pool) {
+      return null;
+    }
+
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query('SELECT * FROM game_states WHERE game_id = $1', [gameId]);
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      const row = result.rows[0];
+      return {
+        gameId: row.game_id,
+        gameType: row.game_type,
+        gameState: JSON.parse(row.game_state),
+        moveHistory: JSON.parse(row.move_history),
+        players: JSON.parse(row.players),
+        status: row.status,
+      };
+    } catch (error) {
+      logger.error('Error getting game state', { gameId, error });
+      return null;
+    } finally {
+      client.release();
+    }
+  }
+
+  async deleteGameState(gameId: string): Promise<void> {
+    if (!this.pool) {
+      return;
+    }
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('DELETE FROM game_states WHERE game_id = $1', [gameId]);
+    } catch (error) {
+      logger.error('Error deleting game state', { gameId, error });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getActiveGames(): Promise<GameStateData[]> {
+    if (!this.pool) {
+      return [];
+    }
+
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query(
+        "SELECT * FROM game_states WHERE status IN ('active', 'waiting') ORDER BY updated_at DESC"
+      );
+
+      return result.rows.map(row => ({
+        gameId: row.game_id,
+        gameType: row.game_type,
+        gameState: JSON.parse(row.game_state),
+        moveHistory: JSON.parse(row.move_history),
+        players: JSON.parse(row.players),
+        status: row.status,
+      }));
+    } catch (error) {
+      logger.error('Error getting active games', { error });
+      return [];
+    } finally {
+      client.release();
+    }
+  }
+
+  async getGamesByPlayer(playerId: string): Promise<GameStateData[]> {
+    if (!this.pool) {
+      return [];
+    }
+
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query(
+        'SELECT * FROM game_states WHERE players LIKE $1 ORDER BY updated_at DESC',
+        [`%"${playerId}"%`]
+      );
+
+      return result.rows.map(row => ({
+        gameId: row.game_id,
+        gameType: row.game_type,
+        gameState: JSON.parse(row.game_state),
+        moveHistory: JSON.parse(row.move_history),
+        players: JSON.parse(row.players),
+        status: row.status,
+      }));
+    } catch (error) {
+      logger.error('Error getting games by player', { playerId, error });
+      return [];
     } finally {
       client.release();
     }
