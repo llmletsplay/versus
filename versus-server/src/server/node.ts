@@ -24,29 +24,69 @@ const databaseConfig: DatabaseConfig = process.env.DATABASE_URL
       sqlitePath: `${GAME_DATA_PATH}/versus.db`,
     };
 
-// Create Hono app with configuration
-const { app, gameManager, authService } = createApp({
+// Create Hono app with comprehensive configuration
+const { app, gameManager, authService, monitoringService, backupService } = createApp({
   databaseConfig,
   corsOrigin: CORS_ORIGIN,
   nodeEnv: NODE_ENV,
   jwtSecret: process.env.JWT_SECRET,
+  monitoring: {
+    sentryDsn: process.env.SENTRY_DSN,
+    environment: NODE_ENV,
+    release: process.env.APP_VERSION || '2.0.0',
+    enableProfiling: NODE_ENV === 'production',
+    enableTracing: true,
+    sampleRate: NODE_ENV === 'production' ? 0.1 : 1.0,
+    profilesSampleRate: NODE_ENV === 'production' ? 0.1 : 1.0,
+  },
+  backup: {
+    enabled: process.env.BACKUP_ENABLED === 'true' || NODE_ENV === 'production',
+    schedule: process.env.BACKUP_SCHEDULE || 'daily',
+    retentionDays: parseInt(process.env.BACKUP_RETENTION_DAYS || '30'),
+    backupPath: process.env.BACKUP_PATH || `${GAME_DATA_PATH}/backups`,
+    compression: true,
+    includeGameStates: true,
+    includeUserData: true,
+    includeStats: true,
+  },
 });
 
 // Register all games
 registerGames(gameManager);
 
-// Graceful shutdown
+// Graceful shutdown with full service cleanup
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
-  await gameManager.close();
-  process.exit(0);
+  await shutdown();
 });
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
-  await gameManager.close();
-  process.exit(0);
+  await shutdown();
 });
+
+async function shutdown() {
+  try {
+    // Stop backup service
+    if (backupService) {
+      await backupService.stop();
+    }
+
+    // Close monitoring service
+    if (monitoringService) {
+      await monitoringService.close();
+    }
+
+    // Close game manager
+    await gameManager.close();
+
+    logger.info('All services shut down successfully');
+    process.exit(0);
+  } catch (error) {
+    logger.error('Error during shutdown', { error });
+    process.exit(1);
+  }
+}
 
 // Initialize and start server
 async function startServer() {
@@ -55,8 +95,17 @@ async function startServer() {
     await gameManager.initialize();
     await authService.initializeUserTable();
 
+    // Start backup service if configured
+    if (backupService) {
+      await backupService.start();
+      logger.info('💾 Backup service initialized');
+    }
+
     logger.info('🔐 Authentication service initialized');
     logger.info('🎮 Game manager initialized with database storage');
+    if (monitoringService) {
+      logger.info('📊 Monitoring service initialized (Sentry)');
+    }
 
     // Start server
     const server = serve({
