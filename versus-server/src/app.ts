@@ -5,10 +5,12 @@ import { secureHeaders } from 'hono/secure-headers';
 import { compress } from 'hono/compress';
 import { rateLimiter } from 'hono/rate-limiter';
 import { AuthService } from './services/auth-service.js';
+import { HealthService } from './services/health-service.js';
 import { GameManager } from './core/game-manager.js';
 import { createGameRoutes } from './routes/game-routes.js';
 import { createAuthRoutes } from './routes/auth-routes.js';
 import { logger } from './utils/logger.js';
+import { ErrorHandler, GameError } from './utils/error-handler.js';
 import type { DatabaseConfig } from './core/database.js';
 
 export interface AppConfig {
@@ -85,16 +87,41 @@ export function createApp(config: AppConfig) {
   // Initialize services
   const gameManager = new GameManager(config.databaseConfig);
   const authService = new AuthService();
+  const healthService = new HealthService(gameManager['database'] || gameManager['db']);
+  const errorHandler = ErrorHandler.getInstance();
 
-  // Health check endpoint
-  app.get('/api/v1/health', c => {
-    return c.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      uptime: process.uptime(),
-      environment: config.nodeEnv,
-    });
+  // Comprehensive health check endpoint
+  app.get('/api/v1/health', async c => {
+    try {
+      const healthCheck = await healthService.performHealthCheck();
+
+      // Return appropriate status code based on health
+      const statusCode =
+        healthCheck.status === 'healthy' ? 200 : healthCheck.status === 'degraded' ? 200 : 503;
+
+      return c.json(healthCheck, statusCode);
+    } catch (error) {
+      logger.error('Health check failed', { error });
+      return c.json(
+        {
+          status: 'unhealthy',
+          timestamp: new Date().toISOString(),
+          error: 'Health check failed',
+        },
+        503
+      );
+    }
+  });
+
+  // Metrics endpoint for monitoring
+  app.get('/api/v1/metrics', c => {
+    try {
+      const metrics = healthService.getMetrics();
+      return c.json(metrics);
+    } catch (error) {
+      logger.error('Metrics collection failed', { error });
+      return c.json({ error: 'Metrics unavailable' }, 500);
+    }
   });
 
   // Root endpoint
@@ -117,36 +144,28 @@ export function createApp(config: AppConfig) {
   app.route('/api/v1/auth', createAuthRoutes());
   app.route('/api/v1/games', createGameRoutes(gameManager));
 
-  // Global error handler
+  // Production-ready global error handler
   app.onError((err, c) => {
+    // Convert to GameError if needed
+    const gameError = err instanceof GameError ? err : errorHandler.handleError(err);
+
+    // Log error with full context
     logger.error('API Error', {
-      error: err.message,
+      error: gameError.message,
+      code: gameError.code,
+      isOperational: gameError.isOperational,
       stack: config.nodeEnv === 'development' ? err.stack : undefined,
       method: c.req.method,
       url: c.req.url,
       userAgent: c.req.header('User-Agent'),
+      context: gameError.context,
     });
 
-    if (err.name === 'ValidationError') {
-      return c.json(
-        {
-          success: false,
-          error: 'Validation Error',
-          message: err.message,
-          code: 'VALIDATION_ERROR',
-        },
-        400
-      );
-    }
+    // Convert to production-safe API response
+    const apiResponse = errorHandler.toAPIResponse(gameError);
+    const { statusCode, ...responseBody } = apiResponse;
 
-    return c.json(
-      {
-        success: false,
-        error: config.nodeEnv === 'development' ? err.message : 'Internal Server Error',
-        code: 'INTERNAL_ERROR',
-      },
-      500
-    );
+    return c.json(responseBody, statusCode);
   });
 
   // 404 handler
