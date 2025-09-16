@@ -10,6 +10,7 @@ import {
   UserRole,
 } from '../types/auth';
 import { DatabaseProvider, createDatabaseProvider, DatabaseConfig } from '../core/database';
+import { logger } from '../utils/logger';
 
 export class AuthService {
   private db: DatabaseProvider;
@@ -153,7 +154,10 @@ export class AuthService {
       const result = await this.db.query(query, [userId]);
       return result[0] ? this.deserializeUser(result[0]) : null;
     } catch (error) {
-      console.error('Error getting user by ID:', error);
+      logger.error('Error getting user by ID', {
+        userId,
+        error: error instanceof Error ? error.message : error,
+      });
       return null;
     }
   }
@@ -164,7 +168,10 @@ export class AuthService {
       const result = await this.db.query(query, [username]);
       return result[0] ? this.deserializeUser(result[0]) : null;
     } catch (error) {
-      console.error('Error getting user by username:', error);
+      logger.error('Error getting user by username', {
+        username,
+        error: error instanceof Error ? error.message : error,
+      });
       return null;
     }
   }
@@ -175,7 +182,10 @@ export class AuthService {
       const result = await this.db.query(query, [email]);
       return result[0] ? this.deserializeUser(result[0]) : null;
     } catch (error) {
-      console.error('Error getting user by email:', error);
+      logger.error('Error getting user by email', {
+        email,
+        error: error instanceof Error ? error.message : error,
+      });
       return null;
     }
   }
@@ -256,7 +266,9 @@ export class AuthService {
     try {
       await this.db.query(createTableQuery);
     } catch (error) {
-      console.error('Error creating users table:', error);
+      logger.error('Error creating users table', {
+        error: error instanceof Error ? error.message : error,
+      });
       throw error;
     }
   }

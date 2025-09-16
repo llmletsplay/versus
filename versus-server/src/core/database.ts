@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { Pool } from 'pg';
 import type { GameStats } from './stats-service.js';
+import { logger } from '../utils/logger.js';
 
 export interface DatabaseConfig {
   type: 'sqlite' | 'postgresql';
@@ -84,12 +85,11 @@ export class SQLiteProvider extends DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_activity_game_type ON activity_log(game_type);
       `);
 
-      console.log('💾 SQLite database initialized successfully');
+      logger.info('💾 SQLite database initialized successfully');
     } catch (error) {
-      console.warn(
-        '⚠️  SQLite initialization failed, database features will be disabled:',
-        (error as Error).message
-      );
+      logger.warn('⚠️  SQLite initialization failed, database features will be disabled', {
+        error: (error as Error).message,
+      });
       this.db = null;
     }
   }
@@ -117,14 +117,14 @@ export class SQLiteProvider extends DatabaseProvider {
         return [];
       }
     } catch (error) {
-      console.error('SQLite query error:', error);
+      logger.error('SQLite query error', { error: error instanceof Error ? error.message : error });
       throw error;
     }
   }
 
   async saveGameStats(gameStats: GameStats): Promise<void> {
     if (!this.db) {
-      console.warn('Database not available, skipping stats save');
+      logger.warn('Database not available, skipping stats save');
       return;
     }
 
@@ -346,7 +346,9 @@ export class PostgreSQLProvider extends DatabaseProvider {
       const result = await client.query(sql, params);
       return result.rows;
     } catch (error) {
-      console.error('PostgreSQL query error:', error);
+      logger.error('PostgreSQL query error', {
+        error: error instanceof Error ? error.message : error,
+      });
       throw error;
     } finally {
       client.release();
