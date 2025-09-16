@@ -10,20 +10,19 @@ import { ERROR_MESSAGES, shuffleArray } from '../utils/game-constants.js';
 import { logger } from '../utils/logger.js';
 import { errorHandler, ValidationErrors } from '../utils/error-handler.js';
 import { PlayerManager, PlayerUtils } from '../utils/player-manager.js';
-import fs from 'fs/promises';
-import path from 'path';
+import { DatabaseProvider, GameStateData } from './database.js';
 
 /**
  * Simple, production-ready BaseGame class with generic typing
  * Provides common functionality while keeping the API simple and maintainable
  */
 export abstract class BaseGame<TState extends GameState = GameState> extends AbstractGame<TState> {
-  protected gameDataPath: string;
+  protected database: DatabaseProvider;
   protected playerManager?: PlayerManager;
 
-  constructor(gameId: string, gameType: string, gameDataPath: string = './game_data') {
+  constructor(gameId: string, gameType: string, database: DatabaseProvider) {
     super(gameId, gameType);
-    this.gameDataPath = gameDataPath;
+    this.database = database;
   }
 
   /**
@@ -122,27 +121,26 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
   }
 
   /**
-   * Enhanced state persistence with error handling
+   * Enhanced state persistence with database storage
    */
   protected async persistState(): Promise<void> {
     try {
-      const gameData = {
+      const gameStateData: GameStateData = {
         gameId: this.gameId,
         gameType: this.gameType,
-        history: this.history,
-        currentState: this.currentState,
-        timestamp: Date.now(),
+        gameState: this.currentState,
+        moveHistory: this.history,
+        players: this.getPlayerIds(),
+        status: this.isGameOver() ? 'completed' : 'active',
       };
 
-      const filePath = path.join(this.gameDataPath, `${this.gameId}.json`);
+      await this.database.saveGameState(gameStateData);
 
-      await fs.mkdir(this.gameDataPath, { recursive: true });
-      await fs.writeFile(filePath, JSON.stringify(gameData, null, 2));
-
-      logger.debug('Game state persisted', {
+      logger.debug('Game state persisted to database', {
         gameId: this.gameId,
         gameType: this.gameType,
-        filePath,
+        playersCount: gameStateData.players.length,
+        movesCount: gameStateData.moveHistory.length,
       });
     } catch (error) {
       const context = {
@@ -156,47 +154,44 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
   }
 
   /**
-   * Enhanced state loading with error handling
+   * Enhanced state loading with database storage
    */
   protected async loadState(): Promise<void> {
     try {
-      const filePath = path.join(this.gameDataPath, `${this.gameId}.json`);
+      const gameStateData = await this.database.getGameState(this.gameId);
 
-      const data = await fs.readFile(filePath, 'utf-8');
-      const gameData = JSON.parse(data);
+      if (gameStateData) {
+        // Validate that the loaded data matches this game
+        if (gameStateData.gameId !== this.gameId || gameStateData.gameType !== this.gameType) {
+          throw new Error('Game data mismatch');
+        }
 
-      // Validate that the loaded data matches this game
-      if (gameData.gameId !== this.gameId || gameData.gameType !== this.gameType) {
-        throw new Error('Game data mismatch');
-      }
+        this.history = gameStateData.moveHistory || [];
+        this.currentState = gameStateData.gameState || {};
 
-      this.history = gameData.history || [];
-      this.currentState = gameData.currentState || {};
-
-      logger.debug('Game state loaded', {
-        gameId: this.gameId,
-        gameType: this.gameType,
-        filePath,
-        historyLength: this.history.length,
-      });
-    } catch (error: any) {
-      if (error.code === 'ENOENT') {
-        // File doesn't exist, this is a new game
+        logger.debug('Game state loaded from database', {
+          gameId: this.gameId,
+          gameType: this.gameType,
+          historyLength: this.history.length,
+          status: gameStateData.status,
+        });
+      } else {
+        // No existing game state, this is a new game
         this.history = [];
         this.currentState = {} as TState;
         logger.debug('New game initialized', {
           gameId: this.gameId,
           gameType: this.gameType,
         });
-      } else {
-        const context = {
-          gameId: this.gameId,
-          gameType: this.gameType,
-          action: 'loadState',
-        };
-        const gameError = errorHandler.handleError(error as Error, context);
-        throw gameError;
       }
+    } catch (error) {
+      const context = {
+        gameId: this.gameId,
+        gameType: this.gameType,
+        action: 'loadState',
+      };
+      const gameError = errorHandler.handleError(error as Error, context);
+      throw gameError;
     }
   }
 
@@ -229,6 +224,31 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
       return { valid: false, error: ERROR_MESSAGES.NOT_YOUR_TURN };
     }
     return { valid: true };
+  }
+
+  /**
+   * Get list of player IDs from the current game state
+   * Subclasses should override this based on their state structure
+   */
+  protected getPlayerIds(): string[] {
+    // Default implementation - try to extract from common state patterns
+    const state = this.currentState as any;
+
+    if (state.players) {
+      if (Array.isArray(state.players)) {
+        return state.players.map((p: any) => (typeof p === 'string' ? p : p.id || p.name));
+      }
+      if (typeof state.players === 'object') {
+        return Object.keys(state.players);
+      }
+    }
+
+    if (state.playerOrder) {
+      return state.playerOrder;
+    }
+
+    // Fallback - return empty array, subclasses should override
+    return [];
   }
 
   /**

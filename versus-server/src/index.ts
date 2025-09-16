@@ -22,7 +22,7 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 const GAME_DATA_PATH = process.env.GAME_DATA_PATH || './game_data';
 
-// Database configuration
+// Database configuration for unified storage
 const databaseConfig: DatabaseConfig = process.env.DATABASE_URL
   ? {
       type: 'postgresql',
@@ -30,11 +30,11 @@ const databaseConfig: DatabaseConfig = process.env.DATABASE_URL
     }
   : {
       type: 'sqlite',
-      sqlitePath: `${GAME_DATA_PATH}/stats.db`,
+      sqlitePath: `${GAME_DATA_PATH}/versus.db`, // Single database for everything
     };
 
-// Initialize game manager and register games
-const gameManager = new GameManager(GAME_DATA_PATH, databaseConfig);
+// Initialize game manager with database-only storage
+const gameManager = new GameManager(databaseConfig);
 registerGames(gameManager);
 
 // Security middleware
