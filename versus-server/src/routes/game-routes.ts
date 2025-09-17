@@ -197,7 +197,7 @@ export function createGameRoutes(gameManager: GameManager) {
    */
   app.get('/:gameType/:gameId/metadata', async c => {
     try {
-      const gameType = c.req.param('gameType');
+      const _gameType = c.req.param('gameType');
       const gameId = c.req.param('gameId');
 
       const game = gameManager.getGame(gameId);

@@ -51,6 +51,3 @@ export default {
 
 // Export for Cloudflare Workers
 export { default as worker };
-
-// Alternative export pattern for different bundlers
-export const handler = default;

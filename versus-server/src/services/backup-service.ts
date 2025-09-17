@@ -1,8 +1,5 @@
 import { DatabaseProvider } from '../core/database.js';
 import { logger } from '../utils/logger.js';
-import { createWriteStream, createReadStream } from 'fs';
-import { pipeline } from 'stream/promises';
-import { createGzip, createGunzip } from 'zlib';
 import path from 'path';
 import fs from 'fs/promises';
 
@@ -105,7 +102,6 @@ export class BackupService {
       }
 
       // Calculate backup size
-      const stats = await fs.stat(backupDir);
       metadata.size = await this.calculateDirectorySize(backupDir);
 
       // Generate checksum for integrity

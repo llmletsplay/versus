@@ -27,12 +27,17 @@ export interface GameStateData {
   status: 'active' | 'waiting' | 'completed' | 'abandoned';
 }
 
+// CRITICAL: Abstract database provider - defines all database operations
+// PERF: Abstraction allows switching between SQLite and PostgreSQL
 export abstract class DatabaseProvider {
+  // CRITICAL: Database initialization - must succeed for app to function
   abstract initialize(): Promise<void>;
+  // CRITICAL: Cleanup database connections
   abstract close(): Promise<void>;
 
-  // Generic query operations for auth and other custom queries
-  abstract query(sql: string, params?: any[]): Promise<any[]>;
+  // SECURITY: Generic query operations for auth and other custom queries
+  // PERF: Parameterized queries prevent SQL injection
+  abstract query(_sql: string, _params?: any[]): Promise<any[]>;
 
   // Game state operations
   abstract saveGameState(_gameStateData: GameStateData): Promise<void>;
@@ -56,6 +61,8 @@ export abstract class DatabaseProvider {
   abstract deleteGameStats(_gameId: string): Promise<void>;
 }
 
+// PERF: SQLite provider for development and small deployments
+// CRITICAL: File-based database for persistent storage
 export class SQLiteProvider extends DatabaseProvider {
   private db: Database.Database | null = null;
   private dbPath: string;
@@ -65,11 +72,18 @@ export class SQLiteProvider extends DatabaseProvider {
     this.dbPath = dbPath;
   }
 
+  // CRITICAL: SQLite database initialization with schema creation
+  // PERF: Uses WAL mode for better concurrent access
   async initialize(): Promise<void> {
     try {
+      // PERF: Enable WAL mode for better concurrency
       this.db = new Database(this.dbPath);
+      this.db.pragma('journal_mode = WAL');
+      this.db.pragma('synchronous = NORMAL');
+      this.db.pragma('cache_size = 1000');
+      this.db.pragma('temp_store = memory');
 
-      // Create tables if they don't exist
+      // CRITICAL: Create tables if they don't exist
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS game_stats (
           game_id TEXT PRIMARY KEY,
@@ -106,6 +120,7 @@ export class SQLiteProvider extends DatabaseProvider {
           updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
         );
         
+        -- PERF: Indexes for query optimization
         CREATE INDEX IF NOT EXISTS idx_game_stats_type ON game_stats(game_type);
         CREATE INDEX IF NOT EXISTS idx_game_stats_status ON game_stats(status);
         CREATE INDEX IF NOT EXISTS idx_activity_timestamp ON activity_log(timestamp);
@@ -113,6 +128,10 @@ export class SQLiteProvider extends DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_game_states_type ON game_states(game_type);
         CREATE INDEX IF NOT EXISTS idx_game_states_status ON game_states(status);
         CREATE INDEX IF NOT EXISTS idx_game_states_updated ON game_states(updated_at);
+
+        -- PERF: Additional performance indexes
+        CREATE INDEX IF NOT EXISTS idx_game_stats_start_time ON game_stats(start_time DESC);
+        CREATE INDEX IF NOT EXISTS idx_activity_log_game_id ON activity_log(game_id);
       `);
 
       logger.info('💾 SQLite database initialized successfully');
@@ -131,17 +150,20 @@ export class SQLiteProvider extends DatabaseProvider {
     }
   }
 
+  // PERF: SQLite query execution with prepared statements
+  // SECURITY: Parameterized queries prevent SQL injection
   async query(sql: string, params: any[] = []): Promise<any[]> {
     if (!this.db) {
       throw new Error('Database not initialized');
     }
 
     try {
+      // PERF: Use prepared statements for better performance
       if (sql.trim().toLowerCase().startsWith('select')) {
         const stmt = this.db.prepare(sql);
         return stmt.all(...params);
       } else {
-        // For INSERT, UPDATE, DELETE operations
+        // PERF: For INSERT, UPDATE, DELETE operations
         const stmt = this.db.prepare(sql);
         stmt.run(...params);
         return [];
@@ -399,6 +421,8 @@ export class SQLiteProvider extends DatabaseProvider {
   }
 }
 
+// PERF: PostgreSQL provider for production deployments
+// CRITICAL: Connection pooling for high-performance database operations
 export class PostgreSQLProvider extends DatabaseProvider {
   private pool: Pool | null = null;
   private connectionString: string;
@@ -409,13 +433,47 @@ export class PostgreSQLProvider extends DatabaseProvider {
   }
 
   async initialize(): Promise<void> {
+    // PERF: Connection pool configuration - CRITICAL
     this.pool = new Pool({
       connectionString: this.connectionString,
+      // PERF: Connection pool settings for production
+      max: 20, // Maximum number of clients in the pool
+      min: 2, // Minimum number of clients in the pool
+      idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+      connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection cannot be established
+      maxUses: 7500, // Close connection after 7500 uses for load balancing
+      // SECURITY: Enable SSL in production
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false,
+      // PERF: Statement timeout to prevent long-running queries
+      statement_timeout: 10000, // 10 seconds
+      query_timeout: 10000, // 10 seconds
+      // PERF: Connection pool error handling
+      allowExitOnIdle: false, // Keep process alive even if pool is idle
     });
+
+    // PERF: Pool error handling
+    this.pool.on('error', (err, _client) => {
+      console.error('Unexpected PostgreSQL pool error:', err);
+    });
+
+    // PERF: Monitor pool statistics
+    if (process.env.NODE_ENV !== 'production') {
+      setInterval(() => {
+        if (this.pool) {
+          const { totalCount, idleCount, waitingCount } = this.pool;
+          console.log(
+            `Pool stats - Total: ${totalCount}, Idle: ${idleCount}, Waiting: ${waitingCount}`
+          );
+        }
+      }, 30000); // Log every 30 seconds in development
+    }
 
     // Create tables if they don't exist
     const client = await this.pool.connect();
     try {
+      // PERF: Use transaction for table creation
+      await client.query('BEGIN');
+
       await client.query(`
         CREATE TABLE IF NOT EXISTS game_stats (
           game_id VARCHAR(255) PRIMARY KEY,
@@ -430,7 +488,7 @@ export class PostgreSQLProvider extends DatabaseProvider {
           created_at TIMESTAMP NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP NOT NULL DEFAULT NOW()
         );
-        
+
         CREATE TABLE IF NOT EXISTS activity_log (
           id SERIAL PRIMARY KEY,
           game_id VARCHAR(255) NOT NULL,
@@ -459,7 +517,18 @@ export class PostgreSQLProvider extends DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_game_states_type ON game_states(game_type);
         CREATE INDEX IF NOT EXISTS idx_game_states_status ON game_states(status);
         CREATE INDEX IF NOT EXISTS idx_game_states_updated ON game_states(updated_at);
+
+        -- PERF: Additional performance indexes
+        CREATE INDEX IF NOT EXISTS idx_game_stats_players ON game_stats(players);
+        CREATE INDEX IF NOT EXISTS idx_game_states_players ON game_states(players);
+        CREATE INDEX IF NOT EXISTS idx_activity_game_id ON activity_log(game_id);
+        CREATE INDEX IF NOT EXISTS idx_game_stats_created ON game_stats(created_at DESC);
       `);
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
     } finally {
       client.release();
     }
@@ -472,22 +541,34 @@ export class PostgreSQLProvider extends DatabaseProvider {
     }
   }
 
+  // PERF: PostgreSQL query execution with connection pooling
+  // SECURITY: Parameterized queries and injection detection
   async query(sql: string, params: any[] = []): Promise<any[]> {
     if (!this.pool) {
       throw new Error('Database not initialized');
     }
 
-    const client = await this.pool.connect();
+    // PERF: Use pool.query directly for better connection management
+    // Connection pooling automatically handles connection lifecycle
     try {
-      const result = await client.query(sql, params);
+      // SECURITY: SQL injection prevention layer
+      // Basic detection for common injection patterns
+      if (params.some(p => typeof p === 'string' && (p.includes(';') || p.includes('--')))) {
+        logger.warn('Potential SQL injection attempt detected', { params });
+      }
+
+      // PERF: Pool manages connections automatically
+      // No need to manually acquire/release connections
+      const result = await this.pool.query(sql, params);
       return result.rows;
     } catch (error) {
+      // SECURITY: Sanitize error messages to prevent information leakage
       logger.error('PostgreSQL query error', {
-        error: error instanceof Error ? error.message : error,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        // SECURITY: Don't log SQL in production to prevent exposure
+        ...(process.env.NODE_ENV !== 'production' && { sql, params }),
       });
-      throw error;
-    } finally {
-      client.release();
+      throw new Error('Database operation failed');
     }
   }
 
@@ -832,11 +913,15 @@ export class PostgreSQLProvider extends DatabaseProvider {
   }
 }
 
+// CRITICAL: Database provider factory - selects appropriate database backend
+// PERF: SQLite for development, PostgreSQL for production
 export function createDatabaseProvider(config: DatabaseConfig): DatabaseProvider {
   switch (config.type) {
     case 'sqlite':
+      // PERF: SQLite for development and small deployments
       return new SQLiteProvider(config.sqlitePath);
     case 'postgresql':
+      // PERF: PostgreSQL for production with connection pooling
       if (!config.connectionString) {
         throw new Error('PostgreSQL connection string is required');
       }

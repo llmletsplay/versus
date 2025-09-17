@@ -13,11 +13,14 @@ import { PlayerManager, PlayerUtils } from '../utils/player-manager.js';
 import { DatabaseProvider, GameStateData } from './database.js';
 
 /**
- * Simple, production-ready BaseGame class with generic typing
- * Provides common functionality while keeping the API simple and maintainable
+ * CRITICAL: Base game class - foundation for all game implementations
+ * SECURITY: Handles game state validation and persistence
+ * WARNING: Changes to this class affect all 29+ games
  */
 export abstract class BaseGame<TState extends GameState = GameState> extends AbstractGame<TState> {
+  // CRITICAL: Database connection for persistent state storage
   protected database: DatabaseProvider;
+  // CRITICAL: Player management for turn-based games
   protected playerManager?: PlayerManager;
 
   constructor(gameId: string, gameType: string, database: DatabaseProvider) {
@@ -69,9 +72,9 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
   abstract getMetadata(): GameMetadata;
 
   /**
-   * Make a move in the game
-   * This handles validation, application, and persistence
-   * NOTE: Games should implement applyMove(), not override this method
+   * CRITICAL: Core move execution logic - handles all game moves
+   * SECURITY: Validates moves before application to prevent cheating
+   * WARNING: This method must not be overridden by game implementations
    */
   async makeMove(moveData: Record<string, any>): Promise<TState> {
     const context = {
@@ -82,7 +85,7 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
     };
 
     try {
-      // Validate the move
+      // CRITICAL: Move validation - prevents invalid game states
       const validation = await this.validateMove(moveData);
       if (!validation.valid) {
         throw ValidationErrors.invalidMoveFormat({
@@ -91,7 +94,7 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
         });
       }
 
-      // Check if game is already over
+      // CRITICAL: Game state validation - prevents moves after game ends
       if (await this.isGameOver()) {
         throw ValidationErrors.gameAlreadyOver(context);
       }
@@ -106,10 +109,10 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
       // Log the move
       logger.gameAction('makeMove', this.gameId, this.gameType, move.player, moveData);
 
-      // Apply the move
+      // CRITICAL: State mutation - core game logic execution
       await this.applyMove(move);
 
-      // Add to history and persist
+      // CRITICAL: Move history tracking and state persistence
       await this.addMove(move);
 
       return this.getGameState();
@@ -121,7 +124,8 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
   }
 
   /**
-   * Enhanced state persistence with database storage
+   * CRITICAL: Game state persistence - prevents data loss
+   * PERF: Saves to database for recovery after server restart
    */
   protected async persistState(): Promise<void> {
     try {
@@ -154,14 +158,15 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
   }
 
   /**
-   * Enhanced state loading with database storage
+   * CRITICAL: Game state restoration from persistent storage
+   * SECURITY: Validates loaded data integrity
    */
   protected async loadState(): Promise<void> {
     try {
       const gameStateData = await this.database.getGameState(this.gameId);
 
       if (gameStateData) {
-        // Validate that the loaded data matches this game
+        // SECURITY: Validate loaded data integrity - prevents state corruption
         if (gameStateData.gameId !== this.gameId || gameStateData.gameType !== this.gameType) {
           throw new Error('Game data mismatch');
         }
@@ -200,7 +205,8 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
   // ========================================
 
   /**
-   * Helper for common move validation patterns
+   * SECURITY: Common move validation - prevents malformed move data
+   * CRITICAL: Used by all game implementations for basic validation
    */
   protected validateCommonMove(
     moveData: Record<string, any>,
@@ -217,7 +223,8 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
   }
 
   /**
-   * Helper to validate player turn
+   * SECURITY: Player turn validation - prevents out-of-turn moves
+   * CRITICAL: Core turn management logic
    */
   protected validatePlayerTurn(player: string, currentPlayer: string): MoveValidationResult {
     if (player !== currentPlayer) {

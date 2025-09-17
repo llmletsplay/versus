@@ -12,7 +12,10 @@ export default [
       sourceType: 'module',
     },
     rules: {
-      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      'no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
       'prefer-const': 'error',
       'no-var': 'error',
       'no-console': 'off', // Allow console logs in server

@@ -1,4 +1,3 @@
-import path from 'path';
 import type { GameMove } from '../types/game.js';
 import { DatabaseProvider, createDatabaseProvider, type DatabaseConfig } from './database.js';
 import { logger } from '../utils/logger.js';

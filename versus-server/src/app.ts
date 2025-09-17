@@ -68,8 +68,10 @@ export function createApp(config: AppConfig) {
     );
   }
 
-  // Rate limiting (simplified for now - will implement custom middleware)
+  // DEBT: Rate limiting not implemented - security vulnerability
   // TODO: Implement custom rate limiting middleware for Hono
+  // Impact: Server vulnerable to DoS attacks without rate limiting
+  // Estimated effort: 2-3 days
 
   // Initialize services
   const gameManager = new GameManager(config.databaseConfig);

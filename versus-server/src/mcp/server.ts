@@ -225,6 +225,7 @@ export class VersusGameMCPServer {
             if (!args?.gameType) {
               throw new Error('gameType is required');
             }
+            // DEBT: Type casting bypasses validation - should use proper typing
             const gameId = await this.gameManager.createGame(
               args.gameType as string,
               args.config as any
@@ -258,6 +259,7 @@ export class VersusGameMCPServer {
             const gameState = await this.gameManager.makeMove(
               args.gameType as string,
               args.gameId as string,
+              // DEBT: Type casting to 'any' removes type safety
               args.moveData as any
             );
 
