@@ -37,7 +37,7 @@ export function createAuthRoutes() {
         if (user && user.isActive) {
           c.set('user', payload);
         }
-      } catch (error) {
+      } catch (_error) {
         // Invalid token, continue without user
       }
     }
@@ -175,7 +175,7 @@ export function createAuthRoutes() {
         );
       }
 
-      const { passwordHash, ...safeUserData } = userData;
+      const { passwordHash: _passwordHash, ...safeUserData } = userData;
       return c.json({
         success: true,
         data: safeUserData,

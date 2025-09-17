@@ -37,12 +37,57 @@ const databaseConfig: DatabaseConfig = process.env.DATABASE_URL
 const gameManager = new GameManager(databaseConfig);
 registerGames(gameManager);
 
-// Security middleware
+// SECURITY: Comprehensive security headers
 app.use(
   helmet({
-    crossOriginEmbedderPolicy: false, // Allow embedding for development
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for development
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+      },
+    },
+    crossOriginEmbedderPolicy: NODE_ENV === 'production',
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+    noSniff: true,
+    originAgentCluster: true,
+    permittedCrossDomainPolicies: false,
+    referrerPolicy: { policy: 'same-origin' },
+    xssFilter: true,
   })
 );
+
+// SECURITY: Additional security headers
+app.use((req, res, next) => {
+  // Request ID for tracking
+  const requestId =
+    (req.headers['x-request-id'] as string) ||
+    `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  req.headers['x-request-id'] = requestId;
+  res.setHeader('X-Request-Id', requestId);
+
+  // Security headers
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+
+  // SECURITY: Remove powered-by header
+  res.removeHeader('X-Powered-By');
+
+  next();
+});
 
 // CORS configuration
 app.use(
@@ -52,9 +97,26 @@ app.use(
   })
 );
 
-// Body parsing middleware with secure limits
-app.use(express.json({ limit: '1mb' })); // Reduced from 10mb for security
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+// SECURITY: Body parsing with strict limits and validation
+app.use(
+  express.json({
+    limit: '100kb', // SECURITY: Strict limit to prevent DoS
+    type: ['application/json', 'application/csp-report'],
+    verify: (req, res, buf) => {
+      // SECURITY: Store raw body for signature verification if needed
+      // DEBT: Type casting to 'any' bypasses TypeScript safety
+      // TODO: Extend Request interface to include rawBody property
+      (req as any).rawBody = buf.toString('utf8');
+    },
+  })
+);
+app.use(
+  express.urlencoded({
+    extended: false, // SECURITY: Use simple parser
+    limit: '100kb',
+    parameterLimit: 50, // SECURITY: Limit number of parameters
+  })
+);
 
 // Compression middleware
 app.use(compression());
@@ -102,51 +164,111 @@ app.get('/', (req, res) => {
   });
 });
 
-// Error handling middleware with proper logging
+// SECURITY: Error handling middleware with sanitization
 app.use(
   (err: any, req: express.Request, res: express.Response, _next: express.NextFunction): void => {
-    // Log error with context
+    // Generate request ID for tracking
+    const requestId =
+      req.headers['x-request-id'] || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Log error with context (internal only)
     logger.error('API Error', {
+      requestId,
       error: err.message,
-      stack: NODE_ENV === 'development' ? err.stack : undefined,
+      stack: err.stack, // Always log stack internally
       method: req.method,
       url: req.url,
       ip: req.ip,
       userAgent: req.get('User-Agent'),
+      // Log additional context in non-production
+      ...(NODE_ENV !== 'production' && {
+        body: req.body,
+        query: req.query,
+        params: req.params,
+      }),
     });
+
+    // SECURITY: Sanitize error responses
+    const isProduction = NODE_ENV === 'production';
 
     if (err.name === 'ValidationError') {
       res.status(400).json({
         success: false,
         error: 'Validation Error',
-        message: err.message,
+        message: isProduction ? 'Invalid input provided' : err.message,
         code: 'VALIDATION_ERROR',
+        requestId,
       });
       return;
     }
 
-    if (err.status) {
+    if (err.name === 'UnauthorizedError' || err.status === 401) {
+      res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+        message: 'Authentication required',
+        code: 'UNAUTHORIZED',
+        requestId,
+      });
+      return;
+    }
+
+    if (err.name === 'ForbiddenError' || err.status === 403) {
+      res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+        message: 'Insufficient permissions',
+        code: 'FORBIDDEN',
+        requestId,
+      });
+      return;
+    }
+
+    if (err.status && err.status < 500) {
       res.status(err.status).json({
         success: false,
-        error: err.message || 'An error occurred',
-        code: 'API_ERROR',
+        error: isProduction ? 'Request Error' : err.message,
+        code: 'CLIENT_ERROR',
+        requestId,
       });
       return;
     }
 
+    // SECURITY: Never expose internal errors in production
     res.status(500).json({
       success: false,
-      error: NODE_ENV === 'development' ? err.message : 'Internal Server Error',
+      error: 'Internal Server Error',
+      message: isProduction ? 'An unexpected error occurred. Please try again later.' : err.message,
       code: 'INTERNAL_ERROR',
+      requestId,
+      // Only include stack trace in development
+      ...(NODE_ENV === 'development' && { stack: err.stack }),
     });
   }
 );
 
-// 404 handler
+// SECURITY: 404 handler with sanitized response
 app.use((req, res) => {
+  const requestId =
+    req.headers['x-request-id'] || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  // Log 404s for monitoring
+  logger.warn('404 Not Found', {
+    requestId,
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+  });
+
   res.status(404).json({
     error: 'Not Found',
-    message: `Route ${req.method} ${req.originalUrl} not found`,
+    message:
+      NODE_ENV === 'production'
+        ? 'The requested resource was not found'
+        : `Route ${req.method} ${req.originalUrl} not found`,
+    code: 'NOT_FOUND',
+    requestId,
   });
 });
 

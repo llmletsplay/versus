@@ -125,12 +125,12 @@ router.get(
         return;
       }
 
-      const { passwordHash, ...userData } = user;
+      const { passwordHash: _passwordHash, ...userData } = user;
       res.json({
         success: true,
         data: userData,
       });
-    } catch (error) {
+    } catch (_error) {
       res.status(500).json({
         success: false,
         error: 'Failed to get user information',
@@ -186,7 +186,7 @@ router.post(
         },
         message: 'Token refreshed successfully',
       });
-    } catch (error) {
+    } catch (_error) {
       res.status(500).json({
         success: false,
         error: 'Failed to refresh token',

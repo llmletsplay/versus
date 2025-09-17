@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
+import { httpIntegration, consoleIntegration, onUncaughtExceptionIntegration } from '@sentry/node';
 import { logger } from '../utils/logger.js';
 
 export interface MonitoringConfig {
@@ -42,16 +43,16 @@ export class MonitoringService {
           ...(this.config.enableProfiling ? [nodeProfilingIntegration()] : []),
 
           // HTTP integration for request tracking
-          new Sentry.Integrations.Http({
+          httpIntegration({
             tracing: this.config.enableTracing,
             breadcrumbs: true,
           }),
 
           // Console integration for log correlation
-          new Sentry.Integrations.Console(),
+          consoleIntegration(),
 
           // OnUncaughtException integration
-          new Sentry.Integrations.OnUncaughtException({
+          onUncaughtExceptionIntegration({
             exitEvenIfOtherHandlersAreRegistered: false,
           }),
         ],
@@ -96,14 +97,14 @@ export class MonitoringService {
    * Capture an exception with context
    */
   captureException(error: Error, context?: Record<string, any>): void {
-    if (!this.initialized) return;
+    if (!this.initialized) {return;}
 
     Sentry.withScope(scope => {
       if (context) {
         // Add game-specific context
-        if (context.gameId) scope.setTag('gameId', context.gameId);
-        if (context.gameType) scope.setTag('gameType', context.gameType);
-        if (context.player) scope.setUser({ id: context.player });
+        if (context.gameId) {scope.setTag('gameId', context.gameId);}
+        if (context.gameType) {scope.setTag('gameType', context.gameType);}
+        if (context.player) {scope.setUser({ id: context.player });}
 
         // Add additional context
         scope.setContext('gameContext', context);
@@ -121,7 +122,7 @@ export class MonitoringService {
     level: 'fatal' | 'error' | 'warning' | 'info' | 'debug' = 'info',
     context?: Record<string, any>
   ): void {
-    if (!this.initialized) return;
+    if (!this.initialized) {return;}
 
     Sentry.withScope(scope => {
       scope.setLevel(level);
@@ -137,13 +138,16 @@ export class MonitoringService {
   /**
    * Start a performance transaction
    */
-  startTransaction(name: string, operation: string): Sentry.Transaction | undefined {
-    if (!this.initialized || !this.config.enableTracing) return undefined;
+  startTransaction(name: string, operation: string): any {
+    if (!this.initialized || !this.config.enableTracing) {return undefined;}
 
-    return Sentry.startTransaction({
-      name,
-      op: operation,
-    });
+    return Sentry.startSpan(
+      {
+        name,
+        op: operation,
+      },
+      span => span
+    );
   }
 
   /**
@@ -155,7 +159,7 @@ export class MonitoringService {
     gameType: string,
     properties?: Record<string, any>
   ): void {
-    if (!this.initialized) return;
+    if (!this.initialized) {return;}
 
     Sentry.addBreadcrumb({
       category: 'game',
@@ -173,7 +177,7 @@ export class MonitoringService {
    * Track authentication events
    */
   trackAuthEvent(eventName: string, userId?: string, properties?: Record<string, any>): void {
-    if (!this.initialized) return;
+    if (!this.initialized) {return;}
 
     Sentry.addBreadcrumb({
       category: 'auth',
@@ -190,7 +194,7 @@ export class MonitoringService {
    * Set user context for error tracking
    */
   setUserContext(userId: string, username?: string, email?: string): void {
-    if (!this.initialized) return;
+    if (!this.initialized) {return;}
 
     Sentry.setUser({
       id: userId,
@@ -203,7 +207,7 @@ export class MonitoringService {
    * Capture performance metrics manually
    */
   capturePerformanceMetric(name: string, value: number, unit: string = 'ms'): void {
-    if (!this.initialized) return;
+    if (!this.initialized) {return;}
 
     // Add as breadcrumb for now - in production integrate with custom metrics
     Sentry.addBreadcrumb({
@@ -218,7 +222,7 @@ export class MonitoringService {
    * Flush pending events (useful for serverless)
    */
   async flush(timeout: number = 2000): Promise<boolean> {
-    if (!this.initialized) return true;
+    if (!this.initialized) {return true;}
 
     try {
       return await Sentry.flush(timeout);
@@ -232,7 +236,7 @@ export class MonitoringService {
    * Close monitoring service
    */
   async close(): Promise<void> {
-    if (!this.initialized) return;
+    if (!this.initialized) {return;}
 
     try {
       await this.flush();
