@@ -24,7 +24,7 @@ export interface AppConfig {
   backup?: BackupConfig;
 }
 
-export function createApp(config: AppConfig) {
+export async function createApp(config: AppConfig) {
   const app = new Hono();
 
   // Security middleware
@@ -75,7 +75,7 @@ export function createApp(config: AppConfig) {
 
   // Initialize services
   const gameManager = new GameManager(config.databaseConfig);
-  const authService = new AuthService();
+  const authService = new AuthService(config.databaseConfig);
   const healthService = new HealthService(gameManager.getDatabase());
   const errorHandler = ErrorHandler.getInstance();
 
@@ -83,7 +83,7 @@ export function createApp(config: AppConfig) {
   let monitoringService: MonitoringService | undefined;
   if (config.monitoring) {
     monitoringService = new MonitoringService(config.monitoring);
-    monitoringService.initialize();
+    await monitoringService.initialize();
   }
 
   // Initialize backup service if configured

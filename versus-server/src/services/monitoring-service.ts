@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/node';
-import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { httpIntegration, consoleIntegration, onUncaughtExceptionIntegration } from '@sentry/node';
 import { logger } from '../utils/logger.js';
 
@@ -21,13 +20,20 @@ export class MonitoringService {
     this.config = config;
   }
 
-  initialize(): void {
+  async initialize(): Promise<void> {
     if (!this.config.sentryDsn) {
       logger.info('Sentry DSN not provided, monitoring disabled');
       return;
     }
 
     try {
+      // Conditionally import profiling integration
+      let profilingIntegration = null;
+      if (this.config.enableProfiling) {
+        const { nodeProfilingIntegration } = await import('@sentry/profiling-node');
+        profilingIntegration = nodeProfilingIntegration();
+      }
+
       Sentry.init({
         dsn: this.config.sentryDsn,
         environment: this.config.environment,
@@ -39,12 +45,11 @@ export class MonitoringService {
 
         // Integrations
         integrations: [
-          // Enable profiling
-          ...(this.config.enableProfiling ? [nodeProfilingIntegration()] : []),
+          // Enable profiling conditionally
+          ...(profilingIntegration ? [profilingIntegration] : []),
 
           // HTTP integration for request tracking
           httpIntegration({
-            tracing: this.config.enableTracing,
             breadcrumbs: true,
           }),
 

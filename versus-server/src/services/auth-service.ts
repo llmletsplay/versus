@@ -20,9 +20,9 @@ export class AuthService {
   private jwtSecret: string;
   private jwtExpiresIn: string;
 
-  constructor() {
+  constructor(dbConfig?: DatabaseConfig) {
     // CRITICAL: Database configuration for user data storage
-    const dbConfig: DatabaseConfig = process.env.DATABASE_URL
+    const config = dbConfig || (process.env.DATABASE_URL
       ? {
           type: 'postgresql',
           connectionString: process.env.DATABASE_URL,
@@ -30,11 +30,11 @@ export class AuthService {
       : {
           type: 'sqlite',
           sqlitePath: process.env.GAME_DATA_PATH
-            ? `${process.env.GAME_DATA_PATH}/auth.db`
-            : './game_data/auth.db',
-        };
+            ? `${process.env.GAME_DATA_PATH}/versus.db`
+            : './game_data/versus.db',
+        });
 
-    this.db = createDatabaseProvider(dbConfig);
+    this.db = createDatabaseProvider(config);
 
     // SECURITY: JWT secret validation - CRITICAL for token security
     // Ensures minimum security standards for JWT signing
@@ -330,6 +330,9 @@ export class AuthService {
   // CRITICAL: Database schema initialization for user storage
   // SECURITY: Defines user table structure with security constraints
   async initializeUserTable(): Promise<void> {
+    // Initialize database connection
+    await this.db.initialize();
+
     // SECURITY: Table schema with UNIQUE constraints for username/email
     const createTableQuery = `
       CREATE TABLE IF NOT EXISTS users (
