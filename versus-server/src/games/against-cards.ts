@@ -1,4 +1,5 @@
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import type {
   GameState,
   GameConfig,
@@ -113,8 +114,8 @@ export class AgainstCardsGame extends BaseGame {
     { id: 'r30', text: 'Sharing needles' },
   ];
 
-  constructor(gameId: string) {
-    super(gameId, 'against-cards');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'against-cards', database);
   }
 
   async initializeGame(config?: GameConfig): Promise<GameState> {
@@ -176,11 +177,12 @@ export class AgainstCardsGame extends BaseGame {
     return this.getGameState();
   }
 
-  private shuffleArray<T>(array: T[]): void {
+  protected shuffleArray<T>(array: T[]): T[] {
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [array[i]!, array[j]!] = [array[j]!, array[i]!];
     }
+    return array;
   }
 
   async validateMove(moveData: Record<string, any>): Promise<MoveValidationResult> {

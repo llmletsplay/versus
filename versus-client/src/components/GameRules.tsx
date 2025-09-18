@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import DOMPurify from 'dompurify'
 import { gameApi } from '../services/api-client'
 
 interface GameRulesProps {
@@ -64,7 +65,14 @@ export const GameRules = ({ gameType, onClose }: GameRulesProps) => {
       .replace(/\n\n/g, '</p><p>')
       .replace(/\n/g, '<br>')
 
-    return `<p>${html}</p>`
+    const formattedHtml = `<p>${html}</p>`
+
+    // Sanitize the HTML to prevent XSS attacks
+    return DOMPurify.sanitize(formattedHtml, {
+      ALLOWED_TAGS: ['h1', 'h2', 'h3', 'p', 'strong', 'em', 'code', 'pre', 'ul', 'li', 'br'],
+      ALLOWED_ATTR: [],
+      KEEP_CONTENT: true,
+    })
   }
 
   if (loading) {

@@ -6,6 +6,7 @@ import type {
   GameMetadata,
   GameMove,
 } from '../types/game.js';
+import { DatabaseProvider } from '../core/database.js';
 
 type Suit = 'spades' | 'hearts' | 'diamonds' | 'clubs';
 type Rank = '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A' | '2';
@@ -82,11 +83,9 @@ const GAME_CONSTANTS = {
   MAX_STRAIGHT_LENGTH: 5,
 } as const;
 
-export class ThirteenGame extends BaseGame {
-  private currentState?: ThirteenState;
-
-  constructor(gameId: string) {
-    super(gameId, 'thirteen');
+export class ThirteenGame extends BaseGame<ThirteenState> {
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'thirteen', database);
 
     // Validate gameId to prevent injection attacks
     if (!gameId || typeof gameId !== 'string' || gameId.length > 100) {
@@ -94,7 +93,7 @@ export class ThirteenGame extends BaseGame {
     }
   }
 
-  async initializeGame(config?: GameConfig): Promise<GameState> {
+  async initializeGame(config?: GameConfig): Promise<ThirteenState> {
     try {
       // Enhanced input validation
       const playerCount = this.validatePlayerCount((config as any)?.playerCount);
@@ -660,7 +659,7 @@ export class ThirteenGame extends BaseGame {
     state.currentPlayer = activePlayers[nextIndex];
   }
 
-  async getGameState(): Promise<GameState> {
+  async getGameState(): Promise<ThirteenState> {
     const state = this.currentState as ThirteenState;
 
     return {

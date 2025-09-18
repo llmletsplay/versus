@@ -1,4 +1,5 @@
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import type {
   GameState,
   GameConfig,
@@ -48,8 +49,8 @@ interface CuttleMove {
 }
 
 export class CuttleGame extends BaseGame {
-  constructor(gameId: string) {
-    super(gameId, 'cuttle');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'cuttle', database);
   }
 
   async initializeGame(config?: GameConfig): Promise<GameState> {

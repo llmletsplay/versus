@@ -10,20 +10,22 @@ import { ERROR_MESSAGES, shuffleArray } from '../utils/game-constants.js';
 import { logger } from '../utils/logger.js';
 import { errorHandler, ValidationErrors } from '../utils/error-handler.js';
 import { PlayerManager, PlayerUtils } from '../utils/player-manager.js';
-import fs from 'fs/promises';
-import path from 'path';
+import { DatabaseProvider, GameStateData } from './database.js';
 
 /**
- * Simple, production-ready BaseGame class with generic typing
- * Provides common functionality while keeping the API simple and maintainable
+ * CRITICAL: Base game class - foundation for all game implementations
+ * SECURITY: Handles game state validation and persistence
+ * WARNING: Changes to this class affect all 29+ games
  */
 export abstract class BaseGame<TState extends GameState = GameState> extends AbstractGame<TState> {
-  protected gameDataPath: string;
+  // CRITICAL: Database connection for persistent state storage
+  protected database: DatabaseProvider;
+  // CRITICAL: Player management for turn-based games
   protected playerManager?: PlayerManager;
 
-  constructor(gameId: string, gameType: string, gameDataPath: string = './game_data') {
+  constructor(gameId: string, gameType: string, database: DatabaseProvider) {
     super(gameId, gameType);
-    this.gameDataPath = gameDataPath;
+    this.database = database;
   }
 
   /**
@@ -70,9 +72,9 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
   abstract getMetadata(): GameMetadata;
 
   /**
-   * Make a move in the game
-   * This handles validation, application, and persistence
-   * NOTE: Games should implement applyMove(), not override this method
+   * CRITICAL: Core move execution logic - handles all game moves
+   * SECURITY: Validates moves before application to prevent cheating
+   * WARNING: This method must not be overridden by game implementations
    */
   async makeMove(moveData: Record<string, any>): Promise<TState> {
     const context = {
@@ -83,7 +85,7 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
     };
 
     try {
-      // Validate the move
+      // CRITICAL: Move validation - prevents invalid game states
       const validation = await this.validateMove(moveData);
       if (!validation.valid) {
         throw ValidationErrors.invalidMoveFormat({
@@ -92,8 +94,9 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
         });
       }
 
-      // Check if game is already over
-      if (await this.isGameOver()) {
+      // CRITICAL: Game state validation - prevents moves after game ends
+      const isGameOver = await this.isGameOver();
+      if (isGameOver) {
         throw ValidationErrors.gameAlreadyOver(context);
       }
 
@@ -107,10 +110,10 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
       // Log the move
       logger.gameAction('makeMove', this.gameId, this.gameType, move.player, moveData);
 
-      // Apply the move
+      // CRITICAL: State mutation - core game logic execution
       await this.applyMove(move);
 
-      // Add to history and persist
+      // CRITICAL: Move history tracking and state persistence
       await this.addMove(move);
 
       return this.getGameState();
@@ -122,27 +125,27 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
   }
 
   /**
-   * Enhanced state persistence with error handling
+   * CRITICAL: Game state persistence - prevents data loss
+   * PERF: Saves to database for recovery after server restart
    */
   protected async persistState(): Promise<void> {
     try {
-      const gameData = {
+      const gameStateData: GameStateData = {
         gameId: this.gameId,
         gameType: this.gameType,
-        history: this.history,
-        currentState: this.currentState,
-        timestamp: Date.now(),
+        gameState: this.currentState,
+        moveHistory: this.history,
+        players: this.getPlayerIds(),
+        status: this.isGameOver() ? 'completed' : 'active',
       };
 
-      const filePath = path.join(this.gameDataPath, `${this.gameId}.json`);
+      await this.database.saveGameState(gameStateData);
 
-      await fs.mkdir(this.gameDataPath, { recursive: true });
-      await fs.writeFile(filePath, JSON.stringify(gameData, null, 2));
-
-      logger.debug('Game state persisted', {
+      logger.debug('Game state persisted to database', {
         gameId: this.gameId,
         gameType: this.gameType,
-        filePath,
+        playersCount: gameStateData.players.length,
+        movesCount: gameStateData.moveHistory.length,
       });
     } catch (error) {
       const context = {
@@ -156,47 +159,45 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
   }
 
   /**
-   * Enhanced state loading with error handling
+   * CRITICAL: Game state restoration from persistent storage
+   * SECURITY: Validates loaded data integrity
    */
   protected async loadState(): Promise<void> {
     try {
-      const filePath = path.join(this.gameDataPath, `${this.gameId}.json`);
+      const gameStateData = await this.database.getGameState(this.gameId);
 
-      const data = await fs.readFile(filePath, 'utf-8');
-      const gameData = JSON.parse(data);
+      if (gameStateData) {
+        // SECURITY: Validate loaded data integrity - prevents state corruption
+        if (gameStateData.gameId !== this.gameId || gameStateData.gameType !== this.gameType) {
+          throw new Error('Game data mismatch');
+        }
 
-      // Validate that the loaded data matches this game
-      if (gameData.gameId !== this.gameId || gameData.gameType !== this.gameType) {
-        throw new Error('Game data mismatch');
-      }
+        this.history = gameStateData.moveHistory || [];
+        this.currentState = gameStateData.gameState || {};
 
-      this.history = gameData.history || [];
-      this.currentState = gameData.currentState || {};
-
-      logger.debug('Game state loaded', {
-        gameId: this.gameId,
-        gameType: this.gameType,
-        filePath,
-        historyLength: this.history.length,
-      });
-    } catch (error: any) {
-      if (error.code === 'ENOENT') {
-        // File doesn't exist, this is a new game
+        logger.debug('Game state loaded from database', {
+          gameId: this.gameId,
+          gameType: this.gameType,
+          historyLength: this.history.length,
+          status: gameStateData.status,
+        });
+      } else {
+        // No existing game state, this is a new game
         this.history = [];
         this.currentState = {} as TState;
         logger.debug('New game initialized', {
           gameId: this.gameId,
           gameType: this.gameType,
         });
-      } else {
-        const context = {
-          gameId: this.gameId,
-          gameType: this.gameType,
-          action: 'loadState',
-        };
-        const gameError = errorHandler.handleError(error as Error, context);
-        throw gameError;
       }
+    } catch (error) {
+      const context = {
+        gameId: this.gameId,
+        gameType: this.gameType,
+        action: 'loadState',
+      };
+      const gameError = errorHandler.handleError(error as Error, context);
+      throw gameError;
     }
   }
 
@@ -205,7 +206,8 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
   // ========================================
 
   /**
-   * Helper for common move validation patterns
+   * SECURITY: Common move validation - prevents malformed move data
+   * CRITICAL: Used by all game implementations for basic validation
    */
   protected validateCommonMove(
     moveData: Record<string, any>,
@@ -218,16 +220,6 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
       }
     }
 
-    return { valid: true };
-  }
-
-  /**
-   * Helper to validate player turn
-   */
-  protected validatePlayerTurn(player: string, currentPlayer: string): MoveValidationResult {
-    if (player !== currentPlayer) {
-      return { valid: false, error: ERROR_MESSAGES.NOT_YOUR_TURN };
-    }
     return { valid: true };
   }
 

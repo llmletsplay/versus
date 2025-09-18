@@ -163,7 +163,9 @@ export class ApiClient {
     return this.request(endpoint)
   }
 
-  public async getGameRules(gameType: string): Promise<ApiResponse<{ gameType: string; rules: string }>> {
+  public async getGameRules(
+    gameType: string
+  ): Promise<ApiResponse<{ gameType: string; rules: string }>> {
     return this.request(`/games/${gameType}/rules`)
   }
 
