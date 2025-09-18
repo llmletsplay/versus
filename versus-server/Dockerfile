@@ -2,7 +2,7 @@
 # Supports: Node.js, Bun, and traditional container deployments
 
 # Use Bun's official image for optimal performance
-FROM oven/bun:1.1.34-slim AS base
+FROM oven/bun:1 AS base
 WORKDIR /app
 
 # Install system dependencies for database and health checks
@@ -10,6 +10,8 @@ FROM base AS deps
 RUN apt-get update && apt-get install -y \
     curl \
     sqlite3 \
+    python3 \
+    build-essential \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -35,7 +37,7 @@ ENV NODE_ENV=production
 RUN bun run build
 
 # Production stage - minimal image with only runtime dependencies
-FROM oven/bun:1.1.34-slim AS production
+FROM oven/bun:1 AS production
 
 # Install minimal runtime requirements
 RUN apt-get update && apt-get install -y \
