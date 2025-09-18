@@ -24,73 +24,48 @@ const databaseConfig: DatabaseConfig = process.env.DATABASE_URL
       sqlitePath: `${GAME_DATA_PATH}/versus.db`,
     };
 
-// Create Hono app with comprehensive configuration
-const { app, gameManager, authService, monitoringService, backupService } = createApp({
-  databaseConfig,
-  corsOrigin: CORS_ORIGIN,
-  nodeEnv: NODE_ENV,
-  jwtSecret: process.env.JWT_SECRET,
-  monitoring: {
-    sentryDsn: process.env.SENTRY_DSN,
-    environment: NODE_ENV,
-    release: process.env.APP_VERSION || '2.0.0',
-    enableProfiling: NODE_ENV === 'production',
-    enableTracing: true,
-    sampleRate: NODE_ENV === 'production' ? 0.1 : 1.0,
-    profilesSampleRate: NODE_ENV === 'production' ? 0.1 : 1.0,
-  },
-  backup: {
-    enabled: process.env.BACKUP_ENABLED === 'true' || NODE_ENV === 'production',
-    schedule: process.env.BACKUP_SCHEDULE || 'daily',
-    retentionDays: parseInt(process.env.BACKUP_RETENTION_DAYS || '30'),
-    backupPath: process.env.BACKUP_PATH || `${GAME_DATA_PATH}/backups`,
-    compression: true,
-    includeGameStates: true,
-    includeUserData: true,
-    includeStats: true,
-  },
-});
-
-// Register all games
-registerGames(gameManager);
-
-// Graceful shutdown with full service cleanup
-process.on('SIGTERM', async () => {
-  logger.info('SIGTERM received, shutting down gracefully');
-  await shutdown();
-});
-
-process.on('SIGINT', async () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  await shutdown();
-});
-
-async function shutdown() {
-  try {
-    // Stop backup service
-    if (backupService) {
-      await backupService.stop();
-    }
-
-    // Close monitoring service
-    if (monitoringService) {
-      await monitoringService.close();
-    }
-
-    // Close game manager
-    await gameManager.close();
-
-    logger.info('All services shut down successfully');
-    process.exit(0);
-  } catch (error) {
-    logger.error('Error during shutdown', { error });
-    process.exit(1);
-  }
-}
+// Global service references for shutdown
+let app: any, gameManager: any, authService: any, monitoringService: any, backupService: any;
 
 // Initialize and start server
 async function startServer() {
   try {
+    // Create Hono app with comprehensive configuration
+    const result = await createApp({
+      databaseConfig,
+      corsOrigin: CORS_ORIGIN,
+      nodeEnv: NODE_ENV,
+      jwtSecret: process.env.JWT_SECRET,
+      monitoring: {
+        sentryDsn: process.env.SENTRY_DSN,
+        environment: NODE_ENV,
+        release: process.env.APP_VERSION || '2.0.0',
+        enableProfiling: NODE_ENV === 'production',
+        enableTracing: true,
+        sampleRate: NODE_ENV === 'production' ? 0.1 : 1.0,
+        profilesSampleRate: NODE_ENV === 'production' ? 0.1 : 1.0,
+      },
+      backup: {
+        enabled: process.env.BACKUP_ENABLED === 'true' || NODE_ENV === 'production',
+        schedule: process.env.BACKUP_SCHEDULE || 'daily',
+        retentionDays: parseInt(process.env.BACKUP_RETENTION_DAYS || '30'),
+        backupPath: process.env.BACKUP_PATH || `${GAME_DATA_PATH}/backups`,
+        compression: true,
+        includeGameStates: true,
+        includeUserData: true,
+        includeStats: true,
+      },
+    });
+
+    app = result.app;
+    gameManager = result.gameManager;
+    authService = result.authService;
+    monitoringService = result.monitoringService;
+    backupService = result.backupService;
+
+    // Register all games
+    registerGames(gameManager);
+
     // Initialize services
     await gameManager.initialize();
     await authService.initializeUserTable();
@@ -136,6 +111,40 @@ async function startServer() {
     logger.error('Failed to initialize server', {
       error: error instanceof Error ? error.message : error,
     });
+    process.exit(1);
+  }
+}
+
+// Graceful shutdown with full service cleanup
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+  await shutdown();
+});
+
+process.on('SIGINT', async () => {
+  logger.info('SIGINT received, shutting down gracefully');
+  await shutdown();
+});
+
+async function shutdown() {
+  try {
+    // Stop backup service
+    if (backupService) {
+      await backupService.stop();
+    }
+
+    // Close monitoring service
+    if (monitoringService) {
+      await monitoringService.close();
+    }
+
+    // Close game manager
+    await gameManager.close();
+
+    logger.info('All services shut down successfully');
+    process.exit(0);
+  } catch (error) {
+    logger.error('Error during shutdown', { error });
     process.exit(1);
   }
 }
