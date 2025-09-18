@@ -6,6 +6,7 @@ import type {
   GameMetadata,
   GameMove,
 } from '../types/game.js';
+import { DatabaseProvider } from '../core/database.js';
 
 type Player = 'R' | 'Y'; // Red and Yellow
 type Cell = Player | null;
@@ -23,8 +24,8 @@ export class ConnectFourGame extends BaseGame {
   private readonly ROWS = 6;
   private readonly COLS = 7;
 
-  constructor(gameId: string) {
-    super(gameId, 'connect-four');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'connect-four', database);
   }
 
   async initializeGame(_config?: GameConfig): Promise<GameState> {

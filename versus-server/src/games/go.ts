@@ -1,4 +1,5 @@
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import type {
   GameState,
   GameConfig,
@@ -50,8 +51,8 @@ export class GoGame extends BaseGame {
   private readonly BOARD_SIZE = 19; // Standard Go board
   private readonly KOMI = 6.5; // Standard compensation for white
 
-  constructor(gameId: string) {
-    super(gameId, 'go');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'go', database);
   }
 
   async initializeGame(config?: GameConfig): Promise<GameState> {

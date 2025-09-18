@@ -1,4 +1,5 @@
 /* eslint-disable no-unused-vars */
+import { DatabaseProvider } from '../core/database.js';
 import { BaseGame } from '../core/base-game.js';
 import type {
   GameState,
@@ -60,8 +61,8 @@ export class HeartsGame extends BaseGame {
     'none',
   ];
 
-  constructor(gameId: string) {
-    super(gameId, 'hearts');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'hearts', database);
   }
 
   async initializeGame(config?: GameConfig): Promise<GameState> {

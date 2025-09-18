@@ -11,7 +11,7 @@ describe('TicTacToeGame', () => {
   describe('Game Initialization', () => {
     test('should initialize with empty board and X as first player', async () => {
       const state = await game.initializeGame();
-      
+
       expect(state.gameId).toBe('test-game');
       expect(state.gameType).toBe('tic-tac-toe');
       expect(state.currentPlayer).toBe('X');
@@ -20,13 +20,13 @@ describe('TicTacToeGame', () => {
       expect(state.board).toEqual([
         [null, null, null],
         [null, null, null],
-        [null, null, null]
+        [null, null, null],
       ]);
     });
 
     test('should return correct metadata', () => {
       const metadata = game.getMetadata();
-      
+
       expect(metadata.name).toBe('Tic-Tac-Toe');
       expect(metadata.minPlayers).toBe(2);
       expect(metadata.maxPlayers).toBe(2);
@@ -69,7 +69,7 @@ describe('TicTacToeGame', () => {
     test('should reject moves to occupied cells', async () => {
       // Make first move
       await game.makeMove({ row: 0, col: 0, player: 'X' });
-      
+
       // Try to move to same cell
       const result = await game.validateMove({ row: 0, col: 0, player: 'O' });
       expect(result.valid).toBe(false);
@@ -83,7 +83,7 @@ describe('TicTacToeGame', () => {
       await game.makeMove({ row: 0, col: 1, player: 'X' });
       await game.makeMove({ row: 1, col: 1, player: 'O' });
       await game.makeMove({ row: 0, col: 2, player: 'X' }); // X wins
-      
+
       const result = await game.validateMove({ row: 2, col: 0, player: 'O' });
       expect(result.valid).toBe(false);
       expect(result.error).toContain('already over');
@@ -108,7 +108,7 @@ describe('TicTacToeGame', () => {
     test('should update board correctly', async () => {
       await game.makeMove({ row: 1, col: 1, player: 'X' });
       const state = await game.getGameState();
-      
+
       expect(state.board[1]![1]).toBe('X');
       expect(state.board[0]![0]).toBeNull();
     });
@@ -126,7 +126,7 @@ describe('TicTacToeGame', () => {
       await game.makeMove({ row: 0, col: 1, player: 'X' });
       await game.makeMove({ row: 1, col: 1, player: 'O' });
       await game.makeMove({ row: 0, col: 2, player: 'X' });
-      
+
       const state = await game.getGameState();
       expect(state.gameOver).toBe(true);
       expect(state.winner).toBe('X');
@@ -140,7 +140,7 @@ describe('TicTacToeGame', () => {
       await game.makeMove({ row: 1, col: 1, player: 'O' });
       await game.makeMove({ row: 0, col: 2, player: 'X' });
       await game.makeMove({ row: 2, col: 1, player: 'O' });
-      
+
       const state = await game.getGameState();
       expect(state.gameOver).toBe(true);
       expect(state.winner).toBe('O');
@@ -153,7 +153,7 @@ describe('TicTacToeGame', () => {
       await game.makeMove({ row: 1, col: 1, player: 'X' });
       await game.makeMove({ row: 0, col: 2, player: 'O' });
       await game.makeMove({ row: 2, col: 2, player: 'X' });
-      
+
       const state = await game.getGameState();
       expect(state.gameOver).toBe(true);
       expect(state.winner).toBe('X');
@@ -167,7 +167,7 @@ describe('TicTacToeGame', () => {
       await game.makeMove({ row: 1, col: 1, player: 'O' });
       await game.makeMove({ row: 1, col: 0, player: 'X' });
       await game.makeMove({ row: 2, col: 0, player: 'O' });
-      
+
       const state = await game.getGameState();
       expect(state.gameOver).toBe(true);
       expect(state.winner).toBe('O');
@@ -184,7 +184,7 @@ describe('TicTacToeGame', () => {
       await game.makeMove({ row: 1, col: 2, player: 'X' });
       await game.makeMove({ row: 2, col: 2, player: 'O' });
       await game.makeMove({ row: 2, col: 1, player: 'X' });
-      
+
       const state = await game.getGameState();
       expect(state.gameOver).toBe(true);
       expect(state.winner).toBe('draw');
@@ -203,8 +203,9 @@ describe('TicTacToeGame', () => {
     });
 
     test('should throw error for invalid moves in makeMove', async () => {
-      await expect(game.makeMove({ row: -1, col: 0, player: 'X' }))
-        .rejects.toThrow('Row and col must be between 0 and 2');
+      await expect(game.makeMove({ row: -1, col: 0, player: 'X' })).rejects.toThrow(
+        'Row and col must be between 0 and 2'
+      );
     });
   });
-}); 
+});

@@ -9,37 +9,21 @@
     "versus-client"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\" --names \"SERVER,CLIENT\" --prefix-colors \"cyan,magenta\"",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:all": "concurrently \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:docs\"",
     "dev:server": "cd versus-server && bun run dev",
     "dev:client": "cd versus-client && bun run dev",
+    "dev:docs": "serve docs -p 3001",
     "build": "npm run build:server && npm run build:client",
     "build:server": "cd versus-server && bun run build",
     "build:client": "cd versus-client && bun run build",
-    "test": "npm run test:server",
-    "test:server": "cd versus-server && bun test",
-    "lint": "npm run lint:server && npm run lint:client",
-    "lint:server": "cd versus-server && bun run lint",
-    "lint:client": "cd versus-client && bun run lint",
-    "lint:fix": "npm run lint:fix:server && npm run lint:fix:client",
-    "lint:fix:server": "cd versus-server && bun run lint:fix",
-    "lint:fix:client": "cd versus-client && bun run lint:fix",
-    "format": "npm run format:server && npm run format:client",
-    "format:server": "cd versus-server && bun run format",
-    "format:client": "cd versus-client && bun run format",
-    "type-check": "npm run type-check:server && npm run type-check:client",
-    "type-check:server": "cd versus-server && bun run type-check",
-    "type-check:client": "cd versus-client && bun run type-check",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
-    "docker:dev": "docker-compose -f docker-compose.yml -f docker-compose.dev.yml up",
-    "clean": "npm run clean:server && npm run clean:client && rm -rf node_modules",
-    "clean:server": "cd versus-server && bun run clean",
-    "clean:client": "cd versus-client && rm -rf dist",
-    "prepare": "husky",
-    "pre-commit": "lint-staged",
-    "setup": "cd versus-server && bun install && cd ../versus-client && bun install"
+    "deploy:production": "./deploy.sh",
+    "health:check": "curl -f http://localhost:6789/api/v1/health | jq",
+    "metrics": "curl -f http://localhost:6789/api/v1/metrics | jq"
   },
   "keywords": [
     "games",
@@ -71,22 +55,14 @@
     "bun": ">=1.0.0"
   },
   "devDependencies": {
-    "concurrently": "^9.2.0",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.1.2",
-    "prettier": "^3.6.2"
+    "concurrently": "^9.1.0",
+    "serve": "^14.2.4"
   },
-  "lint-staged": {
-    "versus-server/**/*.{ts,js}": [
-      "cd versus-server && bun run lint:fix",
-      "cd versus-server && bun run format"
-    ],
-    "versus-client/**/*.{ts,tsx,js,jsx}": [
-      "cd versus-client && bun run lint:fix",
-      "cd versus-client && bun run format"
-    ],
-    "*.{json,md,yml,yaml}": [
-      "prettier --write"
-    ]
+  "dependencies": {
+    "@hono/node-server": "^1.19.3",
+    "@hono/zod-validator": "^0.7.2",
+    "@sentry/node": "^10.12.0",
+    "@sentry/profiling-node": "^10.12.0",
+    "hono": "^4.9.7"
   }
 }

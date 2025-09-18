@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(npm test)",
+      "Bash(npm run build:*)",
+      "Bash(npm test:*)",
+      "Bash(bun test:*)",
+      "Bash(curl:*)",
+      "Bash(npm start)",
+      "Bash(cp:*)",
+      "Bash(bun run:*)",
+      "Bash(timeout:*)",
+      "Bash(git add:*)",
+      "Bash(ls:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr edit:*)",
+      "Bash(grep:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npx tsc:*)",
+      "Bash(bun add:*)",
+      "Bash(bunx:*)",
+      "Bash(bun install:*)",
+      "Bash(chmod:*)",
+      "Bash(./docker-start.sh:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker-compose:*)",
+      "Bash(bun lint:*)",
+      "Bash(xargs ls:*)",
+      "Bash(wc:*)",
+      "Bash(rm:*)",
+      "Bash(git init:*)",
+      "Bash(git cherry-pick:*)"
+    ],
+    "deny": []
+  }
+}

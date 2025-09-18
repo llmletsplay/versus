@@ -1,10 +1,14 @@
 import { PokerGame } from '../src/games/poker.js';
+import { SQLiteProvider } from '../src/core/database.js';
 
 describe('PokerGame', () => {
   let game: PokerGame;
+  let mockDatabase: SQLiteProvider;
 
   beforeEach(() => {
-    game = new PokerGame('test-poker-game');
+    // Create a mock database provider for tests
+    mockDatabase = new SQLiteProvider(':memory:');
+    game = new PokerGame('test-poker-game', mockDatabase);
   });
 
   describe('Game Initialization', () => {

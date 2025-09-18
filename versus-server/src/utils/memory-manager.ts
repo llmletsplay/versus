@@ -89,6 +89,14 @@ export class MemoryManager {
     return inactiveGames;
   }
 
+  public isRecentlyAccessed(gameId: string, threshold: number): boolean {
+    const lastAccessed = this.gameAccessTimes.get(gameId);
+    if (!lastAccessed) {
+      return false;
+    }
+    return Date.now() - lastAccessed < threshold;
+  }
+
   public getMemoryStats(): {
     totalActiveGames: number;
     memoryUsage: NodeJS.MemoryUsage;

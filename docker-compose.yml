@@ -3,6 +3,7 @@ services:
     build:
       context: ./versus-server
       dockerfile: Dockerfile
+      target: production
     container_name: versus-server
     restart: unless-stopped
     ports:
@@ -13,8 +14,11 @@ services:
       - CORS_ORIGIN=http://localhost:5173
       - GAME_DATA_PATH=/app/game_data
       - LOG_LEVEL=info
+      - JWT_SECRET=${JWT_SECRET:-generate-secure-secret-for-production}
+      - DATABASE_URL=${DATABASE_URL:-}
     volumes:
       - game_data:/app/game_data
+      - server_logs:/app/logs
     networks:
       - versus-network
     healthcheck:
@@ -23,6 +27,19 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   versus-client:
     build:
@@ -67,4 +84,7 @@ networks:
 volumes:
   game_data:
     driver: local
-    name: versus-game-data 
+    name: versus-game-data
+  server_logs:
+    driver: local
+    name: versus-server-logs 
