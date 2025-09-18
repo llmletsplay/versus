@@ -76,6 +76,9 @@ playwright/.cache/
 .history/
 .vscode-test/
 
+# Claude
+.claude/
+
 # macOS
 .AppleDouble
 .LSOverride

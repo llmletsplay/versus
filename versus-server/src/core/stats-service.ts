@@ -1,6 +1,6 @@
-import path from 'path';
 import type { GameMove } from '../types/game.js';
 import { DatabaseProvider, createDatabaseProvider, type DatabaseConfig } from './database.js';
+import { logger } from '../utils/logger.js';
 
 export interface GameStats {
   gameId: string;
@@ -43,14 +43,8 @@ export interface GlobalStats {
 export class StatsService {
   private db: DatabaseProvider;
 
-  constructor(dataPath: string = './game_data', databaseConfig?: DatabaseConfig) {
-    // Default to SQLite if no config provided
-    const config = databaseConfig || {
-      type: 'sqlite' as const,
-      sqlitePath: path.join(dataPath, 'stats.db'),
-    };
-
-    this.db = createDatabaseProvider(config);
+  constructor(databaseConfig: DatabaseConfig) {
+    this.db = createDatabaseProvider(databaseConfig);
   }
 
   async initialize(): Promise<void> {
@@ -213,7 +207,9 @@ export class StatsService {
         recentActivity,
       };
     } catch (error) {
-      console.warn('Database not available, returning empty stats:', (error as Error).message);
+      logger.warn('Database not available, returning empty stats', {
+        error: (error as Error).message,
+      });
       // Return default empty stats when database is not available
       return {
         totalGamesPlayed: 0,
@@ -283,10 +279,10 @@ export class StatsService {
         winRates,
       };
     } catch (error) {
-      console.warn(
-        `Database not available for game type ${gameType}, returning empty stats:`,
-        (error as Error).message
-      );
+      logger.warn(`Database not available for game type ${gameType}, returning empty stats`, {
+        gameType,
+        error: (error as Error).message,
+      });
       // Return default empty stats when database is not available
       return {
         totalGames: 0,

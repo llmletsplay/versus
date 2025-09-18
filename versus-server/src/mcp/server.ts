@@ -1,4 +1,5 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { logger } from '../utils/logger.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
@@ -224,6 +225,7 @@ export class VersusGameMCPServer {
             if (!args?.gameType) {
               throw new Error('gameType is required');
             }
+            // DEBT: Type casting bypasses validation - should use proper typing
             const gameId = await this.gameManager.createGame(
               args.gameType as string,
               args.config as any
@@ -257,6 +259,7 @@ export class VersusGameMCPServer {
             const gameState = await this.gameManager.makeMove(
               args.gameType as string,
               args.gameId as string,
+              // DEBT: Type casting to 'any' removes type safety
               args.moveData as any
             );
 
@@ -907,12 +910,16 @@ export class VersusGameMCPServer {
   async start() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.log('🤖 Versus Game MCP Server started');
+    logger.info('🤖 Versus Game MCP Server started');
   }
 }
 
 // Start MCP server if this file is run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   const mcpServer = new VersusGameMCPServer();
-  mcpServer.start().catch(console.error);
+  mcpServer.start().catch(error => {
+    logger.error('MCP Server failed to start', {
+      error: error instanceof Error ? error.message : error,
+    });
+  });
 }

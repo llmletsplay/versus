@@ -1,4 +1,5 @@
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import type {
   GameState,
   GameConfig,
@@ -29,8 +30,8 @@ export class OmokGame extends BaseGame {
   private readonly BOARD_SIZE = 15;
   private readonly WIN_LENGTH = 5;
 
-  constructor(gameId: string) {
-    super(gameId, 'omok');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'omok', database);
   }
 
   async initializeGame(_config?: GameConfig): Promise<GameState> {

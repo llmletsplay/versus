@@ -1,4 +1,5 @@
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import type {
   GameState,
   GameConfig,
@@ -44,8 +45,8 @@ const SHIP_CONFIGS: Record<ShipType, number> = {
 export class BattleshipGame extends BaseGame {
   private readonly BOARD_SIZE = 10;
 
-  constructor(gameId: string) {
-    super(gameId, 'battleship');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'battleship', database);
   }
 
   async initializeGame(_config?: GameConfig): Promise<GameState> {

@@ -1,4 +1,5 @@
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import type {
   GameState,
   GameConfig,
@@ -50,8 +51,8 @@ export class MahjongGame extends BaseGame {
   private readonly HAND_SIZE = 13;
   private readonly WINNING_HAND_SIZE = 14;
 
-  constructor(gameId: string) {
-    super(gameId, 'mahjong');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'mahjong', database);
   }
 
   async initializeGame(config?: GameConfig): Promise<GameState> {

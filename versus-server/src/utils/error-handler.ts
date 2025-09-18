@@ -2,11 +2,19 @@ import { logger } from './logger.js';
 
 /* eslint-disable no-unused-vars */
 export enum ErrorCode {
+  // Authentication errors
+  AUTHENTICATION_REQUIRED = 'AUTHENTICATION_REQUIRED',
+  INVALID_TOKEN = 'INVALID_TOKEN',
+  INSUFFICIENT_PERMISSIONS = 'INSUFFICIENT_PERMISSIONS',
+  USER_NOT_FOUND = 'USER_NOT_FOUND',
+  USER_INACTIVE = 'USER_INACTIVE',
+
   // Validation errors
   INVALID_MOVE_FORMAT = 'INVALID_MOVE_FORMAT',
   INVALID_GAME_CONFIG = 'INVALID_GAME_CONFIG',
   INVALID_PLAYER = 'INVALID_PLAYER',
   INVALID_POSITION = 'INVALID_POSITION',
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
 
   // Game state errors
   GAME_ALREADY_OVER = 'GAME_ALREADY_OVER',
@@ -23,6 +31,7 @@ export enum ErrorCode {
   // Network errors
   NETWORK_ERROR = 'NETWORK_ERROR',
   TIMEOUT_ERROR = 'TIMEOUT_ERROR',
+  RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
 
   // Generic errors
   INTERNAL_ERROR = 'INTERNAL_ERROR',
@@ -68,8 +77,19 @@ export class GameError extends Error {
 
 export class ValidationError extends GameError {
   constructor(message: string, context: ErrorContext = {}) {
-    super(message, ErrorCode.INVALID_MOVE_FORMAT, context, true);
+    super(message, ErrorCode.VALIDATION_ERROR, context, true);
     this.name = 'ValidationError';
+  }
+}
+
+export class AuthenticationError extends GameError {
+  constructor(
+    message: string,
+    code: ErrorCode = ErrorCode.AUTHENTICATION_REQUIRED,
+    context: ErrorContext = {}
+  ) {
+    super(message, code, context, true);
+    this.name = 'AuthenticationError';
   }
 }
 
@@ -77,6 +97,20 @@ export class GameStateError extends GameError {
   constructor(message: string, code: ErrorCode, context: ErrorContext = {}) {
     super(message, code, context, true);
     this.name = 'GameStateError';
+  }
+}
+
+export class DatabaseError extends GameError {
+  constructor(message: string, context: ErrorContext = {}) {
+    super(message, ErrorCode.DATABASE_ERROR, context, false); // Not operational - system issue
+    this.name = 'DatabaseError';
+  }
+}
+
+export class NetworkError extends GameError {
+  constructor(message: string, context: ErrorContext = {}) {
+    super(message, ErrorCode.NETWORK_ERROR, context, true);
+    this.name = 'NetworkError';
   }
 }
 
@@ -137,6 +171,96 @@ export class ErrorHandler {
     const error = new SystemError(message, code, context);
     this.logError(error);
     return error;
+  }
+
+  public handleAuthenticationError(
+    message: string,
+    code: ErrorCode = ErrorCode.AUTHENTICATION_REQUIRED,
+    context: ErrorContext = {}
+  ): AuthenticationError {
+    const error = new AuthenticationError(message, code, context);
+    this.logError(error);
+    return error;
+  }
+
+  public handleDatabaseError(message: string, context: ErrorContext = {}): DatabaseError {
+    const error = new DatabaseError(message, context);
+    this.logError(error);
+    return error;
+  }
+
+  public handleNetworkError(message: string, context: ErrorContext = {}): NetworkError {
+    const error = new NetworkError(message, context);
+    this.logError(error);
+    return error;
+  }
+
+  /**
+   * Convert errors to production-safe API responses
+   */
+  public toAPIResponse(error: GameError): {
+    success: false;
+    error: string;
+    code: string;
+    statusCode: number;
+    details?: any;
+  } {
+    // Determine appropriate status code
+    let statusCode = 500;
+    let errorMessage = error.message;
+    let details: any = undefined;
+
+    switch (error.code) {
+      case ErrorCode.AUTHENTICATION_REQUIRED:
+      case ErrorCode.INVALID_TOKEN:
+      case ErrorCode.USER_INACTIVE:
+        statusCode = 401;
+        break;
+      case ErrorCode.INSUFFICIENT_PERMISSIONS:
+        statusCode = 403;
+        break;
+      case ErrorCode.GAME_NOT_FOUND:
+      case ErrorCode.USER_NOT_FOUND:
+        statusCode = 404;
+        break;
+      case ErrorCode.VALIDATION_ERROR:
+      case ErrorCode.INVALID_MOVE_FORMAT:
+      case ErrorCode.INVALID_GAME_CONFIG:
+      case ErrorCode.INVALID_PLAYER:
+      case ErrorCode.INVALID_POSITION:
+        statusCode = 400;
+        break;
+      case ErrorCode.RATE_LIMIT_EXCEEDED:
+        statusCode = 429;
+        break;
+      case ErrorCode.GAME_ALREADY_OVER:
+      case ErrorCode.NOT_PLAYER_TURN:
+      case ErrorCode.POSITION_OCCUPIED:
+        statusCode = 409; // Conflict
+        break;
+      default:
+        statusCode = 500;
+        // In production, don't expose internal error details
+        if (process.env.NODE_ENV === 'production' && !error.isOperational) {
+          errorMessage = 'Internal server error';
+        }
+    }
+
+    // Add error details for development or operational errors
+    if (process.env.NODE_ENV === 'development' || error.isOperational) {
+      details = {
+        context: error.context,
+        timestamp: error.context.timestamp,
+      };
+    }
+
+    return {
+      success: false,
+      error: errorMessage,
+      code: error.code,
+      statusCode,
+      ...(details && { details }),
+    };
   }
 
   private logError(gameError: GameError, originalError?: Error): void {

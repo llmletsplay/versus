@@ -1,0 +1,37 @@
+name = "versus-server"
+main = "dist/server/cloudflare.js"
+compatibility_date = "2024-12-20"
+compatibility_flags = ["nodejs_compat"]
+
+# Environment variables for development
+[env.dev.vars]
+NODE_ENV = "development"
+CORS_ORIGIN = "*"
+JWT_SECRET = "dev-secret-change-in-production"
+
+# Environment variables for production (use secrets for sensitive data)
+[env.production]
+# Use `wrangler secret put JWT_SECRET` to set production secrets
+# Use `wrangler secret put DATABASE_URL` for external database connection
+
+# D1 Database configuration (Cloudflare's SQLite)
+[[d1_databases]]
+binding = "DB"
+database_name = "versus-game-db"
+database_id = "your-d1-database-id"
+preview_database_id = "your-preview-d1-database-id"
+
+# Optional: KV for caching game states
+[[kv_namespaces]]
+binding = "GAME_CACHE"
+id = "your-kv-namespace-id"
+preview_id = "your-preview-kv-namespace-id"
+
+# Build configuration
+[build]
+command = "bun run build:cloudflare"
+
+# Resources limits for Cloudflare Workers
+[limits]
+cpu_ms = 10000  # 10 second CPU time limit
+memory_mb = 128 # 128MB memory limit
