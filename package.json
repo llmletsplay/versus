@@ -9,6 +9,11 @@
     "versus-client"
   ],
   "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:all": "concurrently \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:docs\"",
+    "dev:server": "cd versus-server && bun run dev",
+    "dev:client": "cd versus-client && bun run dev",
+    "dev:docs": "serve docs -p 3001",
     "build": "npm run build:server && npm run build:client",
     "build:server": "cd versus-server && bun run build",
     "build:client": "cd versus-client && bun run build",
@@ -48,6 +53,10 @@
   "engines": {
     "node": ">=18.0.0",
     "bun": ">=1.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "serve": "^14.2.4"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.3",

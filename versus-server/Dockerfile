@@ -19,11 +19,11 @@ RUN mkdir -p /temp/dev /temp/prod
 
 # Development dependencies
 COPY package.json bun.lock* /temp/dev/
-RUN cd /temp/dev && bun install --frozen-lockfile
+RUN cd /temp/dev && bun install
 
 # Production dependencies only
 COPY package.json bun.lock* /temp/prod/
-RUN cd /temp/prod && bun install --frozen-lockfile --production --ignore-scripts
+RUN cd /temp/prod && bun install --production --ignore-scripts
 
 # Build stage - compile TypeScript to optimized JavaScript
 FROM deps AS build
