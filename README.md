@@ -9,9 +9,18 @@
 ![Production](https://img.shields.io/badge/Production-Ready-success)
 ![Security](https://img.shields.io/badge/Security-Hardened-red)
 
+## 🚀 **Recent Updates**
+
+- **Production Hardening**: Comprehensive security audit and performance optimization
+- **Multiplatform Support**: Migrated to Hono framework for Node.js, Cloudflare Workers, Bun, Deno deployment
+- **Enhanced Monitoring**: Sentry integration, health checks, automated backups, and load testing
+- **Zero Vulnerability Status**: Resolved all critical security issues with database-only storage
+- **Performance Validated**: Load tested with 100+ concurrent users, P95 latency <500ms
+
 ## 🚀 **Production-Ready Features**
 
 ### 🔒 **Enterprise Security**
+
 - **JWT Authentication** with bcrypt password hashing
 - **Role-Based Access Control** (RBAC) with admin/player roles
 - **Rate Limiting** with multi-tier protection (API/Auth/Games)
@@ -19,18 +28,21 @@
 - **Zero File System Vulnerabilities** (database-only storage)
 
 ### 🌍 **Multiplatform Deployment**
+
 - **Hono Framework** - Deploy on Node.js, Cloudflare Workers, Bun, Deno
 - **Traditional Hosting** - Docker containers with PostgreSQL/SQLite
 - **Serverless Edge** - Cloudflare Workers with D1 database
 - **Platform-as-a-Service** - Railway, Vercel, Fly.io ready
 
 ### 📊 **Enterprise Monitoring**
+
 - **Sentry Integration** - Error tracking with game context
 - **Health Monitoring** - Comprehensive health checks and metrics
 - **Automated Backups** - Daily backups with 30-day retention
 - **Load Testing** - Performance validation with K6 and Autocannon
 
 ### 🎮 **29+ Classic Games**
+
 - Complete implementations with move validation and state management
 - Comprehensive test coverage (13,000+ lines of tests)
 - AI integration via Model Context Protocol (MCP)
@@ -39,12 +51,14 @@
 ## ⚡ **Quick Start**
 
 ### 🚀 Production Deployment (1 command)
+
 ```bash
 git clone https://github.com/lightnolimit/versus.git
 cd versus && ./deploy.sh
 ```
 
 ### 🧪 Development Setup
+
 ```bash
 git clone https://github.com/lightnolimit/versus.git
 cd versus
@@ -53,6 +67,7 @@ bun run dev
 ```
 
 ### 🌐 Serverless Deployment (Cloudflare Workers)
+
 ```bash
 cd versus-server
 bun run build:cloudflare
@@ -62,30 +77,35 @@ bun run deploy:cloudflare
 ## 🎯 Supported Games
 
 ### Board Games (10)
+
 Chess • Checkers • Go • Othello • Connect Four • Tic-Tac-Toe • Omok • Mancala • Chinese Checkers • Catan
 
 ### Card Games (10)
+
 Poker • Blackjack • Hearts • Spades • Go Fish • Cuttle • War • Bullshit • Thirteen • Crazy Cards
 
 ### Strategy Games (3)
+
 Shogi • Martial Tactics • Mahjong
 
 ### Party Games (4)
+
 Bingo • Word Tiles • Battleship • Against Cards
 
 ## 📚 **Documentation**
 
-| Document | Description |
-|----------|-------------|
-| [🏗️ Architecture](docs/ARCHITECTURE.md) | System design and technical architecture |
-| [🚀 Deployment](docs/DEPLOYMENT.md) | Production deployment guide |
-| [📡 API Reference](docs/API.md) | Complete API documentation |
-| [📊 Monitoring](docs/MONITORING.md) | Monitoring and backup procedures |
-| [👩‍💻 Developer Guide](docs/DEVELOPER_GUIDE.md) | Development and contribution guide |
+| Document                                      | Description                              |
+| --------------------------------------------- | ---------------------------------------- |
+| [🏗️ Architecture](docs/ARCHITECTURE.md)       | System design and technical architecture |
+| [🚀 Deployment](docs/DEPLOYMENT.md)           | Production deployment guide              |
+| [📡 API Reference](docs/API.md)               | Complete API documentation               |
+| [📊 Monitoring](docs/MONITORING.md)           | Monitoring and backup procedures         |
+| [👩‍💻 Developer Guide](docs/DEVELOPER_GUIDE.md) | Development and contribution guide       |
 
 ## 🔧 **Operations**
 
 ### Production Deployment
+
 ```bash
 # Automated production deployment
 ./deploy.sh
@@ -95,6 +115,7 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
 ```
 
 ### Performance Testing
+
 ```bash
 # Quick load test
 npm run load-test:simple
@@ -104,6 +125,7 @@ npm run load-test
 ```
 
 ### Backup Management
+
 ```bash
 # Create backup
 npm run backup:create
@@ -116,6 +138,7 @@ npm run backup:restore <backup-id>
 ```
 
 ### Health Monitoring
+
 ```bash
 # System health
 npm run health:check
@@ -127,24 +150,28 @@ npm run metrics
 ## 🏆 **Production Readiness: 100/100**
 
 ### ✅ **Security Hardened**
+
 - Zero critical vulnerabilities
 - Enterprise authentication system
 - Comprehensive input validation
 - Production error handling
 
 ### ✅ **Performance Validated**
+
 - Load tested: 100+ concurrent users
 - P95 latency: <500ms
 - Error rate: <5% under load
 - Memory optimized: <512MB normal operation
 
 ### ✅ **Operationally Ready**
+
 - Automated backup/restore
 - Health monitoring with alerts
 - Performance metrics collection
 - Multi-environment deployment
 
 ### ✅ **Developer Friendly**
+
 - Comprehensive documentation
 - Type-safe API development
 - Extensive test coverage
@@ -153,6 +180,7 @@ npm run metrics
 ## 🏗️ **Technical Architecture**
 
 ### **Multiplatform Framework (Hono)**
+
 ```
 ┌─────────────────────────────────────────────────┐
 │              DEPLOYMENT TARGETS                 │
@@ -164,6 +192,7 @@ npm run metrics
 ```
 
 ### **Security Architecture**
+
 ```
 Internet → Rate Limiter → Authentication → Game API → Database
                         ↓
@@ -171,25 +200,27 @@ Internet → Rate Limiter → Authentication → Game API → Database
 ```
 
 ### **Data Flow**
+
 versus/
-├── versus-server/          # Game server (API + MCP)
-│   ├── src/
-│   │   ├── games/         # 27 game implementations
-│   │   ├── api/           # REST API endpoints
-│   │   ├── core/          # Game engine core
-│   │   └── mcp/           # AI integration
-│   ├── tests/             # Comprehensive test suite
-│   └── docs/              # Server documentation
-├── versus-client/          # React web client
-│   ├── src/
-│   │   ├── components/    # React components
-│   │   ├── pages/         # Application pages
-│   │   └── services/      # API client
-│   └── public/            # Static assets
-├── docker-compose.yml      # Production config
-├── docker-compose.dev.yml  # Development config
-└── nginx.conf             # Reverse proxy config
-```
+├── versus-server/ # Game server (API + MCP)
+│ ├── src/
+│ │ ├── games/ # 27 game implementations
+│ │ ├── api/ # REST API endpoints
+│ │ ├── core/ # Game engine core
+│ │ └── mcp/ # AI integration
+│ ├── tests/ # Comprehensive test suite
+│ └── docs/ # Server documentation
+├── versus-client/ # React web client
+│ ├── src/
+│ │ ├── components/ # React components
+│ │ ├── pages/ # Application pages
+│ │ └── services/ # API client
+│ └── public/ # Static assets
+├── docker-compose.yml # Production config
+├── docker-compose.dev.yml # Development config
+└── nginx.conf # Reverse proxy config
+
+````
 
 ## 🛠️ Development
 
@@ -214,7 +245,7 @@ bun run docker:build     # Build Docker images
 bun run docker:up        # Start containers
 bun run docker:down      # Stop containers
 bun run docker:logs      # View logs
-```
+````
 
 ### Adding a New Game
 
@@ -278,6 +309,7 @@ bun run mcp
 ```
 
 ### MCP Tools Available
+
 - `list_games` - Get available games
 - `create_game` - Start a new game
 - `get_game_state` - View current state
@@ -307,7 +339,7 @@ CORS_ORIGIN=http://localhost:5173
 GAME_DATA_PATH=/app/game_data
 LOG_LEVEL=info
 
-# Client  
+# Client
 VITE_API_URL=http://localhost:6789
 VITE_ENABLE_DEBUG=false
 ```
@@ -333,12 +365,14 @@ bun test --watch
 ## 📊 Monitoring
 
 ### Built-in Monitoring
+
 - Game statistics tracking
-- Player activity metrics  
+- Player activity metrics
 - Performance monitoring
 - Error tracking
 
 ### Observability
+
 - Health endpoints
 - Structured logging
 - Metrics collection ready
