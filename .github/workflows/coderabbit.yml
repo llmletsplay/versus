@@ -1,0 +1,14 @@
+name: CodeRabbit
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  coderabbit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: coderabbitai/ai-pr-reviewer@latest
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
