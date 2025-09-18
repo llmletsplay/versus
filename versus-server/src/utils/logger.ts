@@ -77,14 +77,22 @@ export class Logger {
     }
   }
 
-  public error(message: string, error?: Error, context?: LogContext): void {
+  public error(message: string, contextOrError?: LogContext | Error, context?: LogContext): void {
     if (this.shouldLog(LogLevel.ERROR)) {
-      const errorContext = {
-        ...context,
-        error: error?.message,
-        stack: this.isDevelopment ? error?.stack : undefined,
-      };
-      console.error(this.formatMessage('ERROR', message, errorContext));
+      let finalContext: LogContext = {};
+
+      // Handle overloaded parameters
+      if (contextOrError instanceof Error) {
+        finalContext = {
+          ...context,
+          error: contextOrError.message,
+          stack: this.isDevelopment ? contextOrError.stack : undefined,
+        };
+      } else if (contextOrError) {
+        finalContext = contextOrError;
+      }
+
+      console.error(this.formatMessage('ERROR', message, finalContext));
     }
   }
 

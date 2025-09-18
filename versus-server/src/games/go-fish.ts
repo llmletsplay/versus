@@ -1,4 +1,5 @@
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import type {
   GameState,
   GameConfig,
@@ -45,8 +46,8 @@ interface GoFishMove {
 }
 
 export class GoFishGame extends BaseGame {
-  constructor(gameId: string) {
-    super(gameId, 'go-fish');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'go-fish', database);
   }
 
   async initializeGame(config?: GameConfig): Promise<GameState> {

@@ -4,7 +4,8 @@ import { z } from 'zod';
 import type { Request, Response, NextFunction } from 'express';
 import { errorHandler, GameError } from '../utils/error-handler.js';
 
-// Validation schemas
+// API: Validation schemas for request bodies
+// SECURITY: Input validation prevents malformed data attacks
 const moveDataSchema = z
   .object({
     player: z.string().optional(),
@@ -12,6 +13,7 @@ const moveDataSchema = z
   })
   .passthrough(); // Allow additional properties
 
+// API: Game restoration schema
 const restoreGameSchema = z.object({
   history: z.array(
     z.object({
@@ -22,6 +24,7 @@ const restoreGameSchema = z.object({
   ),
 });
 
+// API: Game creation schema
 const createGameSchema = z.object({
   config: z
     .object({
@@ -33,7 +36,8 @@ const createGameSchema = z.object({
     .optional(),
 });
 
-// Middleware for error handling
+// CRITICAL: Error handling middleware for async routes
+// Ensures all errors are properly caught and formatted
 const asyncHandler =
   (fn: Function) =>
   (req: Request, res: Response, next: NextFunction): void => {
@@ -48,7 +52,8 @@ const asyncHandler =
     });
   };
 
-// Middleware for validation
+// SECURITY: Request body validation middleware
+// Prevents malformed data from reaching handlers
 const validateBody =
   (schema: z.ZodSchema) =>
   (req: Request, res: Response, next: NextFunction): void => {
@@ -67,7 +72,8 @@ const validateBody =
     }
   };
 
-// Helper function to validate required params
+// SECURITY: Parameter validation helper
+// Ensures required URL parameters are present
 const validateParams = (
   params: Record<string, string | undefined>,
   required: string[]
@@ -80,10 +86,13 @@ const validateParams = (
   return null;
 };
 
+// CRITICAL: Main API routes factory
+// API: All game endpoints are defined here - external contract
 export function createGameRoutes(gameManager: GameManager): Router {
   const router = Router();
 
-  // GET /v1/games - List all available game types
+  // API: GET /v1/games - List all available game types
+  // Contract: Returns string array of game types
   router.get(
     '/v1/games',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -92,7 +101,8 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // GET /v1/games/metadata - Get metadata for all games
+  // API: GET /v1/games/metadata - Get metadata for all games
+  // Contract: Returns Record<string, GameMetadata>
   router.get(
     '/v1/games/metadata',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -101,7 +111,8 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // GET /v1/games/:gameType/metadata - Get metadata for specific game type
+  // API: GET /v1/games/:gameType/metadata - Get metadata for specific game type
+  // Contract: Returns GameMetadata | 404 error
   router.get(
     '/v1/games/:gameType/metadata',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -123,7 +134,8 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // GET /v1/games/:gameType/rules - Get rules for specific game type
+  // API: GET /v1/games/:gameType/rules - Get rules for specific game type
+  // Contract: Returns rules string | 404 error
   router.get(
     '/v1/games/:gameType/rules',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -134,7 +146,7 @@ export function createGameRoutes(gameManager: GameManager): Router {
       }
 
       const gameType = req.params.gameType!;
-      
+
       try {
         const rules = await gameManager.getGameRules(gameType);
         if (!rules) {
@@ -148,7 +160,8 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // POST /v1/games/:gameType/new - Create a new game instance
+  // API: POST /v1/games/:gameType/new - Create a new game instance
+  // Contract: Accepts GameConfig, returns { gameId: string }
   router.post(
     '/v1/games/:gameType/new',
     validateBody(createGameSchema),
@@ -175,7 +188,9 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // POST /v1/games/:gameType/:gameId/move - Make a move in the game
+  // API: POST /v1/games/:gameType/:gameId/move - Make a move in the game
+  // Contract: Accepts move data, returns updated GameState
+  // CRITICAL: Core gameplay endpoint - handles all move execution
   router.post(
     '/v1/games/:gameType/:gameId/move',
     validateBody(moveDataSchema),
@@ -211,7 +226,9 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // GET /v1/games/:gameType/:gameId/state - Get current game state
+  // API: GET /v1/games/:gameType/:gameId/state - Get current game state
+  // Contract: Returns current GameState
+  // CRITICAL: Primary state access endpoint
   router.get(
     '/v1/games/:gameType/:gameId/state',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -237,7 +254,8 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // GET /v1/games/:gameType/:gameId/history - Get game history
+  // API: GET /v1/games/:gameType/:gameId/history - Get game history
+  // Contract: Returns GameMove[] array
   router.get(
     '/v1/games/:gameType/:gameId/history',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -263,7 +281,9 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // POST /v1/games/:gameType/:gameId/restore - Restore game state from history
+  // API: POST /v1/games/:gameType/:gameId/restore - Restore game state from history
+  // Contract: Accepts { history: GameMove[] }, returns { status: 'restored' }
+  // CRITICAL: State restoration functionality
   router.post(
     '/v1/games/:gameType/:gameId/restore',
     validateBody(restoreGameSchema),
@@ -291,7 +311,8 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // DELETE /v1/games/:gameId - Delete a game
+  // API: DELETE /v1/games/:gameId - Delete a game
+  // Contract: Returns { status: 'deleted' }
   router.delete(
     '/v1/games/:gameId',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -307,17 +328,26 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // GET /v1/games/active - List all active games
+  // API: GET /v1/games/active - List all active games
+  // Contract: Returns array of active game info
+  // DEBT: Active games listing not implemented - returns empty array
+  // TODO: Implement proper active games listing
+  // Impact: Cannot monitor or list currently running games
+  // Estimated effort: 1 day
   router.get(
     '/v1/games/active',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
-      // This would require adding a method to game manager to list active games
-      // For now, return an empty array - this could be enhanced
+      // DEBT: Placeholder implementation - should query gameManager for active games
       res.json([]);
     })
   );
 
-  // GET /v1/games/:gameType/active - List active games of a specific type
+  // API: GET /v1/games/:gameType/active - List active games of a specific type
+  // Contract: Returns array of active games for specific type
+  // DEBT: Active games filtering not implemented - returns empty array
+  // TODO: Implement proper active games filtering
+  // Impact: Cannot filter active games by type
+  // Estimated effort: 1 day
   router.get(
     '/v1/games/:gameType/active',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -327,13 +357,13 @@ export function createGameRoutes(gameManager: GameManager): Router {
         return;
       }
 
-      // This would require adding a method to game manager to list active games by type
-      // For now, return an empty array - this could be enhanced
+      // DEBT: Placeholder implementation - should filter by game type
       res.json([]);
     })
   );
 
-  // POST /v1/games/:gameType/:gameId/validate - Validate a move without applying it
+  // API: POST /v1/games/:gameType/:gameId/validate - Validate a move without applying it
+  // Contract: Accepts move data, returns validation result
   router.post(
     '/v1/games/:gameType/:gameId/validate',
     validateBody(moveDataSchema),
@@ -362,7 +392,8 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // POST /v1/games/:gameType/:gameId/undo - Undo last move
+  // API: POST /v1/games/:gameType/:gameId/undo - Undo last move
+  // Contract: Returns updated state with undo/redo status
   router.post(
     '/v1/games/:gameType/:gameId/undo',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -406,7 +437,8 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // POST /v1/games/:gameType/:gameId/redo - Redo next move
+  // API: POST /v1/games/:gameType/:gameId/redo - Redo next move
+  // Contract: Returns updated state with undo/redo status
   router.post(
     '/v1/games/:gameType/:gameId/redo',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -450,7 +482,8 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // GET /v1/games/:gameType/:gameId/undo-status - Check undo/redo availability
+  // API: GET /v1/games/:gameType/:gameId/undo-status - Check undo/redo availability
+  // Contract: Returns { canUndo: boolean, canRedo: boolean }
   router.get(
     '/v1/games/:gameType/:gameId/undo-status',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -479,7 +512,8 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // Stats endpoints
+  // API: GET /v1/stats - Get comprehensive server statistics
+  // Contract: Returns global statistics object
   router.get(
     '/v1/stats',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -488,6 +522,8 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
+  // API: GET /v1/stats/:gameType - Get statistics for specific game type
+  // Contract: Returns game type specific statistics
   router.get(
     '/v1/stats/:gameType',
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -503,7 +539,8 @@ export function createGameRoutes(gameManager: GameManager): Router {
     })
   );
 
-  // API Documentation endpoint
+  // API: GET /v1/docs - API documentation endpoint
+  // Contract: Returns comprehensive API documentation
   router.get('/v1/docs', (req: Request, res: Response): void => {
     const apiDocs = {
       title: 'Versus Game Server API',
@@ -551,7 +588,8 @@ export function createGameRoutes(gameManager: GameManager): Router {
     res.json(apiDocs);
   });
 
-  // Health check endpoint
+  // API: GET /v1/health - Health check endpoint
+  // Contract: Returns server health status
   router.get('/v1/health', (req: Request, res: Response): void => {
     res.json({
       status: 'healthy',

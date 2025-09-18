@@ -1,4 +1,5 @@
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import type {
   GameState,
   GameConfig,
@@ -69,8 +70,8 @@ interface CrazyMove {
 export class CrazyCardsGame extends BaseGame {
   private cardIdCounter = 0;
 
-  constructor(gameId: string) {
-    super(gameId, 'crazy-cards');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'crazy-cards', database);
   }
 
   async initializeGame(config?: GameConfig): Promise<GameState> {

@@ -1,0 +1,331 @@
+{
+  "dashboards": [
+    {
+      "title": "Versus Game Server - Overview",
+      "widgets": [
+        {
+          "title": "Error Rate Trend",
+          "displayType": "line",
+          "queries": [
+            {
+              "name": "Error Rate",
+              "fields": [
+                "count()"
+              ],
+              "conditions": "event.type:error",
+              "orderby": "-time"
+            }
+          ]
+        },
+        {
+          "title": "Top Errors by Game Type",
+          "displayType": "table",
+          "queries": [
+            {
+              "name": "Errors by Game",
+              "fields": [
+                "count()",
+                "game_type"
+              ],
+              "conditions": "event.type:error",
+              "orderby": "-count()"
+            }
+          ]
+        },
+        {
+          "title": "API Response Times",
+          "displayType": "line",
+          "queries": [
+            {
+              "name": "P95 Response Time",
+              "fields": [
+                "p95(transaction.duration)"
+              ],
+              "conditions": "event.type:transaction",
+              "orderby": "-time"
+            }
+          ]
+        },
+        {
+          "title": "Game Creation Rate",
+          "displayType": "line",
+          "queries": [
+            {
+              "name": "Games Created",
+              "fields": [
+                "count()"
+              ],
+              "conditions": "message:\"Game created\"",
+              "orderby": "-time"
+            }
+          ]
+        },
+        {
+          "title": "Authentication Events",
+          "displayType": "bar",
+          "queries": [
+            {
+              "name": "Auth Events",
+              "fields": [
+                "count()",
+                "auth_event"
+              ],
+              "conditions": "message:\"User*\"",
+              "orderby": "-count()"
+            }
+          ]
+        },
+        {
+          "title": "Memory Usage Trend",
+          "displayType": "line",
+          "queries": [
+            {
+              "name": "Memory MB",
+              "fields": [
+                "avg(memory_mb)"
+              ],
+              "conditions": "message:\"Memory usage\"",
+              "orderby": "-time"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Versus Game Server - Security",
+      "widgets": [
+        {
+          "title": "Failed Login Attempts",
+          "displayType": "big_number",
+          "queries": [
+            {
+              "name": "Failed Logins (24h)",
+              "fields": [
+                "count()"
+              ],
+              "conditions": "message:\"User login failed\"",
+              "orderby": "-time"
+            }
+          ]
+        },
+        {
+          "title": "Rate Limit Violations",
+          "displayType": "line",
+          "queries": [
+            {
+              "name": "Rate Limits Hit",
+              "fields": [
+                "count()"
+              ],
+              "conditions": "error.type:\"RATE_LIMIT_EXCEEDED\"",
+              "orderby": "-time"
+            }
+          ]
+        },
+        {
+          "title": "Authentication Errors by Type",
+          "displayType": "table",
+          "queries": [
+            {
+              "name": "Auth Errors",
+              "fields": [
+                "count()",
+                "error.code"
+              ],
+              "conditions": "error.code:\"*AUTH*\" OR error.code:\"*TOKEN*\"",
+              "orderby": "-count()"
+            }
+          ]
+        },
+        {
+          "title": "Suspicious IP Activity",
+          "displayType": "table",
+          "queries": [
+            {
+              "name": "High Error IPs",
+              "fields": [
+                "count()",
+                "user.ip_address"
+              ],
+              "conditions": "event.type:error",
+              "orderby": "-count()"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Versus Game Server - Games",
+      "widgets": [
+        {
+          "title": "Popular Games (24h)",
+          "displayType": "table",
+          "queries": [
+            {
+              "name": "Games by Type",
+              "fields": [
+                "count()",
+                "game_type"
+              ],
+              "conditions": "message:\"Game created\"",
+              "orderby": "-count()"
+            }
+          ]
+        },
+        {
+          "title": "Game Completion Rate",
+          "displayType": "line",
+          "queries": [
+            {
+              "name": "Completed Games",
+              "fields": [
+                "count()"
+              ],
+              "conditions": "message:\"Game completed\"",
+              "orderby": "-time"
+            },
+            {
+              "name": "Created Games",
+              "fields": [
+                "count()"
+              ],
+              "conditions": "message:\"Game created\"",
+              "orderby": "-time"
+            }
+          ]
+        },
+        {
+          "title": "Average Game Duration",
+          "displayType": "bar",
+          "queries": [
+            {
+              "name": "Duration by Game",
+              "fields": [
+                "avg(duration)",
+                "game_type"
+              ],
+              "conditions": "message:\"Game completed\"",
+              "orderby": "-avg(duration)"
+            }
+          ]
+        },
+        {
+          "title": "Game Errors by Type",
+          "displayType": "table",
+          "queries": [
+            {
+              "name": "Game Errors",
+              "fields": [
+                "count()",
+                "game_type",
+                "error.code"
+              ],
+              "conditions": "event.type:error AND game_type:*",
+              "orderby": "-count()"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "alerts": [
+    {
+      "name": "High Error Rate",
+      "query": "count():>50",
+      "timeWindow": "5m",
+      "threshold": 50,
+      "thresholdType": "above",
+      "resolveThreshold": 10,
+      "environment": "production",
+      "actions": [
+        {
+          "type": "email",
+          "targetType": "team",
+          "targetIdentifier": "versus-team"
+        },
+        {
+          "type": "slack",
+          "targetType": "specific",
+          "targetIdentifier": "#alerts"
+        }
+      ]
+    },
+    {
+      "name": "Database Connection Failure",
+      "query": "error.type:DatabaseError",
+      "timeWindow": "1m",
+      "threshold": 1,
+      "thresholdType": "above",
+      "environment": "production",
+      "actions": [
+        {
+          "type": "pagerduty",
+          "targetType": "specific",
+          "targetIdentifier": "versus-oncall"
+        },
+        {
+          "type": "slack",
+          "targetType": "specific",
+          "targetIdentifier": "#critical-alerts"
+        }
+      ]
+    },
+    {
+      "name": "High Memory Usage",
+      "query": "memory_mb:>900",
+      "timeWindow": "10m",
+      "threshold": 5,
+      "thresholdType": "above",
+      "environment": "production",
+      "actions": [
+        {
+          "type": "slack",
+          "targetType": "specific",
+          "targetIdentifier": "#monitoring"
+        }
+      ]
+    },
+    {
+      "name": "Authentication System Issues",
+      "query": "error.code:*AUTH* OR error.code:*TOKEN*",
+      "timeWindow": "5m",
+      "threshold": 10,
+      "thresholdType": "above",
+      "environment": "production",
+      "actions": [
+        {
+          "type": "email",
+          "targetType": "team",
+          "targetIdentifier": "security-team"
+        },
+        {
+          "type": "slack",
+          "targetType": "specific",
+          "targetIdentifier": "#security-alerts"
+        }
+      ]
+    },
+    {
+      "name": "Game Creation Failures",
+      "query": "error.code:GAME_CREATION_ERROR",
+      "timeWindow": "10m",
+      "threshold": 5,
+      "thresholdType": "above",
+      "environment": "production",
+      "actions": [
+        {
+          "type": "slack",
+          "targetType": "specific",
+          "targetIdentifier": "#game-alerts"
+        }
+      ]
+    }
+  ],
+  "releases": {
+    "trackingEnabled": true,
+    "healthCheck": {
+      "url": "http://localhost:6789/api/v1/health",
+      "threshold": 95
+    }
+  }
+}
