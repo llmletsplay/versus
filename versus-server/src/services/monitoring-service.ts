@@ -97,14 +97,22 @@ export class MonitoringService {
    * Capture an exception with context
    */
   captureException(error: Error, context?: Record<string, any>): void {
-    if (!this.initialized) {return;}
+    if (!this.initialized) {
+      return;
+    }
 
     Sentry.withScope(scope => {
       if (context) {
         // Add game-specific context
-        if (context.gameId) {scope.setTag('gameId', context.gameId);}
-        if (context.gameType) {scope.setTag('gameType', context.gameType);}
-        if (context.player) {scope.setUser({ id: context.player });}
+        if (context.gameId) {
+          scope.setTag('gameId', context.gameId);
+        }
+        if (context.gameType) {
+          scope.setTag('gameType', context.gameType);
+        }
+        if (context.player) {
+          scope.setUser({ id: context.player });
+        }
 
         // Add additional context
         scope.setContext('gameContext', context);
@@ -122,7 +130,9 @@ export class MonitoringService {
     level: 'fatal' | 'error' | 'warning' | 'info' | 'debug' = 'info',
     context?: Record<string, any>
   ): void {
-    if (!this.initialized) {return;}
+    if (!this.initialized) {
+      return;
+    }
 
     Sentry.withScope(scope => {
       scope.setLevel(level);
@@ -139,7 +149,9 @@ export class MonitoringService {
    * Start a performance transaction
    */
   startTransaction(name: string, operation: string): any {
-    if (!this.initialized || !this.config.enableTracing) {return undefined;}
+    if (!this.initialized || !this.config.enableTracing) {
+      return undefined;
+    }
 
     return Sentry.startSpan(
       {
@@ -159,7 +171,9 @@ export class MonitoringService {
     gameType: string,
     properties?: Record<string, any>
   ): void {
-    if (!this.initialized) {return;}
+    if (!this.initialized) {
+      return;
+    }
 
     Sentry.addBreadcrumb({
       category: 'game',
@@ -177,7 +191,9 @@ export class MonitoringService {
    * Track authentication events
    */
   trackAuthEvent(eventName: string, userId?: string, properties?: Record<string, any>): void {
-    if (!this.initialized) {return;}
+    if (!this.initialized) {
+      return;
+    }
 
     Sentry.addBreadcrumb({
       category: 'auth',
@@ -194,7 +210,9 @@ export class MonitoringService {
    * Set user context for error tracking
    */
   setUserContext(userId: string, username?: string, email?: string): void {
-    if (!this.initialized) {return;}
+    if (!this.initialized) {
+      return;
+    }
 
     Sentry.setUser({
       id: userId,
@@ -207,7 +225,9 @@ export class MonitoringService {
    * Capture performance metrics manually
    */
   capturePerformanceMetric(name: string, value: number, unit: string = 'ms'): void {
-    if (!this.initialized) {return;}
+    if (!this.initialized) {
+      return;
+    }
 
     // Add as breadcrumb for now - in production integrate with custom metrics
     Sentry.addBreadcrumb({
@@ -222,7 +242,9 @@ export class MonitoringService {
    * Flush pending events (useful for serverless)
    */
   async flush(timeout: number = 2000): Promise<boolean> {
-    if (!this.initialized) {return true;}
+    if (!this.initialized) {
+      return true;
+    }
 
     try {
       return await Sentry.flush(timeout);
@@ -236,7 +258,9 @@ export class MonitoringService {
    * Close monitoring service
    */
   async close(): Promise<void> {
-    if (!this.initialized) {return;}
+    if (!this.initialized) {
+      return;
+    }
 
     try {
       await this.flush();

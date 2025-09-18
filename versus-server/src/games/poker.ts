@@ -1,4 +1,5 @@
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import type {
   GameState,
   GameConfig,
@@ -73,8 +74,8 @@ interface PokerMove {
 export class PokerGame extends BaseGame {
   private rankOrder: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
-  constructor(gameId: string) {
-    super(gameId, 'poker');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'poker', database);
   }
 
   async initializeGame(config?: GameConfig): Promise<GameState> {

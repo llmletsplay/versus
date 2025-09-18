@@ -95,7 +95,8 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
       }
 
       // CRITICAL: Game state validation - prevents moves after game ends
-      if (await this.isGameOver()) {
+      const isGameOver = await this.isGameOver();
+      if (isGameOver) {
         throw ValidationErrors.gameAlreadyOver(context);
       }
 
@@ -220,42 +221,6 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
     }
 
     return { valid: true };
-  }
-
-  /**
-   * SECURITY: Player turn validation - prevents out-of-turn moves
-   * CRITICAL: Core turn management logic
-   */
-  protected validatePlayerTurn(player: string, currentPlayer: string): MoveValidationResult {
-    if (player !== currentPlayer) {
-      return { valid: false, error: ERROR_MESSAGES.NOT_YOUR_TURN };
-    }
-    return { valid: true };
-  }
-
-  /**
-   * Get list of player IDs from the current game state
-   * Subclasses should override this based on their state structure
-   */
-  protected getPlayerIds(): string[] {
-    // Default implementation - try to extract from common state patterns
-    const state = this.currentState as any;
-
-    if (state.players) {
-      if (Array.isArray(state.players)) {
-        return state.players.map((p: any) => (typeof p === 'string' ? p : p.id || p.name));
-      }
-      if (typeof state.players === 'object') {
-        return Object.keys(state.players);
-      }
-    }
-
-    if (state.playerOrder) {
-      return state.playerOrder;
-    }
-
-    // Fallback - return empty array, subclasses should override
-    return [];
   }
 
   /**

@@ -1,4 +1,5 @@
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import type {
   GameState,
   GameConfig,
@@ -38,8 +39,8 @@ const DIRECTIONS: [number, number][] = [
 ];
 
 export class OthelloGame extends BaseGame {
-  constructor(gameId: string) {
-    super(gameId, 'othello');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'othello', database);
   }
 
   async initializeGame(_config?: GameConfig): Promise<GameState> {

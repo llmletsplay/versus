@@ -1,4 +1,5 @@
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import type {
   GameState,
   GameConfig,
@@ -232,8 +233,8 @@ export class CatanGame extends BaseGame {
     development_card: { wool: 1, grain: 1, ore: 1 },
   } as const;
 
-  constructor(gameId: string) {
-    super(gameId, 'catan');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'catan', database);
 
     // Validate gameId to prevent injection attacks
     if (!gameId || typeof gameId !== 'string' || gameId.length > 100) {
