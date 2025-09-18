@@ -1,4 +1,5 @@
 /* eslint-disable no-unused-vars */
+import { DatabaseProvider } from '../core/database.js';
 import { BaseGame } from '../core/base-game.js';
 import type {
   GameState,
@@ -45,8 +46,8 @@ export class ChineseCheckersGame extends BaseGame {
   // Define the star-shaped board layout
   private readonly VALID_POSITIONS: Set<string> = new Set();
 
-  constructor(gameId: string) {
-    super(gameId, 'chinese-checkers');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'chinese-checkers', database);
     this.initializeValidPositions();
   }
 

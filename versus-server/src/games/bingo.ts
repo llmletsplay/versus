@@ -1,4 +1,5 @@
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import type {
   GameState,
   GameConfig,
@@ -248,8 +249,8 @@ export class BingoGame extends BaseGame {
     },
   ];
 
-  constructor(gameId: string) {
-    super(gameId, 'bingo');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'bingo', database);
   }
 
   async initializeGame(config?: GameConfig): Promise<GameState> {

@@ -2,7 +2,7 @@ name: Client PR Quality Check
 
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
       - 'versus-client/**'
       - '.github/workflows/**'
@@ -14,26 +14,26 @@ defaults:
 jobs:
   quality-gate:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v1
-      with:
-        bun-version: latest
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
 
-    - name: Install dependencies
-      run: bun install
+      - name: Install dependencies
+        run: bun install
 
-    - name: Lint check
-      run: bun run lint
+      - name: Lint check
+        run: bun run lint
 
-    - name: Type check
-      run: bun run type-check
+      - name: Type check
+        run: bun run type-check
 
-    - name: Format check
-      run: bun run format:check
+      - name: Format check
+        run: bun run format:check
 
-    - name: Build check
-      run: bun run build
+      - name: Build check
+        run: bun run build

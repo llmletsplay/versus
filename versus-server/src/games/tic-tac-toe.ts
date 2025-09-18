@@ -7,6 +7,7 @@ import type {
   GameMove,
 } from '../types/game.js';
 import { BoardGameMixin, GameMetadataBuilder } from '../utils/game-mixins.js';
+import { DatabaseProvider } from '../core/database.js';
 
 type Player = 'X' | 'O';
 type Cell = Player | null;
@@ -23,8 +24,8 @@ export class TicTacToeGame extends BaseGame {
   private static readonly BOARD_SIZE = 3;
   private static readonly WIN_LENGTH = 3;
 
-  constructor(gameId: string) {
-    super(gameId, 'tic-tac-toe');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'tic-tac-toe', database);
   }
 
   async initializeGame(_config?: GameConfig): Promise<GameState> {
@@ -104,8 +105,8 @@ export class TicTacToeGame extends BaseGame {
       state.gameOver = true;
       state.winner = 'draw';
     } else {
-      // Switch players using helper
-      state.currentPlayer = this.advanceToNextPlayer(['X', 'O'], state.currentPlayer) as Player;
+      // Switch players
+      state.currentPlayer = state.currentPlayer === 'X' ? 'O' : 'X';
     }
 
     this.currentState = state;

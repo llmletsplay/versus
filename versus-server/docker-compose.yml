@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "4444:4444"
+      - '4444:4444'
     environment:
       - NODE_ENV=production
       - PORT=4444
@@ -16,7 +16,7 @@ services:
       - game_data:/app/game_data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4444/api/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:4444/api/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -29,8 +29,8 @@ services:
       dockerfile: Dockerfile
       target: base
     ports:
-      - "4444:4444"
-      - "4445:4445"  # MCP server port
+      - '4444:4444'
+      - '4445:4445' # MCP server port
     environment:
       - NODE_ENV=development
       - PORT=4444
@@ -41,7 +41,7 @@ services:
       - .:/app
       - /app/node_modules
       - game_data_dev:/app/game_data
-    command: ["bun", "dev"]
+    command: ['bun', 'dev']
     profiles:
       - dev
 
@@ -49,4 +49,4 @@ volumes:
   game_data:
     driver: local
   game_data_dev:
-    driver: local 
+    driver: local

@@ -208,12 +208,12 @@ export class SQLiteProvider extends DatabaseProvider {
     }
 
     return {
-      gameId: row.game_id,
-      gameType: row.game_type,
-      gameState: JSON.parse(row.game_state),
-      moveHistory: JSON.parse(row.move_history),
-      players: JSON.parse(row.players),
-      status: row.status,
+      gameId: (row as any).game_id,
+      gameType: (row as any).game_type,
+      gameState: JSON.parse((row as any).game_state),
+      moveHistory: JSON.parse((row as any).move_history),
+      players: JSON.parse((row as any).players),
+      status: (row as any).status,
     };
   }
 
@@ -237,12 +237,12 @@ export class SQLiteProvider extends DatabaseProvider {
     const rows = stmt.all();
 
     return rows.map(row => ({
-      gameId: row.game_id,
-      gameType: row.game_type,
-      gameState: JSON.parse(row.game_state),
-      moveHistory: JSON.parse(row.move_history),
-      players: JSON.parse(row.players),
-      status: row.status,
+      gameId: (row as any).game_id,
+      gameType: (row as any).game_type,
+      gameState: JSON.parse((row as any).game_state),
+      moveHistory: JSON.parse((row as any).move_history),
+      players: JSON.parse((row as any).players),
+      status: (row as any).status,
     }));
   }
 
@@ -257,12 +257,12 @@ export class SQLiteProvider extends DatabaseProvider {
     const rows = stmt.all(`%"${playerId}"%`);
 
     return rows.map(row => ({
-      gameId: row.game_id,
-      gameType: row.game_type,
-      gameState: JSON.parse(row.game_state),
-      moveHistory: JSON.parse(row.move_history),
-      players: JSON.parse(row.players),
-      status: row.status,
+      gameId: (row as any).game_id,
+      gameType: (row as any).game_type,
+      gameState: JSON.parse((row as any).game_state),
+      moveHistory: JSON.parse((row as any).move_history),
+      players: JSON.parse((row as any).players),
+      status: (row as any).status,
     }));
   }
 

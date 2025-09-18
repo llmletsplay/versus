@@ -104,7 +104,7 @@ export class GameManager {
     }
 
     // Create a temporary instance to get metadata
-    const tempGame = new GameClass(`temp-${Date.now()}`);
+    const tempGame = new GameClass(`temp-${Date.now()}`, this.database);
     return tempGame.getMetadata();
   }
 
@@ -337,6 +337,10 @@ export class GameManager {
 
   getStatsService(): StatsService {
     return this.statsService;
+  }
+
+  getDatabase(): DatabaseProvider {
+    return this.database;
   }
 
   private extractPlayersFromGameState(gameState: GameState): string[] {

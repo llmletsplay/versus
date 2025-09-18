@@ -1,4 +1,5 @@
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import type {
   GameState,
   GameConfig,
@@ -59,8 +60,8 @@ const SUITS: Suit[] = ['♠', '♥', '♦', '♣'];
 const RANKS: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
 export class BlackjackGame extends BaseGame {
-  constructor(gameId: string) {
-    super(gameId, 'blackjack');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'blackjack', database);
   }
 
   async initializeGame(_config?: GameConfig): Promise<GameState> {

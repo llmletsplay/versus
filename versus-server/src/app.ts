@@ -76,7 +76,7 @@ export function createApp(config: AppConfig) {
   // Initialize services
   const gameManager = new GameManager(config.databaseConfig);
   const authService = new AuthService();
-  const healthService = new HealthService(gameManager['database'] || gameManager['db']);
+  const healthService = new HealthService(gameManager.getDatabase());
   const errorHandler = ErrorHandler.getInstance();
 
   // Initialize monitoring if configured
@@ -89,7 +89,7 @@ export function createApp(config: AppConfig) {
   // Initialize backup service if configured
   let backupService: BackupService | undefined;
   if (config.backup) {
-    backupService = new BackupService(gameManager['database'] || gameManager['db'], config.backup);
+    backupService = new BackupService(gameManager.getDatabase(), config.backup);
   }
 
   // Comprehensive health check endpoint
