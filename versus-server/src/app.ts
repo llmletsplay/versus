@@ -93,7 +93,7 @@ export async function createApp(config: AppConfig) {
   }
 
   // Comprehensive health check endpoint
-  app.get('/api/v1/health', async c => {
+  app.get('/api/v1/health', async (c) => {
     try {
       const healthCheck = await healthService.performHealthCheck();
 
@@ -116,7 +116,7 @@ export async function createApp(config: AppConfig) {
   });
 
   // Metrics endpoint for monitoring
-  app.get('/api/v1/metrics', c => {
+  app.get('/api/v1/metrics', (c) => {
     try {
       const metrics = healthService.getMetrics();
       return c.json(metrics);
@@ -127,7 +127,7 @@ export async function createApp(config: AppConfig) {
   });
 
   // Root endpoint
-  app.get('/', c => {
+  app.get('/', (c) => {
     return c.json({
       name: 'Versus Server',
       version: '1.0.0',
@@ -167,11 +167,11 @@ export async function createApp(config: AppConfig) {
     const apiResponse = errorHandler.toAPIResponse(gameError);
     const { statusCode, ...responseBody } = apiResponse;
 
-    return c.json(responseBody, statusCode);
+    return c.json(responseBody, statusCode as any);
   });
 
   // 404 handler
-  app.notFound(c => {
+  app.notFound((c) => {
     return c.json(
       {
         success: false,

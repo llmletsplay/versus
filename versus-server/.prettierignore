@@ -1,0 +1,9 @@
+dist
+node_modules
+coverage
+*.min.js
+*.lock
+package-lock.json
+bun.lockb
+.env*
+*.log

@@ -304,11 +304,11 @@ export class BingoGame extends BaseGame {
         const availableValues = [...columnCriteria.values];
 
         // Shuffle and pick a value
-        this.shuffleArray(availableValues);
-        const value = availableValues[0]!;
+        const shuffledValues = this.shuffleArray(availableValues);
+        const value = shuffledValues[0]!;
 
         const isCenter = row === 2 && col === 2;
-        card[row][col] = {
+        card[row]![col] = {
           value,
           marked: isCenter, // Center is typically free
           isCenter,
@@ -322,11 +322,13 @@ export class BingoGame extends BaseGame {
     };
   }
 
-  private shuffleArray<T>(array: T[]): void {
-    for (let i = array.length - 1; i > 0; i--) {
+  protected shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [array[i]!, array[j]!] = [array[j]!, array[i]!];
+      [shuffled[i]!, shuffled[j]!] = [shuffled[j]!, shuffled[i]!];
     }
+    return shuffled;
   }
 
   async validateMove(moveData: Record<string, any>): Promise<MoveValidationResult> {
@@ -373,7 +375,7 @@ export class BingoGame extends BaseGame {
         }
 
         // Check if value exists in any criteria
-        const validValue = state.customCriteria.some(criteria =>
+        const validValue = state.customCriteria.some((criteria) =>
           criteria.values.includes(move.value!)
         );
 
@@ -516,6 +518,7 @@ export class BingoGame extends BaseGame {
 
     for (const condition of state.winConditions) {
       const isComplete = condition.pattern.every(([row, col]) => {
+        if (typeof row !== 'number' || typeof col !== 'number') return false;
         return card.cells[row]?.[col]?.marked === true;
       });
 
@@ -537,8 +540,8 @@ export class BingoGame extends BaseGame {
     const sanitizedCards: any = {};
     for (const [playerId, card] of Object.entries(state.cards)) {
       sanitizedCards[playerId] = {
-        cells: card.cells.map(row =>
-          row.map(cell => ({
+        cells: card.cells.map((row) =>
+          row.map((cell) => ({
             value: cell.value,
             marked: cell.marked,
             isCenter: cell.isCenter,
