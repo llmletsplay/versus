@@ -34,7 +34,8 @@
       "Bash(wc:*)",
       "Bash(rm:*)",
       "Bash(git init:*)",
-      "Bash(git cherry-pick:*)"
+      "Bash(git cherry-pick:*)",
+      "Bash(git pull:*)"
     ],
     "deny": []
   }

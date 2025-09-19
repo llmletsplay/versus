@@ -27,7 +27,7 @@ interface GoState extends GameState {
     player: Player;
     row?: number;
     col?: number;
-    action: 'place' | 'pass';
+    action: 'place' | 'pass' | 'resign';
     capturedStones: number;
   }>;
   territory: {
@@ -103,7 +103,9 @@ export class GoGame extends BaseGame {
     const handicapPositions = this.getHandicapPositions(size, handicap);
 
     for (const pos of handicapPositions) {
-      state.board[pos.row][pos.col] = 'black';
+      if (state.board[pos.row] && state.board[pos.row]![pos.col] !== undefined) {
+        state.board[pos.row]![pos.col] = 'black';
+      }
     }
   }
 
@@ -176,7 +178,7 @@ export class GoGame extends BaseGame {
         }
 
         // Check if position is empty
-        if (state.board[move.row][move.col] !== null) {
+        if (state.board[move.row]?.[move.col] !== null) {
           return { valid: false, error: 'Position is already occupied' };
         }
 
@@ -207,15 +209,17 @@ export class GoGame extends BaseGame {
     }
 
     // Create a copy of the board with the move applied
-    const testBoard = state.board.map(row => [...row]);
-    testBoard[move.row][move.col] = move.player;
+    const testBoard = state.board.map((row) => [...row]);
+    if (testBoard[move.row] && testBoard[move.row]![move.col] !== undefined) {
+      testBoard[move.row]![move.col] = move.player;
+    }
 
     // Check if this move captures any opponent groups
     const opponent = move.player === 'black' ? 'white' : 'black';
     const neighbors = this.getNeighbors(move.row, move.col, testBoard);
 
     for (const neighbor of neighbors) {
-      if (testBoard[neighbor.row][neighbor.col] === opponent) {
+      if (testBoard[neighbor.row]?.[neighbor.col] === opponent) {
         const group = this.getGroup(neighbor.row, neighbor.col, testBoard);
         if (this.getLiberties(group, testBoard).length === 0) {
           return false; // This move captures opponent stones, so it's not suicide
@@ -242,6 +246,7 @@ export class GoGame extends BaseGame {
     ];
 
     for (const [dr, dc] of directions) {
+      if (dr === undefined || dc === undefined) continue;
       const newRow = row + dr;
       const newCol = col + dc;
 
@@ -303,7 +308,7 @@ export class GoGame extends BaseGame {
       }
     }
 
-    return Array.from(liberties).map(key => {
+    return Array.from(liberties).map((key) => {
       const [row, col] = key.split(',').map(Number);
       return { row: row!, col: col! };
     });
@@ -317,7 +322,9 @@ export class GoGame extends BaseGame {
 
     if (goMove.action === 'place' && goMove.row !== undefined && goMove.col !== undefined) {
       // Place the stone
-      state.board[goMove.row][goMove.col] = goMove.player;
+      if (state.board[goMove.row]) {
+        state.board[goMove.row]![goMove.col] = goMove.player;
+      }
 
       // Check for captures
       capturedStones = this.processCapturesAt(goMove.row, goMove.col, state);
@@ -371,7 +378,9 @@ export class GoGame extends BaseGame {
         if (liberties.length === 0) {
           // Capture this group
           for (const stone of group) {
-            state.board[stone.row][stone.col] = null;
+            if (state.board[stone.row]) {
+              state.board[stone.row]![stone.col] = null;
+            }
             totalCaptured++;
           }
         }

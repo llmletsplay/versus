@@ -145,12 +145,22 @@ export class ShogiGame extends BaseGame {
     ],
   };
 
-  constructor(gameId: string) {
-    super(gameId, 'shogi');
+  constructor(gameId: string, database: any) {
+    super(gameId, 'shogi', database);
     this.board = this.initializeBoard();
     this.currentPlayer = 'sente';
     this.capturedPieces = { sente: [], gote: [] };
     this.moveHistory = [];
+  }
+
+  private getPieceAt(row: number, col: number): ShogiPiece | null {
+    return this.board[row]?.[col] || null;
+  }
+
+  private setPieceAt(row: number, col: number, piece: ShogiPiece | null): void {
+    if (this.board[row]) {
+      this.board[row]![col] = piece;
+    }
   }
 
   private initializeBoard(): (ShogiPiece | null)[][] {
@@ -297,10 +307,10 @@ export class ShogiGame extends BaseGame {
       );
 
       const kingMoves = this.pieceMovements['promoted-rook']
-        .map(move => this.adjustMoveForPlayer(move, piece.player))
-        .map(move => ({ row: from.row + move.row, col: from.col + move.col }))
-        .filter(pos => this.isValidPosition(pos.row, pos.col))
-        .filter(pos => {
+        .map((move) => this.adjustMoveForPlayer(move, piece.player))
+        .map((move) => ({ row: from.row + move.row, col: from.col + move.col }))
+        .filter((pos) => this.isValidPosition(pos.row, pos.col))
+        .filter((pos) => {
           const targetPiece = this.board[pos.row][pos.col];
           return !targetPiece || targetPiece.player !== piece.player;
         });
@@ -322,10 +332,10 @@ export class ShogiGame extends BaseGame {
       );
 
       const kingMoves = this.pieceMovements['promoted-bishop']
-        .map(move => this.adjustMoveForPlayer(move, piece.player))
-        .map(move => ({ row: from.row + move.row, col: from.col + move.col }))
-        .filter(pos => this.isValidPosition(pos.row, pos.col))
-        .filter(pos => {
+        .map((move) => this.adjustMoveForPlayer(move, piece.player))
+        .map((move) => ({ row: from.row + move.row, col: from.col + move.col }))
+        .filter((pos) => this.isValidPosition(pos.row, pos.col))
+        .filter((pos) => {
           const targetPiece = this.board[pos.row][pos.col];
           return !targetPiece || targetPiece.player !== piece.player;
         });
@@ -413,7 +423,9 @@ export class ShogiGame extends BaseGame {
         const piece = this.board[row][col];
         if (piece && piece.player === opponent) {
           const possibleMoves = this.getPossibleMoves({ row, col });
-          if (possibleMoves.some(move => move.row === kingPos!.row && move.col === kingPos!.col)) {
+          if (
+            possibleMoves.some((move) => move.row === kingPos!.row && move.col === kingPos!.col)
+          ) {
             return true;
           }
         }
@@ -525,7 +537,7 @@ export class ShogiGame extends BaseGame {
 
     const possibleMoves = this.getPossibleMoves(move.from);
     const isValidMove = possibleMoves.some(
-      pos => pos.row === move.to.row && pos.col === move.to.col
+      (pos) => pos.row === move.to.row && pos.col === move.to.col
     );
 
     if (!isValidMove) {
@@ -630,7 +642,9 @@ export class ShogiGame extends BaseGame {
     const isCheckmate = inCheck && this.isCheckmate(this.currentPlayer);
 
     return {
-      board: this.board.map(row => row.slice()),
+      gameId: this.gameId,
+      gameType: this.gameType,
+      board: this.board.map((row) => row.slice()),
       currentPlayer: this.currentPlayer,
       gameOver: isCheckmate,
       winner: isCheckmate ? (this.currentPlayer === 'sente' ? 'gote' : 'sente') : null,
@@ -641,6 +655,7 @@ export class ShogiGame extends BaseGame {
       moveHistory: [...this.moveHistory],
       inCheck,
       players: ['sente', 'gote'],
+      status: isCheckmate ? 'completed' : 'active',
     };
   }
 
@@ -746,7 +761,7 @@ export class ShogiGame extends BaseGame {
         }
 
         const possibleMoves = this.getPossibleMoves(move.from);
-        if (!possibleMoves.some(pos => pos.row === move.to.row && pos.col === move.to.col)) {
+        if (!possibleMoves.some((pos) => pos.row === move.to.row && pos.col === move.to.col)) {
           return { valid: false, error: 'Invalid move for piece' };
         }
       }

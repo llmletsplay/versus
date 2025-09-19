@@ -198,7 +198,7 @@ interface ValidationContext {
 }
 
 export class CatanGame extends BaseGame {
-  private currentState!: CatanState;
+  declare protected currentState: CatanState;
   private readonly VICTORY_POINTS_TO_WIN = GAME_CONSTANTS.VICTORY_POINTS_TO_WIN;
 
   // Standard Catan board layout (simplified but production-ready)
@@ -279,7 +279,7 @@ export class CatanGame extends BaseGame {
         developmentCardDeck,
         setupPhaseState: {
           placedBuildings: Object.fromEntries(
-            playerIds.map(id => [id, { settlement: false, road: false }])
+            playerIds.map((id) => [id, { settlement: false, road: false }])
           ),
         },
       };
@@ -331,7 +331,7 @@ export class CatanGame extends BaseGame {
   }
 
   private findDesertHex(hexes: HexTile[]): number {
-    const desertIndex = hexes.findIndex(hex => hex.resource === 'desert');
+    const desertIndex = hexes.findIndex((hex) => hex.resource === 'desert');
 
     if (desertIndex === -1) {
       throw new Error('Invalid board: no desert hex found');
@@ -398,7 +398,7 @@ export class CatanGame extends BaseGame {
   private getAdjacentHexes(intersectionId: number): number[] {
     // Simplified mapping - in a real implementation, this would be based on the actual board geometry
     return [intersectionId % 19, (intersectionId + 1) % 19, (intersectionId + 2) % 19].filter(
-      id => id < 19
+      (id) => id < 19
     );
   }
 
@@ -1494,15 +1494,16 @@ export class CatanGame extends BaseGame {
 
   private randomlyDiscardResources(resources: ResourceCards, count: number): void {
     const resourceTypes = Object.keys(resources) as Resource[];
+    const mutableResources = resources as any;
 
     for (let i = 0; i < count; i++) {
-      const availableTypes = resourceTypes.filter(type => resources[type] > 0);
+      const availableTypes = resourceTypes.filter((type) => resources[type] > 0);
       if (availableTypes.length === 0) {
         break;
       }
 
       const randomType = availableTypes[Math.floor(Math.random() * availableTypes.length)]!;
-      resources[randomType]--;
+      mutableResources[randomType]--;
     }
   }
 
@@ -1531,7 +1532,10 @@ export class CatanGame extends BaseGame {
 
     // Upgrade settlement to city
     const intersection = state.board.intersections[move.position!]!;
-    intersection.building!.type = 'city';
+    (intersection as any).building = {
+      type: 'city',
+      player: intersection.building!.player,
+    };
     player.buildings.settlements++; // Return settlement piece
     player.buildings.cities--;
     player.victoryPoints++; // Cities give 2 VP total (settlement was already 1)
@@ -1579,7 +1583,7 @@ export class CatanGame extends BaseGame {
   private updateLongestRoad(state: CatanState): void {
     // Simplified longest road calculation
     for (const [_playerId, player] of Object.entries(state.players)) {
-      const roadCount = state.board.edges.filter(edge => edge.road?.player === _playerId).length;
+      const roadCount = state.board.edges.filter((edge) => edge.road?.player === _playerId).length;
       player.longestRoad = roadCount;
 
       // Award longest road bonus (5+ roads needed)
@@ -1593,7 +1597,7 @@ export class CatanGame extends BaseGame {
         }
 
         // Award to current player if they have the most
-        const maxRoads = Math.max(...Object.values(state.players).map(p => p.longestRoad));
+        const maxRoads = Math.max(...Object.values(state.players).map((p) => p.longestRoad));
         if (roadCount === maxRoads && !player.hasLongestRoad) {
           player.hasLongestRoad = true;
           player.victoryPoints += 2;

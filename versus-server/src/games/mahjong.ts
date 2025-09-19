@@ -171,7 +171,7 @@ export class MahjongGame extends BaseGame {
           return { valid: false, error: `It's ${state.currentPlayer}'s turn` };
         }
 
-        if (state.hands[move.player].length !== this.HAND_SIZE) {
+        if (state.hands[move.player]?.length !== this.HAND_SIZE) {
           return { valid: false, error: 'Player already has drawn tile' };
         }
 
@@ -185,7 +185,7 @@ export class MahjongGame extends BaseGame {
           return { valid: false, error: `It's ${state.currentPlayer}'s turn` };
         }
 
-        if (state.hands[move.player].length !== this.WINNING_HAND_SIZE) {
+        if (state.hands[move.player]?.length !== this.WINNING_HAND_SIZE) {
           return { valid: false, error: 'Must draw before discarding' };
         }
 
@@ -195,7 +195,7 @@ export class MahjongGame extends BaseGame {
 
         // Check if player has this tile
         const playerHand = state.hands[move.player];
-        if (!playerHand.some(tile => tile.id === move.tile!.id)) {
+        if (!playerHand?.some((tile) => tile.id === move.tile!.id)) {
           return { valid: false, error: 'Player does not have this tile' };
         }
       }
@@ -219,7 +219,7 @@ export class MahjongGame extends BaseGame {
   }
 
   private checkWinningHand(playerId: string, state: MahjongState): boolean {
-    const hand = [...state.hands[playerId]];
+    const hand = [...(state.hands[playerId] || [])];
 
     // Simple winning condition: 4 sets + 1 pair
     // A set is either 3 identical tiles or 3 consecutive tiles of same suit
@@ -282,7 +282,7 @@ export class MahjongGame extends BaseGame {
 
   private drawTile(move: MahjongMove, state: MahjongState): void {
     const tile = state.wall.shift()!;
-    state.hands[move.player].push(tile);
+    state.hands[move.player]?.push(tile);
 
     state.lastAction = {
       action: 'draw',
@@ -296,8 +296,10 @@ export class MahjongGame extends BaseGame {
     const tile = move.tile!;
     const playerHand = state.hands[move.player];
 
+    if (!playerHand) return;
+
     // Remove tile from hand
-    const tileIndex = playerHand.findIndex(handTile => handTile.id === tile.id);
+    const tileIndex = playerHand.findIndex((handTile) => handTile.id === tile.id);
     if (tileIndex !== -1) {
       playerHand.splice(tileIndex, 1);
     }

@@ -238,7 +238,7 @@ export class CrazyCardsGame extends BaseGame {
         }
 
         // Verify player has the card
-        const hasCard = player.hand.some(c => c.id === move.card!.id);
+        const hasCard = player.hand.some((c) => c.id === move.card!.id);
         if (!hasCard) {
           return { valid: false, error: 'You do not have that card' };
         }
@@ -290,7 +290,7 @@ export class CrazyCardsGame extends BaseGame {
     }
 
     if (crazyMove.action === 'pass') {
-      this.advanceToNextPlayer(state);
+      this.advanceToNextCrazyPlayer(state);
       return;
     }
 
@@ -345,7 +345,7 @@ export class CrazyCardsGame extends BaseGame {
     const card = move.card!;
 
     // Remove card from player's hand
-    const cardIndex = player.hand.findIndex(c => c.id === card.id);
+    const cardIndex = player.hand.findIndex((c) => c.id === card.id);
     if (cardIndex !== -1) {
       player.hand.splice(cardIndex, 1);
       player.handSize = player.hand.length;
@@ -385,11 +385,11 @@ export class CrazyCardsGame extends BaseGame {
 
     // Advance to next player (unless skipped by special card)
     if (card.value !== 'skip') {
-      this.advanceToNextPlayer(state);
+      this.advanceToNextCrazyPlayer(state);
     } else {
       // Skip next player
-      this.advanceToNextPlayer(state);
-      this.advanceToNextPlayer(state);
+      this.advanceToNextCrazyPlayer(state);
+      this.advanceToNextCrazyPlayer(state);
     }
   }
 
@@ -399,7 +399,7 @@ export class CrazyCardsGame extends BaseGame {
         state.direction *= -1;
         // In 2-player game, reverse acts like skip
         if (state.playerOrder.length === 2) {
-          this.advanceToNextPlayer(state);
+          this.advanceToNextCrazyPlayer(state);
         }
         break;
 
@@ -481,7 +481,7 @@ export class CrazyCardsGame extends BaseGame {
     this.shuffleDeck(state.deck);
   }
 
-  private advanceToNextPlayer(state: CrazyState): void {
+  private advanceToNextCrazyPlayer(state: CrazyState): void {
     const currentIndex = state.playerOrder.indexOf(state.currentPlayer);
     const nextIndex =
       (currentIndex + state.direction + state.playerOrder.length) % state.playerOrder.length;

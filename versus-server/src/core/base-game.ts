@@ -1,25 +1,23 @@
-import { AbstractGame } from "../types/game.js";
+import { AbstractGame } from '../types/game.js';
 import type {
   GameMove,
   GameState,
   GameConfig,
   MoveValidationResult,
   GameMetadata,
-} from "../types/game.js";
-import { ERROR_MESSAGES, shuffleArray } from "../utils/game-constants.js";
-import { logger } from "../utils/logger.js";
-import { errorHandler, ValidationErrors } from "../utils/error-handler.js";
-import { PlayerManager, PlayerUtils } from "../utils/player-manager.js";
-import { DatabaseProvider, GameStateData } from "./database.js";
+} from '../types/game.js';
+import { ERROR_MESSAGES, shuffleArray } from '../utils/game-constants.js';
+import { logger } from '../utils/logger.js';
+import { errorHandler, ValidationErrors } from '../utils/error-handler.js';
+import { PlayerManager, PlayerUtils } from '../utils/player-manager.js';
+import { DatabaseProvider, GameStateData } from './database.js';
 
 /**
  * CRITICAL: Base game class - foundation for all game implementations
  * SECURITY: Handles game state validation and persistence
  * WARNING: Changes to this class affect all 29+ games
  */
-export abstract class BaseGame<
-  TState extends GameState = GameState,
-> extends AbstractGame<TState> {
+export abstract class BaseGame<TState extends GameState = GameState> extends AbstractGame<TState> {
   // CRITICAL: Database connection for persistent state storage
   protected database: DatabaseProvider;
   // CRITICAL: Player management for turn-based games
@@ -40,9 +38,7 @@ export abstract class BaseGame<
    * Validate a move before applying it
    * Subclasses must implement this to validate game-specific moves
    */
-  abstract validateMove(
-    _moveData: Record<string, any>,
-  ): Promise<MoveValidationResult>;
+  abstract validateMove(_moveData: Record<string, any>): Promise<MoveValidationResult>;
 
   /**
    * Apply a validated move to the game state
@@ -85,7 +81,7 @@ export abstract class BaseGame<
       gameId: this.gameId,
       gameType: this.gameType,
       player: moveData.player,
-      action: "makeMove",
+      action: 'makeMove',
     };
 
     try {
@@ -112,13 +108,7 @@ export abstract class BaseGame<
       };
 
       // Log the move
-      logger.gameAction(
-        "makeMove",
-        this.gameId,
-        this.gameType,
-        move.player,
-        moveData,
-      );
+      logger.gameAction('makeMove', this.gameId, this.gameType, move.player, moveData);
 
       // CRITICAL: State mutation - core game logic execution
       await this.applyMove(move);
@@ -140,18 +130,19 @@ export abstract class BaseGame<
    */
   protected async persistState(): Promise<void> {
     try {
+      const isGameOver = await this.isGameOver();
       const gameStateData: GameStateData = {
         gameId: this.gameId,
         gameType: this.gameType,
         gameState: this.currentState,
         moveHistory: this.history,
         players: this.getPlayerIds(),
-        status: this.isGameOver() ? "completed" : "active",
+        status: isGameOver ? 'completed' : 'active',
       };
 
       await this.database.saveGameState(gameStateData);
 
-      logger.debug("Game state persisted to database", {
+      logger.debug('Game state persisted to database', {
         gameId: this.gameId,
         gameType: this.gameType,
         playersCount: gameStateData.players.length,
@@ -161,7 +152,7 @@ export abstract class BaseGame<
       const context = {
         gameId: this.gameId,
         gameType: this.gameType,
-        action: "persistState",
+        action: 'persistState',
       };
       const gameError = errorHandler.handleError(error as Error, context);
       throw gameError;
@@ -178,17 +169,14 @@ export abstract class BaseGame<
 
       if (gameStateData) {
         // SECURITY: Validate loaded data integrity - prevents state corruption
-        if (
-          gameStateData.gameId !== this.gameId ||
-          gameStateData.gameType !== this.gameType
-        ) {
-          throw new Error("Game data mismatch");
+        if (gameStateData.gameId !== this.gameId || gameStateData.gameType !== this.gameType) {
+          throw new Error('Game data mismatch');
         }
 
         this.history = gameStateData.moveHistory || [];
         this.currentState = gameStateData.gameState || {};
 
-        logger.debug("Game state loaded from database", {
+        logger.debug('Game state loaded from database', {
           gameId: this.gameId,
           gameType: this.gameType,
           historyLength: this.history.length,
@@ -198,7 +186,7 @@ export abstract class BaseGame<
         // No existing game state, this is a new game
         this.history = [];
         this.currentState = {} as TState;
-        logger.debug("New game initialized", {
+        logger.debug('New game initialized', {
           gameId: this.gameId,
           gameType: this.gameType,
         });
@@ -207,7 +195,7 @@ export abstract class BaseGame<
       const context = {
         gameId: this.gameId,
         gameType: this.gameType,
-        action: "loadState",
+        action: 'loadState',
       };
       const gameError = errorHandler.handleError(error as Error, context);
       throw gameError;
@@ -224,15 +212,11 @@ export abstract class BaseGame<
    */
   protected validateCommonMove(
     moveData: Record<string, any>,
-    requiredFields: string[] = ["player"],
+    requiredFields: string[] = ['player']
   ): MoveValidationResult {
     // Check required fields
     for (const field of requiredFields) {
-      if (
-        !(field in moveData) ||
-        moveData[field] === undefined ||
-        moveData[field] === null
-      ) {
+      if (!(field in moveData) || moveData[field] === undefined || moveData[field] === null) {
         return { valid: false, error: `Missing required field: ${field}` };
       }
     }
@@ -244,10 +228,7 @@ export abstract class BaseGame<
    * SECURITY: Player turn validation - prevents out-of-turn moves
    * CRITICAL: Core turn management logic
    */
-  protected validatePlayerTurn(
-    player: string,
-    currentPlayer: string,
-  ): MoveValidationResult {
+  protected validatePlayerTurn(player: string, currentPlayer: string): MoveValidationResult {
     if (player !== currentPlayer) {
       return { valid: false, error: ERROR_MESSAGES.NOT_YOUR_TURN };
     }
@@ -259,16 +240,19 @@ export abstract class BaseGame<
    * Subclasses should override this based on their state structure
    */
   protected getPlayerIds(): string[] {
-    // Default implementation - try to extract from common state patterns
+    // First try to use player manager if available
+    if (this.playerManager) {
+      return this.playerManager.getPlayerIds();
+    }
+
+    // Fallback - extract from common state patterns
     const state = this.currentState as any;
 
     if (state.players) {
       if (Array.isArray(state.players)) {
-        return state.players.map((p: any) =>
-          typeof p === "string" ? p : p.id || p.name,
-        );
+        return state.players.map((p: any) => (typeof p === 'string' ? p : p.id || p.name));
       }
-      if (typeof state.players === "object") {
+      if (typeof state.players === 'object') {
         return Object.keys(state.players);
       }
     }
@@ -284,11 +268,7 @@ export abstract class BaseGame<
   /**
    * Helper to validate board position
    */
-  protected validatePosition(
-    row: number,
-    col: number,
-    boardSize: number,
-  ): MoveValidationResult {
+  protected validatePosition(row: number, col: number, boardSize: number): MoveValidationResult {
     if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) {
       return { valid: false, error: ERROR_MESSAGES.INVALID_POSITION };
     }
@@ -298,12 +278,7 @@ export abstract class BaseGame<
   /**
    * Helper to check if a board cell is empty
    */
-  protected isCellEmpty(
-    board: any[][],
-    row: number,
-    col: number,
-    emptyValue: any = null,
-  ): boolean {
+  protected isCellEmpty(board: any[][], row: number, col: number, emptyValue: any = null): boolean {
     return board[row]?.[col] === emptyValue;
   }
 
@@ -313,7 +288,7 @@ export abstract class BaseGame<
   protected getAdjacentPositions(
     row: number,
     col: number,
-    boardSize: number,
+    boardSize: number
   ): Array<{ row: number; col: number }> {
     const positions: Array<{ row: number; col: number }> = [];
     const directions = [
@@ -327,12 +302,7 @@ export abstract class BaseGame<
       const newRow = row + dir.row;
       const newCol = col + dir.col;
 
-      if (
-        newRow >= 0 &&
-        newRow < boardSize &&
-        newCol >= 0 &&
-        newCol < boardSize
-      ) {
+      if (newRow >= 0 && newRow < boardSize && newCol >= 0 && newCol < boardSize) {
         positions.push({ row: newRow, col: newCol });
       }
     }
@@ -346,7 +316,7 @@ export abstract class BaseGame<
   protected getAllAdjacentPositions(
     row: number,
     col: number,
-    boardSize: number,
+    boardSize: number
   ): Array<{ row: number; col: number }> {
     const positions: Array<{ row: number; col: number }> = [];
 
@@ -359,12 +329,7 @@ export abstract class BaseGame<
         const newRow = row + dr;
         const newCol = col + dc;
 
-        if (
-          newRow >= 0 &&
-          newRow < boardSize &&
-          newCol >= 0 &&
-          newCol < boardSize
-        ) {
+        if (newRow >= 0 && newRow < boardSize && newCol >= 0 && newCol < boardSize) {
           positions.push({ row: newRow, col: newCol });
         }
       }
@@ -376,10 +341,7 @@ export abstract class BaseGame<
   /**
    * Helper to advance to next player in turn order
    */
-  protected advanceToNextPlayer(
-    playerOrder: string[],
-    currentPlayer: string,
-  ): string {
+  protected advanceToNextPlayer(playerOrder: string[], currentPlayer: string): string {
     const currentIndex = playerOrder.indexOf(currentPlayer);
     if (currentIndex === -1) {
       return playerOrder[0] || currentPlayer;
@@ -406,21 +368,21 @@ export abstract class BaseGame<
     rank: string;
     value: number;
   }> {
-    const suits = ["hearts", "diamonds", "clubs", "spades"];
+    const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
     const ranks = [
-      { rank: "A", value: 1 },
-      { rank: "2", value: 2 },
-      { rank: "3", value: 3 },
-      { rank: "4", value: 4 },
-      { rank: "5", value: 5 },
-      { rank: "6", value: 6 },
-      { rank: "7", value: 7 },
-      { rank: "8", value: 8 },
-      { rank: "9", value: 9 },
-      { rank: "10", value: 10 },
-      { rank: "J", value: 11 },
-      { rank: "Q", value: 12 },
-      { rank: "K", value: 13 },
+      { rank: 'A', value: 1 },
+      { rank: '2', value: 2 },
+      { rank: '3', value: 3 },
+      { rank: '4', value: 4 },
+      { rank: '5', value: 5 },
+      { rank: '6', value: 6 },
+      { rank: '7', value: 7 },
+      { rank: '8', value: 8 },
+      { rank: '9', value: 9 },
+      { rank: '10', value: 10 },
+      { rank: 'J', value: 11 },
+      { rank: 'Q', value: 12 },
+      { rank: 'K', value: 13 },
     ];
 
     const deck = [];
@@ -516,7 +478,7 @@ export abstract class BaseGame<
     playerNames?: string[];
     minPlayers?: number;
     maxPlayers?: number;
-    playerTypes?: Array<"human" | "ai">;
+    playerTypes?: Array<'human' | 'ai'>;
   }): void {
     this.playerManager = new PlayerManager({
       ...config,
@@ -548,17 +510,15 @@ export abstract class BaseGame<
   /**
    * Validate player move using standard patterns
    */
-  protected validatePlayerMove(
-    moveData: Record<string, any>,
-  ): MoveValidationResult {
+  protected validatePlayerMove(moveData: Record<string, any>): MoveValidationResult {
     if (!this.playerManager) {
-      return { valid: false, error: "Player manager not initialized" };
+      return { valid: false, error: 'Player manager not initialized' };
     }
 
     // Use PlayerUtils for consistent validation
     const validation = PlayerUtils.validatePlayerMove(
       moveData,
-      this.playerManager.getCurrentPlayerId(),
+      this.playerManager.getCurrentPlayerId()
     );
 
     if (!validation.valid) {
@@ -567,7 +527,7 @@ export abstract class BaseGame<
 
     // Additional validation for valid player
     if (!this.playerManager.isValidPlayer(moveData.player)) {
-      return { valid: false, error: "Invalid player ID" };
+      return { valid: false, error: 'Invalid player ID' };
     }
 
     return { valid: true };
@@ -587,18 +547,7 @@ export abstract class BaseGame<
    * Get current player ID
    */
   protected getCurrentPlayerId(): string {
-    return (
-      this.playerManager?.getCurrentPlayerId() ||
-      this.currentState.currentPlayer ||
-      ""
-    );
-  }
-
-  /**
-   * Get all player IDs
-   */
-  protected getPlayerIds(): string[] {
-    return this.playerManager?.getPlayerIds() || [];
+    return this.playerManager?.getCurrentPlayerId() || this.currentState.currentPlayer || '';
   }
 
   /**
@@ -606,8 +555,7 @@ export abstract class BaseGame<
    */
   protected isPlayerTurn(playerId: string): boolean {
     return (
-      this.playerManager?.isPlayerTurn(playerId) ||
-      playerId === this.currentState.currentPlayer
+      this.playerManager?.isPlayerTurn(playerId) || playerId === this.currentState.currentPlayer
     );
   }
 
