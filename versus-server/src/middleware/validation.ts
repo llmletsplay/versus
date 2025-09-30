@@ -36,7 +36,8 @@ export function validateQuery<T>(schema: z.ZodType<T>) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
       // Validate query parameters
-      req.query = schema.parse(req.query);
+      const validated = schema.parse(req.query);
+      (req as any).query = validated;
       next();
     } catch (error) {
       if (error instanceof ZodError) {
@@ -67,7 +68,8 @@ export function validateParams<T>(schema: z.ZodType<T>) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
       // Validate path parameters
-      req.params = schema.parse(req.params);
+      const validated = schema.parse(req.params);
+      (req as any).params = validated;
       next();
     } catch (error) {
       if (error instanceof ZodError) {

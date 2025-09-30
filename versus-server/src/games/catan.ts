@@ -294,7 +294,7 @@ export class CatanGame extends BaseGame {
 
       return this.getGameState();
     } catch (error) {
-      console.error('Failed to initialize Catan game:', error);
+      logger.error('Failed to initialize Catan game', { gameId: this.gameId, error });
       throw new Error(
         `Failed to initialize game: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -510,11 +510,11 @@ export class CatanGame extends BaseGame {
         error: error instanceof Error ? error.message : String(error),
       };
 
-      console.error('Error validating move:', errorContext);
+      logger.error('Error validating move:', errorContext);
 
       // In development, include stack trace
       if (process.env.NODE_ENV === 'development') {
-        console.error(
+        logger.error(
           'Stack trace:',
           error instanceof Error ? error.stack : 'No stack trace available'
         );
@@ -593,7 +593,7 @@ export class CatanGame extends BaseGame {
 
       return move;
     } catch (error) {
-      console.error('Error sanitizing move:', error);
+      logger.error('Error sanitizing move', { error });
       return null;
     }
   }
@@ -671,9 +671,11 @@ export class CatanGame extends BaseGame {
 
         // Validate amounts are non-negative
         if (requiredAmount < 0 || availableAmount < 0) {
-          console.warn(
-            `Invalid resource amount detected: ${resource}=${availableAmount}, required=${requiredAmount}`
-          );
+          logger.warn('Invalid resource amount detected', {
+            resource,
+            availableAmount,
+            requiredAmount,
+          });
           return false;
         }
 
@@ -683,7 +685,7 @@ export class CatanGame extends BaseGame {
       }
       return true;
     } catch (error) {
-      console.error('Error checking resources:', error);
+      logger.error('Error checking resources', { error });
       return false;
     }
   }
@@ -766,7 +768,7 @@ export class CatanGame extends BaseGame {
 
     // Validate dice roll is within expected range
     if (total < GAME_CONSTANTS.DICE_MIN || total > GAME_CONSTANTS.DICE_MAX) {
-      console.warn(`Invalid dice roll: ${total}`);
+      logger.warn('Invalid dice roll', { total });
       return 7; // Default to robber trigger
     }
 
@@ -803,7 +805,7 @@ export class CatanGame extends BaseGame {
                   // Reasonable upper limit
                   player.resources[resource] += multiplier;
                 } else {
-                  console.warn(`Resource overflow prevented for ${playerId}: ${resource}`);
+                  logger.warn('Resource overflow prevented', { playerId, resource });
                 }
               }
             }
@@ -811,7 +813,7 @@ export class CatanGame extends BaseGame {
         }
       }
     } catch (error) {
-      console.error('Error distributing resources:', error);
+      logger.error('Error distributing resources', { error });
     }
   }
 

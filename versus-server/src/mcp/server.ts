@@ -23,7 +23,10 @@ export class VersusGameMCPServer {
       }
     );
 
-    this.gameManager = new GameManager('./mcp_game_data');
+    this.gameManager = new GameManager({
+      type: 'sqlite',
+      sqlitePath: './mcp_game_data/versus.db',
+    });
     registerGames(this.gameManager);
 
     this.setupToolHandlers();

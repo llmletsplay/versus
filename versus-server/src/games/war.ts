@@ -6,6 +6,7 @@ import type {
   GameMetadata,
   GameMove,
 } from '../types/game.js';
+import { DatabaseProvider } from '../core/database.js';
 
 type Suit = 'spades' | 'hearts' | 'diamonds' | 'clubs';
 type Rank = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K';
@@ -47,8 +48,8 @@ interface WarMove {
 }
 
 export class WarGame extends BaseGame {
-  constructor(gameId: string) {
-    super(gameId, 'war');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'war', database);
   }
 
   async initializeGame(config?: GameConfig): Promise<GameState> {

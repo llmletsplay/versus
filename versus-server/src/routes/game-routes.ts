@@ -104,7 +104,8 @@ export function createGameRoutes(gameManager: GameManager) {
   app.get('/:gameType/:gameId/state', async c => {
     try {
       const gameId = c.req.param('gameId');
-      const game = gameManager.getGame(gameId);
+      const gameType = c.req.param('gameType');
+      const game = await gameManager.getGame(gameType, gameId);
 
       if (!game) {
         return c.json(
@@ -142,7 +143,8 @@ export function createGameRoutes(gameManager: GameManager) {
   app.post('/:gameType/:gameId/move', zValidator('json', moveDataSchema), async c => {
     try {
       const gameId = c.req.param('gameId');
-      const game = gameManager.getGame(gameId);
+      const gameType = c.req.param('gameType');
+      const game = await gameManager.getGame(gameType, gameId);
 
       if (!game) {
         return c.json(
@@ -156,7 +158,7 @@ export function createGameRoutes(gameManager: GameManager) {
       }
 
       const moveData = c.req.valid('json');
-      const result = await gameManager.makeMove(gameId, moveData);
+      const result = await gameManager.makeMove(gameType, gameId, moveData);
 
       logger.info('Move made', { gameId, moveData });
 
@@ -197,10 +199,10 @@ export function createGameRoutes(gameManager: GameManager) {
    */
   app.get('/:gameType/:gameId/metadata', async c => {
     try {
-      const _gameType = c.req.param('gameType');
+      const gameType = c.req.param('gameType');
       const gameId = c.req.param('gameId');
 
-      const game = gameManager.getGame(gameId);
+      const game = await gameManager.getGame(gameType, gameId);
       if (!game) {
         return c.json(
           {

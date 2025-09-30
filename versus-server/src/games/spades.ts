@@ -7,6 +7,7 @@ import type {
   GameMetadata,
   GameMove,
 } from '../types/game.js';
+import { DatabaseProvider } from '../core/database.js';
 import { createShuffledDeck, type CardWithValue } from '../utils/card-utils.js';
 
 type Player = 'north' | 'south' | 'east' | 'west';
@@ -82,8 +83,8 @@ export class SpadesGame extends BaseGame {
   private readonly BAG_PENALTY = 100;
   private readonly BAGS_PER_PENALTY = 10;
 
-  constructor(gameId: string) {
-    super(gameId, 'spades');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'spades', database);
   }
 
   async initializeGame(config?: GameConfig): Promise<GameState> {
@@ -158,7 +159,7 @@ export class SpadesGame extends BaseGame {
   private getBidOrder(dealer: Player): Player[] {
     const playerOrder: Player[] = ['north', 'east', 'south', 'west'];
     const dealerIndex = playerOrder.indexOf(dealer);
-    const bidOrder = [];
+    const bidOrder: Player[] = [];
 
     // Bidding starts left of dealer
     for (let i = 1; i <= 4; i++) {

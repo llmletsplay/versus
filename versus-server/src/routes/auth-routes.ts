@@ -118,9 +118,10 @@ export function createAuthRoutes() {
         message: 'Login successful',
       });
     } catch (error) {
+      const userData = c.req.valid('json');
       const message = error instanceof Error ? error.message : 'Login failed';
 
-      logger.warn('User login failed', { username: credentials.username, error: message });
+      logger.warn('User login failed', { username: userData.username, error: message });
 
       if (message.includes('Invalid credentials') || message.includes('deactivated')) {
         return c.json(
@@ -149,7 +150,7 @@ export function createAuthRoutes() {
    * Get current user information
    */
   app.get('/me', async c => {
-    const user = c.get('user');
+    const user = c.get('user') as { userId: string; username: string; role: string } | undefined;
 
     if (!user) {
       return c.json(
@@ -198,7 +199,7 @@ export function createAuthRoutes() {
    * Refresh authentication token
    */
   app.post('/refresh', async c => {
-    const user = c.get('user');
+    const user = c.get('user') as { userId: string; username: string; role: string } | undefined;
 
     if (!user) {
       return c.json(

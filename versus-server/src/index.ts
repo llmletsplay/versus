@@ -308,10 +308,8 @@ async function startServer() {
       // Cleanup inactive games every hour
       setInterval(
         () => {
-          const cleanedCount = gameManager.cleanupInactiveGames();
-          if (cleanedCount > 0) {
-            logger.info(`🧹 Cleaned up ${cleanedCount} inactive games`);
-          }
+          gameManager.cleanupInactiveGames();
+          logger.info('🧹 Periodic game cleanup completed');
         },
         60 * 60 * 1000
       );

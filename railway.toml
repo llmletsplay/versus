@@ -1,0 +1,15 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "cd versus-server && bun install && bun run build"
+
+[deploy]
+startCommand = "cd versus-server && node dist/server/node.js"
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[env]
+NODE_ENV = "production"
+PORT = { default = "6789" }
+LOG_LEVEL = { default = "info" }

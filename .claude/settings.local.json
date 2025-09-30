@@ -35,8 +35,22 @@
       "Bash(rm:*)",
       "Bash(git init:*)",
       "Bash(git cherry-pick:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(tee:*)",
+      "Read(//private/tmp/**)",
+      "Bash(./start-local.sh:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker system prune:*)",
+      "Bash(make:*)",
+      "Bash(lsof:*)",
+      "Bash(docker rm:*)",
+      "Bash(POSTGRES_PORT=5433 docker-compose -f docker-compose.simple.yml up -d)",
+      "Bash(docker images:*)",
+      "Bash(pkill:*)",
+      "Bash(cat:*)",
+      "Bash(awk:*)"
     ],
     "deny": []
-  }
+  },
+  "outputStyle": "Explanatory"
 }
