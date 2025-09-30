@@ -1,5 +1,6 @@
 import type { GameConfig, MoveValidationResult, GameMetadata } from '../types/game.js';
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 
 /**
  * Game Factory - Simplifies creation of new games
@@ -45,8 +46,8 @@ export abstract class BoardGameFactory extends BaseGame {
   protected board: any[][];
   protected boardSize: { rows: number; cols: number };
 
-  constructor(gameId: string, gameType: string, config?: BoardGameConfig) {
-    super(gameId, gameType);
+  constructor(gameId: string, gameType: string, database: DatabaseProvider, config?: BoardGameConfig) {
+    super(gameId, gameType, database);
     this.boardSize = {
       rows: config?.rows || config?.boardSize || 8,
       cols: config?.cols || config?.boardSize || 8,
@@ -82,8 +83,8 @@ export abstract class BoardGameFactory extends BaseGame {
     ];
 
     for (const [dr, dc] of directions) {
-      const newRow = row + dr;
-      const newCol = col + dc;
+      const newRow = row + dr!;
+      const newCol = col + dc!;
       if (this.isValidPosition(newRow, newCol)) {
         neighbors.push({ row: newRow, col: newCol });
       }
@@ -141,8 +142,8 @@ export abstract class CardGameFactory extends BaseGame {
   protected hands: Map<string, any[]>;
   protected discardPile: any[];
 
-  constructor(gameId: string, gameType: string, _config?: CardGameConfig) {
-    super(gameId, gameType);
+  constructor(gameId: string, gameType: string, database: DatabaseProvider, _config?: CardGameConfig) {
+    super(gameId, gameType, database);
     this.hands = new Map();
     this.discardPile = [];
     this.deck = this.createDeck(_config);
@@ -219,8 +220,8 @@ export abstract class TurnBasedGameFactory extends BaseGame {
   protected turnCount: number;
   protected maxTurns?: number;
 
-  constructor(gameId: string, gameType: string, config?: TurnBasedGameConfig) {
-    super(gameId, gameType);
+  constructor(gameId: string, gameType: string, database: DatabaseProvider, config?: TurnBasedGameConfig) {
+    super(gameId, gameType, database);
     this.playerOrder = [];
     this.currentPlayer = '';
     this.turnCount = 0;

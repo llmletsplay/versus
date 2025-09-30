@@ -13,12 +13,16 @@ export interface GameTestCase {
   }>;
 }
 
+import { SQLiteProvider } from '../../src/core/database.js';
+
 export class GameTester {
   static async runTestCase(
-    GameClass: new (_gameId: string, _gameType: string) => BaseGame,
+    GameClass: new (_gameId: string, _database: SQLiteProvider) => BaseGame,
     testCase: GameTestCase
   ) {
-    const game = new GameClass('test-game', 'test-type');
+    const mockDb = new SQLiteProvider(':memory:');
+    await mockDb.initialize();
+    const game = new GameClass('test-game', mockDb);
 
     if (testCase.setup) {
       testCase.setup();
@@ -69,7 +73,8 @@ export class GameTester {
   }
 }
 
-export function createMockGameState(_gameId: string, _gameType: string): any {
-  // Remove unused result assignment
-  await game.initializeGame();
+export async function createMockDatabase(): Promise<SQLiteProvider> {
+  const db = new SQLiteProvider(':memory:');
+  await db.initialize();
+  return db;
 }

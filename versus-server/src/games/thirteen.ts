@@ -142,7 +142,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
       return this.getGameState();
     } catch (error) {
-      console.error('Failed to initialize Thirteen game:', error);
+      logger.error('Failed to initialize Thirteen game:', error);
       throw new Error(
         `Failed to initialize game: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -184,7 +184,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
       }
     }
 
-    console.warn('No player has 3 of spades, using first player as fallback');
+    logger.warn('No player has 3 of spades, using first player as fallback');
     return playerIds[0]!; // Fallback
   }
 
@@ -279,11 +279,11 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
         error: error instanceof Error ? error.message : String(error),
       };
 
-      console.error('Error validating move:', errorContext);
+      logger.error('Error validating move:', errorContext);
 
       // In development, include stack trace
       if (process.env.NODE_ENV === 'development') {
-        console.error(
+        logger.error(
           'Stack trace:',
           error instanceof Error ? error.stack : 'No stack trace available'
         );
@@ -309,7 +309,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
       const move: ThirteenMove = {
         player,
-        action: moveData.action,
+        action: moveData.action as 'pass' | 'play',
       };
 
       // Sanitize cards if present - allow empty arrays for validation to handle
@@ -331,7 +331,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
       return move;
     } catch (error) {
-      console.error('Error sanitizing move:', error);
+      logger.error('Error sanitizing move:', error);
       return null;
     }
   }
@@ -512,7 +512,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
     }
 
     for (let i = 1; i < sortedCards.length; i++) {
-      if (sortedCards[i].value !== sortedCards[i - 1].value + 1) {
+      if (sortedCards[i]!.value !== sortedCards[i - 1]!.value + 1) {
         return false;
       }
     }
@@ -523,7 +523,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
     if (cards.length !== 5) {
       return false;
     }
-    const suit = cards[0].suit;
+    const suit = cards[0]!.suit;
     return cards.every(card => card.suit === suit);
   }
 
@@ -534,7 +534,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
     // AAAAB or ABBBB
     return (
-      sortedCards[0].rank === sortedCards[3].rank || sortedCards[1].rank === sortedCards[4].rank
+      sortedCards[0]!.rank === sortedCards[3]!.rank || sortedCards[1]!.rank === sortedCards[4]!.rank
     );
   }
 
@@ -545,9 +545,9 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
     // AAABB or AABBB
     return (
-      (sortedCards[0].rank === sortedCards[2].rank &&
-        sortedCards[3].rank === sortedCards[4].rank) ||
-      (sortedCards[0].rank === sortedCards[1].rank && sortedCards[2].rank === sortedCards[4].rank)
+      (sortedCards[0]!.rank === sortedCards[2]!.rank &&
+        sortedCards[3]!.rank === sortedCards[4]!.rank) ||
+      (sortedCards[0]!.rank === sortedCards[1]!.rank && sortedCards[2]!.rank === sortedCards[4]!.rank)
     );
   }
 
@@ -556,17 +556,17 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
     switch (playType) {
       case 'single':
-        return cards[0].value * 4 + this.getSuitValue(cards[0].suit);
+        return cards[0]!.value * 4 + this.getSuitValue(cards[0]!.suit);
 
       case 'pair':
       case 'triple':
       case 'fourOfAKind':
-        return sorted[0].value * 4 + this.getSuitValue(sorted[sorted.length - 1].suit);
+        return sorted[0]!.value * 4 + this.getSuitValue(sorted[sorted.length - 1]!.suit);
 
       case 'straight':
       case 'straightFlush':
         return (
-          sorted[sorted.length - 1].value * 4 + this.getSuitValue(sorted[sorted.length - 1].suit)
+          sorted[sorted.length - 1]!.value * 4 + this.getSuitValue(sorted[sorted.length - 1]!.suit)
         );
 
       case 'flush':
@@ -574,7 +574,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
       case 'fullHouse':
         // Find the triple
-        const triple = sorted[2].rank;
+        const triple = sorted[2]!.rank;
         const tripleValue = sorted.find(card => card.rank === triple)!.value;
         return tripleValue * 4;
 
@@ -596,9 +596,9 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
       state.passedPlayers.add(thirteenMove.player);
 
       // Check if all other players have passed
-      const activePlayers = state.playerOrder.filter(p => !state.players[p].isOut);
+      const activePlayers = state.playerOrder.filter(p => !state.players[p]!.isOut);
       const allOthersPassedOrOut = activePlayers.every(
-        p => p === state.currentPlayer || state.passedPlayers.has(p) || state.players[p].isOut
+        p => p === state.currentPlayer || state.passedPlayers.has(p) || state.players[p]!.isOut
       );
 
       if (allOthersPassedOrOut) {
@@ -613,50 +613,52 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
       const player = state.players[thirteenMove.player];
 
       // Remove cards from hand
-      for (const cardToPlay of thirteenMove.cards) {
-        const index = player.hand.findIndex(
-          handCard => handCard.suit === cardToPlay.suit && handCard.rank === cardToPlay.rank
-        );
-        if (index !== -1) {
-          player.hand.splice(index, 1);
+      if (thirteenMove.cards) {
+        for (const cardToPlay of thirteenMove.cards) {
+          const index = player!.hand.findIndex(
+            handCard => handCard.suit === cardToPlay.suit && handCard.rank === cardToPlay.rank
+          );
+          if (index !== -1) {
+            player!.hand.splice(index, 1);
+          }
         }
-      }
 
-      // Update last play
-      state.lastPlay = {
-        player: thirteenMove.player,
-        cards: thirteenMove.cards,
-        playType: this.getPlayType(thirteenMove.cards)!,
-      };
+        // Update last play
+        state.lastPlay = {
+          player: thirteenMove.player,
+          cards: thirteenMove.cards,
+          playType: this.getPlayType(thirteenMove.cards)! as any,
+        };
 
-      // Clear passed players
-      state.passedPlayers.clear();
+        // Clear passed players
+        state.passedPlayers.clear();
 
-      // Check if player is out
-      if (player.hand.length === 0) {
-        player.isOut = true;
-        const finishedCount = Object.values(state.players).filter(p => p.isOut).length;
-        player.position = finishedCount;
+        // Check if player is out
+        if (player!.hand.length === 0) {
+          player!.isOut = true;
+          const finishedCount = Object.values(state.players).filter(p => p!.isOut).length;
+          player!.position = finishedCount;
 
-        // Check win condition
-        if (finishedCount === 1) {
-          state.winner = thirteenMove.player;
-          state.gameOver = true;
-          state.gamePhase = 'finished';
+          // Check win condition
+          if (finishedCount === 1) {
+            state.winner = thirteenMove.player;
+            state.gameOver = true;
+            state.gamePhase = 'finished';
+          }
         }
-      }
 
-      if (!state.gameOver) {
-        this.moveToNextPlayer(state);
+        if (!state.gameOver) {
+          this.moveToNextPlayer(state);
+        }
       }
     }
   }
 
   private moveToNextPlayer(state: ThirteenState): void {
-    const activePlayers = state.playerOrder.filter(p => !state.players[p].isOut);
+    const activePlayers = state.playerOrder.filter(p => !state.players[p]!.isOut);
     const currentIndex = activePlayers.indexOf(state.currentPlayer);
     const nextIndex = (currentIndex + 1) % activePlayers.length;
-    state.currentPlayer = activePlayers[nextIndex];
+    state.currentPlayer = activePlayers[nextIndex]!;
   }
 
   async getGameState(): Promise<ThirteenState> {
@@ -672,14 +674,17 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
         Object.entries(state.players).map(([id, player]) => [
           id,
           {
-            handSize: player.hand.length,
+            hand: [] as Card[], // Hide actual cards in public view
             isOut: player.isOut,
             position: player.position,
           },
         ])
-      ),
+      ) as { [playerId: string]: { hand: Card[]; isOut: boolean; position?: number } },
       lastPlay: state.lastPlay,
       gamePhase: state.gamePhase,
+      deck: state.deck,
+      playerOrder: state.playerOrder,
+      passedPlayers: state.passedPlayers,
     };
   }
 

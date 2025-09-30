@@ -1,0 +1,17 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "bun"]
+
+[phases.install]
+cmds = [
+  "cd versus-server",
+  "bun install --production=false"
+]
+
+[phases.build]
+cmds = [
+  "cd versus-server",
+  "bun run build"
+]
+
+[start]
+cmd = "cd versus-server && node dist/server/node.js"

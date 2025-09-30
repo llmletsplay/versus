@@ -154,55 +154,57 @@ export class ShogiGame extends BaseGame {
   }
 
   private getPieceAt(row: number, col: number): ShogiPiece | null {
-    return this.board[row]?.[col] || null;
+    // Board is always properly initialized, safe to use non-null assertion
+    return this.board[row]![col] ?? null;
   }
 
   private setPieceAt(row: number, col: number, piece: ShogiPiece | null): void {
-    if (this.board[row]) {
-      this.board[row]![col] = piece;
-    }
+    // Board is always properly initialized, safe to use non-null assertion
+    this.board[row]![col] = piece;
   }
 
   private initializeBoard(): (ShogiPiece | null)[][] {
-    const board: (ShogiPiece | null)[][] = Array(9)
-      .fill(null)
-      .map(() => Array(9).fill(null));
+    // Create board with proper array initialization to avoid undefined rows
+    const board: (ShogiPiece | null)[][] = [];
+    for (let i = 0; i < 9; i++) {
+      board[i] = Array(9).fill(null);
+    }
 
     // Initialize Gote (top player) pieces
-    board[0][0] = { type: 'lance', player: 'gote' };
-    board[0][1] = { type: 'knight', player: 'gote' };
-    board[0][2] = { type: 'silver', player: 'gote' };
-    board[0][3] = { type: 'gold', player: 'gote' };
-    board[0][4] = { type: 'king', player: 'gote' };
-    board[0][5] = { type: 'gold', player: 'gote' };
-    board[0][6] = { type: 'silver', player: 'gote' };
-    board[0][7] = { type: 'knight', player: 'gote' };
-    board[0][8] = { type: 'lance', player: 'gote' };
+    board[0]![0] = { type: 'lance', player: 'gote' };
+    board[0]![1] = { type: 'knight', player: 'gote' };
+    board[0]![2] = { type: 'silver', player: 'gote' };
+    board[0]![3] = { type: 'gold', player: 'gote' };
+    board[0]![4] = { type: 'king', player: 'gote' };
+    board[0]![5] = { type: 'gold', player: 'gote' };
+    board[0]![6] = { type: 'silver', player: 'gote' };
+    board[0]![7] = { type: 'knight', player: 'gote' };
+    board[0]![8] = { type: 'lance', player: 'gote' };
 
-    board[1][1] = { type: 'rook', player: 'gote' };
-    board[1][7] = { type: 'bishop', player: 'gote' };
+    board[1]![1] = { type: 'rook', player: 'gote' };
+    board[1]![7] = { type: 'bishop', player: 'gote' };
 
     for (let col = 0; col < 9; col++) {
-      board[2][col] = { type: 'pawn', player: 'gote' };
+      board[2]![col] = { type: 'pawn', player: 'gote' };
     }
 
     // Initialize Sente (bottom player) pieces
     for (let col = 0; col < 9; col++) {
-      board[6][col] = { type: 'pawn', player: 'sente' };
+      board[6]![col] = { type: 'pawn', player: 'sente' };
     }
 
-    board[7][1] = { type: 'bishop', player: 'sente' };
-    board[7][7] = { type: 'rook', player: 'sente' };
+    board[7]![1] = { type: 'bishop', player: 'sente' };
+    board[7]![7] = { type: 'rook', player: 'sente' };
 
-    board[8][0] = { type: 'lance', player: 'sente' };
-    board[8][1] = { type: 'knight', player: 'sente' };
-    board[8][2] = { type: 'silver', player: 'sente' };
-    board[8][3] = { type: 'gold', player: 'sente' };
-    board[8][4] = { type: 'king', player: 'sente' };
-    board[8][5] = { type: 'gold', player: 'sente' };
-    board[8][6] = { type: 'silver', player: 'sente' };
-    board[8][7] = { type: 'knight', player: 'sente' };
-    board[8][8] = { type: 'lance', player: 'sente' };
+    board[8]![0] = { type: 'lance', player: 'sente' };
+    board[8]![1] = { type: 'knight', player: 'sente' };
+    board[8]![2] = { type: 'silver', player: 'sente' };
+    board[8]![3] = { type: 'gold', player: 'sente' };
+    board[8]![4] = { type: 'king', player: 'sente' };
+    board[8]![5] = { type: 'gold', player: 'sente' };
+    board[8]![6] = { type: 'silver', player: 'sente' };
+    board[8]![7] = { type: 'knight', player: 'sente' };
+    board[8]![8] = { type: 'lance', player: 'sente' };
 
     return board;
   }
@@ -232,11 +234,11 @@ export class ShogiGame extends BaseGame {
       let currentCol = from.col + adjustedDir.col;
 
       while (this.isValidPosition(currentRow, currentCol)) {
-        const targetPiece = this.board[currentRow][currentCol];
+        const targetPiece = this.board[currentRow]![currentCol];
 
         if (targetPiece === null) {
           moves.push({ row: currentRow, col: currentCol });
-        } else if (targetPiece.player !== player) {
+        } else if (targetPiece?.player !== player) {
           moves.push({ row: currentRow, col: currentCol });
           break; // Can't move past an opponent piece
         } else {
@@ -252,7 +254,7 @@ export class ShogiGame extends BaseGame {
   }
 
   private getPossibleMoves(from: Position): Position[] {
-    const piece = this.board[from.row][from.col];
+    const piece = this.board[from.row]![from.col];
     if (!piece) {
       return [];
     }
@@ -306,12 +308,12 @@ export class ShogiGame extends BaseGame {
         piece.player
       );
 
-      const kingMoves = this.pieceMovements['promoted-rook']
+      const kingMoves = (this.pieceMovements['promoted-rook'] ?? [])
         .map((move) => this.adjustMoveForPlayer(move, piece.player))
         .map((move) => ({ row: from.row + move.row, col: from.col + move.col }))
         .filter((pos) => this.isValidPosition(pos.row, pos.col))
         .filter((pos) => {
-          const targetPiece = this.board[pos.row][pos.col];
+          const targetPiece = this.board[pos.row]![pos.col];
           return !targetPiece || targetPiece.player !== piece.player;
         });
 
@@ -331,12 +333,12 @@ export class ShogiGame extends BaseGame {
         piece.player
       );
 
-      const kingMoves = this.pieceMovements['promoted-bishop']
+      const kingMoves = (this.pieceMovements['promoted-bishop'] ?? [])
         .map((move) => this.adjustMoveForPlayer(move, piece.player))
         .map((move) => ({ row: from.row + move.row, col: from.col + move.col }))
         .filter((pos) => this.isValidPosition(pos.row, pos.col))
         .filter((pos) => {
-          const targetPiece = this.board[pos.row][pos.col];
+          const targetPiece = this.board[pos.row]![pos.col];
           return !targetPiece || targetPiece.player !== piece.player;
         });
 
@@ -352,7 +354,7 @@ export class ShogiGame extends BaseGame {
       const newCol = from.col + adjustedMove.col;
 
       if (this.isValidPosition(newRow, newCol)) {
-        const targetPiece = this.board[newRow][newCol];
+        const targetPiece = this.board[newRow]![newCol];
         if (!targetPiece || targetPiece.player !== piece.player) {
           moves.push({ row: newRow, col: newCol });
         }
@@ -401,7 +403,7 @@ export class ShogiGame extends BaseGame {
     let kingPos: Position | null = null;
     for (let row = 0; row < 9; row++) {
       for (let col = 0; col < 9; col++) {
-        const piece = this.board[row][col];
+        const piece = this.board[row]![col];
         if (piece && piece.type === 'king' && piece.player === player) {
           kingPos = { row, col };
           break;
@@ -420,7 +422,7 @@ export class ShogiGame extends BaseGame {
     const opponent = player === 'sente' ? 'gote' : 'sente';
     for (let row = 0; row < 9; row++) {
       for (let col = 0; col < 9; col++) {
-        const piece = this.board[row][col];
+        const piece = this.board[row]![col];
         if (piece && piece.player === opponent) {
           const possibleMoves = this.getPossibleMoves({ row, col });
           if (
@@ -442,7 +444,7 @@ export class ShogiGame extends BaseGame {
     for (const pieceType of capturedByPlayer) {
       for (let row = 0; row < 9; row++) {
         for (let col = 0; col < 9; col++) {
-          if (this.board[row][col] === null) {
+          if (this.board[row]![col] === null) {
             // Check if drop is legal
             if (this.isLegalDrop(pieceType, { row, col }, player)) {
               drops.push({ position: { row, col }, piece: pieceType });
@@ -465,7 +467,7 @@ export class ShogiGame extends BaseGame {
 
       // Cannot drop pawn in same file as existing pawn
       for (let row = 0; row < 9; row++) {
-        const piece = this.board[row][position.col];
+        const piece = this.board[row]![position.col];
         if (piece && piece.type === 'pawn' && piece.player === player && !piece.promoted) {
           return false;
         }
@@ -512,7 +514,7 @@ export class ShogiGame extends BaseGame {
       const capturedByPlayer = this.capturedPieces[move.player];
       const pieceIndex = capturedByPlayer.indexOf(move.drop);
 
-      if (pieceIndex === -1 || this.board[move.to.row][move.to.col] !== null) {
+      if (pieceIndex === -1 || this.board[move.to.row]![move.to.col] !== null) {
         return false;
       }
 
@@ -521,7 +523,7 @@ export class ShogiGame extends BaseGame {
       }
 
       // Place the piece and remove from captured pieces
-      this.board[move.to.row][move.to.col] = { type: move.drop, player: move.player };
+      this.board[move.to.row]![move.to.col] = { type: move.drop, player: move.player };
       capturedByPlayer.splice(pieceIndex, 1);
 
       this.moveHistory.push(move);
@@ -530,7 +532,7 @@ export class ShogiGame extends BaseGame {
     }
 
     // Handle regular moves
-    const piece = this.board[move.from.row][move.from.col];
+    const piece = this.board[move.from.row]![move.from.col];
     if (!piece || piece.player !== move.player) {
       return false;
     }
@@ -550,7 +552,7 @@ export class ShogiGame extends BaseGame {
     }
 
     // Handle capture
-    const capturedPiece = this.board[move.to.row][move.to.col];
+    const capturedPiece = this.board[move.to.row]![move.to.col];
     if (capturedPiece) {
       // Demote captured piece and add to hand
       const basePieceType = capturedPiece.promoted ? capturedPiece.type : capturedPiece.type;
@@ -558,8 +560,8 @@ export class ShogiGame extends BaseGame {
     }
 
     // Move the piece
-    this.board[move.to.row][move.to.col] = piece;
-    this.board[move.from.row][move.from.col] = null;
+    this.board[move.to.row]![move.to.col] = piece;
+    this.board[move.from.row]![move.from.col] = null;
 
     // Handle promotion
     if (move.promote && this.canPromote(piece, move.from, move.to)) {
@@ -569,8 +571,8 @@ export class ShogiGame extends BaseGame {
     // Check if this move puts own king in check (illegal)
     if (this.isInCheck(move.player)) {
       // Undo the move
-      this.board[move.from.row][move.from.col] = piece;
-      this.board[move.to.row][move.to.col] = capturedPiece;
+      this.board[move.from.row]![move.from.col] = piece;
+      this.board[move.to.row]![move.to.col] = capturedPiece ?? null;
       if (capturedPiece) {
         this.capturedPieces[move.player].pop();
       }
@@ -594,21 +596,21 @@ export class ShogiGame extends BaseGame {
     // Try all possible moves to see if any can escape check
     for (let row = 0; row < 9; row++) {
       for (let col = 0; col < 9; col++) {
-        const piece = this.board[row][col];
+        const piece = this.board[row]![col];
         if (piece && piece.player === player) {
           const possibleMoves = this.getPossibleMoves({ row, col });
 
           for (const move of possibleMoves) {
             // Simulate the move
-            const capturedPiece = this.board[move.row][move.col];
-            this.board[move.row][move.col] = piece;
-            this.board[row][col] = null;
+            const capturedPiece = this.board[move.row]![move.col];
+            this.board[move.row]![move.col] = piece;
+            this.board[row]![col] = null;
 
             const stillInCheck = this.isInCheck(player);
 
             // Undo the move
-            this.board[row][col] = piece;
-            this.board[move.row][move.col] = capturedPiece;
+            this.board[row]![col] = piece;
+            this.board[move.row]![move.col] = capturedPiece ?? null;
 
             if (!stillInCheck) {
               return false; // Found a move that escapes check
@@ -622,12 +624,12 @@ export class ShogiGame extends BaseGame {
     const dropMoves = this.getDropMoves(player);
     for (const drop of dropMoves) {
       // Simulate the drop
-      this.board[drop.position.row][drop.position.col] = { type: drop.piece, player };
+      this.board[drop.position.row]![drop.position.col] = { type: drop.piece, player };
 
       const stillInCheck = this.isInCheck(player);
 
       // Undo the drop
-      this.board[drop.position.row][drop.position.col] = null;
+      this.board[drop.position.row]![drop.position.col] = null;
 
       if (!stillInCheck) {
         return false; // Found a drop that escapes check
@@ -665,7 +667,7 @@ export class ShogiGame extends BaseGame {
     // Regular piece moves
     for (let row = 0; row < 9; row++) {
       for (let col = 0; col < 9; col++) {
-        const piece = this.board[row][col];
+        const piece = this.board[row]![col];
         if (piece && piece.player === this.currentPlayer) {
           const possibleMoves = this.getPossibleMoves({ row, col });
 
@@ -755,7 +757,7 @@ export class ShogiGame extends BaseGame {
           return { valid: false, error: 'Invalid position' };
         }
 
-        const piece = this.board[move.from.row][move.from.col];
+        const piece = this.board[move.from.row]![move.from.col];
         if (!piece || piece.player !== move.player) {
           return { valid: false, error: 'No piece or wrong player' };
         }

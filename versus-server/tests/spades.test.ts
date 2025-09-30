@@ -1,17 +1,21 @@
 import { SpadesGame } from '../src/games/spades.js';
+import { SQLiteProvider } from '../src/core/database.js';
 import { describe, test, expect, beforeEach } from '@jest/globals';
 
 // Helper to access internal state for testing
-function getInternalState(game: any): any {
+function getInternalState(game: any) {
   return game.currentState;
 }
 
 describe('SpadesGame', () => {
   let game: SpadesGame;
+  let mockDatabase: SQLiteProvider;
   const gameId = 'test-spades-game';
 
   beforeEach(async () => {
-    game = new SpadesGame(gameId);
+    mockDatabase = new SQLiteProvider(':memory:');
+    await mockDatabase.initialize();
+    game = new SpadesGame(gameId, mockDatabase);
   });
 
   describe('Game Initialization', () => {

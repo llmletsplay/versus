@@ -65,7 +65,7 @@ export const authRateLimit = rateLimit({
       ip: req.ip,
       path: req.path,
       userAgent: req.get('User-Agent'),
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
     });
 
     res.status(429).json({

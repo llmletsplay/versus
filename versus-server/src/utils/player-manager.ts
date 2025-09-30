@@ -52,9 +52,9 @@ export class PlayerManager {
       // Use provided player configuration
       for (let i = 0; i < playerIds.length; i++) {
         this.players.push({
-          id: playerIds[i],
-          name: playerNames[i] || playerIds[i],
-          type: (playerTypes && playerTypes[i]) || 'human',
+          id: playerIds[i]!,
+          name: playerNames?.[i] || playerIds[i]!,
+          type: (playerTypes?.[i]) || 'human',
           order: i,
         });
       }
@@ -105,7 +105,7 @@ export class PlayerManager {
     if (this.players.length === 0 || this.currentPlayerIndex < 0) {
       throw new Error('No players available');
     }
-    return this.players[this.currentPlayerIndex];
+    return this.players[this.currentPlayerIndex]!;
   }
 
   /**
@@ -175,7 +175,7 @@ export class PlayerManager {
       throw new Error('No players available');
     }
     const nextIndex = (this.currentPlayerIndex + 1) % this.players.length;
-    return this.players[nextIndex];
+    return this.players[nextIndex]!;
   }
 
   /**

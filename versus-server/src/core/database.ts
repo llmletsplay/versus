@@ -453,7 +453,7 @@ export class PostgreSQLProvider extends DatabaseProvider {
 
     // PERF: Pool error handling
     this.pool.on('error', (err, _client) => {
-      console.error('Unexpected PostgreSQL pool error:', err);
+      logger.error('Unexpected PostgreSQL pool error:', err);
     });
 
     // PERF: Monitor pool statistics
@@ -461,7 +461,7 @@ export class PostgreSQLProvider extends DatabaseProvider {
       setInterval(() => {
         if (this.pool) {
           const { totalCount, idleCount, waitingCount } = this.pool;
-          console.log(
+          logger.debug(
             `Pool stats - Total: ${totalCount}, Idle: ${idleCount}, Waiting: ${waitingCount}`
           );
         }

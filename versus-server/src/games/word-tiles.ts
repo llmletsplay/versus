@@ -6,6 +6,7 @@ import type {
   GameMetadata,
   GameMove,
 } from '../types/game.js';
+import { DatabaseProvider } from '../core/database.js';
 
 type TileLetter =
   | 'A'
@@ -290,8 +291,8 @@ export class WordTilesGame extends BaseGame {
     'FREIGHT',
   ]);
 
-  constructor(gameId: string) {
-    super(gameId, 'word-tiles');
+  constructor(gameId: string, database: DatabaseProvider) {
+    super(gameId, 'word-tiles', database);
     this.initializePremiumSquares();
   }
 
@@ -630,7 +631,7 @@ export class WordTilesGame extends BaseGame {
 
     if (wordsMove.action === 'pass') {
       state.passCount++;
-      this.advanceToNextPlayer(state);
+      this.moveToNextPlayer(state);
 
       // Game ends if all players pass twice in a row
       if (state.passCount >= state.playerOrder.length * 2) {
@@ -641,7 +642,7 @@ export class WordTilesGame extends BaseGame {
 
     if (wordsMove.action === 'exchange') {
       this.exchangeTiles(wordsMove, state);
-      this.advanceToNextPlayer(state);
+      this.moveToNextPlayer(state);
       return;
     }
 
@@ -663,7 +664,7 @@ export class WordTilesGame extends BaseGame {
         return;
       }
 
-      this.advanceToNextPlayer(state);
+      this.moveToNextPlayer(state);
     }
   }
 
@@ -920,7 +921,7 @@ export class WordTilesGame extends BaseGame {
     return word;
   }
 
-  private advanceToNextPlayer(state: WordsState): void {
+  private moveToNextPlayer(state: WordsState): void {
     const currentIndex = state.playerOrder.indexOf(state.currentPlayer);
     const nextIndex = (currentIndex + 1) % state.playerOrder.length;
     state.currentPlayer = state.playerOrder[nextIndex]!;

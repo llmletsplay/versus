@@ -25,12 +25,14 @@ export default {
         };
 
     // Create Hono app with Cloudflare configuration
-    const { app, gameManager, authService } = createApp({
+    const result = await createApp({
       databaseConfig,
       corsOrigin: env.CORS_ORIGIN || '*',
       nodeEnv: env.NODE_ENV || 'production',
       jwtSecret: env.JWT_SECRET,
     });
+
+    const { app, gameManager, authService } = result;
 
     // Register all games
     registerGames(gameManager);
@@ -40,7 +42,7 @@ export default {
       await gameManager.initialize();
       await authService.initializeUserTable();
     } catch (error) {
-      console.error('Failed to initialize services:', error);
+      logger.error('Failed to initialize services:', error);
       return new Response('Service initialization failed', { status: 500 });
     }
 
@@ -48,6 +50,3 @@ export default {
     return app.fetch(request, env);
   },
 };
-
-// Export for Cloudflare Workers
-export { default as worker };

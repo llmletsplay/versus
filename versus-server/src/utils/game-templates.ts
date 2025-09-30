@@ -12,6 +12,7 @@ import type {
   GameMove,
 } from '../types/game.js';
 import { BaseGame } from '../core/base-game.js';
+import { DatabaseProvider } from '../core/database.js';
 import {
   BoardGameMixin,
   CardGameMixin,
@@ -39,19 +40,22 @@ export abstract class SimpleBoardGameTemplate<
 
   protected state!: StandardBoardGameState<TPlayer, TCell>;
 
-  constructor(gameId: string, gameType: string) {
-    super(gameId, gameType);
+  constructor(gameId: string, gameType: string, database: DatabaseProvider) {
+    super(gameId, gameType, this.database);
   }
 
   async initializeGame(_config?: GameConfig): Promise<GameState> {
     const players = this.getPlayerOrder();
 
     this.state = {
+      gameId: this.gameId,
+      gameType: this.gameType,
       board: this.createEmptyBoard(),
       currentPlayer: players[0] as TPlayer,
       gameOver: false,
       winner: null,
       playerOrder: players as TPlayer[],
+      status: 'waiting' as const,
     };
 
     this.currentState = this.state;
@@ -139,8 +143,8 @@ export abstract class SimpleCardGameTemplate<TPlayer extends string = string> ex
 
   protected state!: StandardCardGameState<TPlayer>;
 
-  constructor(gameId: string, gameType: string) {
-    super(gameId, gameType);
+  constructor(gameId: string, gameType: string, database: DatabaseProvider) {
+    super(gameId, gameType, this.database);
   }
 
   async initializeGame(_config?: GameConfig): Promise<GameState> {
@@ -157,6 +161,8 @@ export abstract class SimpleCardGameTemplate<TPlayer extends string = string> ex
     });
 
     this.state = {
+      gameId: this.gameId,
+      gameType: this.gameType,
       hands,
       deck: dealResult.remainingDeck,
       discardPile: [],
@@ -164,6 +170,7 @@ export abstract class SimpleCardGameTemplate<TPlayer extends string = string> ex
       gameOver: false,
       winner: null,
       playerOrder: players as TPlayer[],
+      status: 'waiting' as const,
     };
 
     this.currentState = this.state;
@@ -265,20 +272,23 @@ export abstract class ScoredGameTemplate<TPlayer extends string = string> extend
 
   protected state!: StandardScoredGameState<TPlayer>;
 
-  constructor(gameId: string, gameType: string) {
-    super(gameId, gameType);
+  constructor(gameId: string, gameType: string, database: DatabaseProvider) {
+    super(gameId, gameType, this.database);
   }
 
   async initializeGame(_config?: GameConfig): Promise<GameState> {
     const players = this.getPlayerOrder();
 
     this.state = {
+      gameId: this.gameId,
+      gameType: this.gameType,
       scores: ScoringMixin.initializeScores(players),
       currentPlayer: players[0] as TPlayer,
       gameOver: false,
       winner: null,
       playerOrder: players as TPlayer[],
       round: 1,
+      status: 'waiting' as const,
     };
 
     this.currentState = this.state;
@@ -392,8 +402,8 @@ export class GameTemplateFactory {
       protected readonly emptyValue = null;
       protected readonly winLength = winLength;
 
-      constructor(gameId: string) {
-        super(gameId, gameType);
+      constructor(gameId: string, database: DatabaseProvider) {
+        super(gameId, gameType, database);
       }
 
       protected getPlayerOrder(): string[] {
@@ -427,8 +437,8 @@ export class GameTemplateFactory {
       protected readonly cardsPerPlayer = cardsPerPlayer;
       protected readonly playerCount = playerCount;
 
-      constructor(gameId: string) {
-        super(gameId, gameType);
+      constructor(gameId: string, database: DatabaseProvider) {
+        super(gameId, gameType, database);
       }
 
       protected getPlayerOrder(): string[] {
@@ -463,8 +473,8 @@ export class GameTemplateFactory {
     return class extends ScoredGameTemplate {
       protected readonly targetScore = targetScore;
 
-      constructor(gameId: string) {
-        super(gameId, gameType);
+      constructor(gameId: string, database: DatabaseProvider) {
+        super(gameId, gameType, database);
       }
 
       protected getPlayerOrder(): string[] {
@@ -519,7 +529,7 @@ export class ${gameType.charAt(0).toUpperCase() + gameType.slice(1)}Game extends
   protected readonly emptyValue = null;
   protected readonly winLength = ${winLength};
 
-  constructor(gameId: string) {
+  constructor(gameId: string, database: DatabaseProvider) {
     super(gameId, '${gameType}');
   }
 
@@ -558,7 +568,7 @@ export class ${gameType.charAt(0).toUpperCase() + gameType.slice(1)}Game extends
   protected readonly cardsPerPlayer = ${cardsPerPlayer};
   protected readonly playerCount = ${playerCount};
 
-  constructor(gameId: string) {
+  constructor(gameId: string, database: DatabaseProvider) {
     super(gameId, '${gameType}');
   }
 
@@ -568,7 +578,7 @@ export class ${gameType.charAt(0).toUpperCase() + gameType.slice(1)}Game extends
 
   protected async applyCardEffect(_card: any, _player: string): Promise<void> {
     // Implement your card effect logic here
-    console.log(\`\${_player} played \${_card.rank} of \${_card.suit}\`);
+    logger.debug(\`\${_player} played \${_card.rank} of \${_card.suit}\`);
   }
 
   getMetadata(): GameMetadata {
