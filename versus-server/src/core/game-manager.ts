@@ -392,12 +392,27 @@ export class GameManager {
   // TODO: Consider moving rules to database or proper file handling
   async getGameRules(gameType: string): Promise<string | null> {
     try {
-      // HACK: Direct file system access - should use proper file service
-      const { readFile } = await import('fs/promises');
+      // HACK: Direct file system access - should be replaced by FileService (M5)
+      const { readFile, access } = await import('fs/promises');
       const path = await import('path');
-      const rulesPath = path.join(process.cwd(), 'docs', 'rules', `${gameType}.md`);
-      const rulesContent = await readFile(rulesPath, 'utf-8');
-      return rulesContent;
+
+      // Try common locations: server-local then repo root
+      const candidatePaths = [
+        path.join(process.cwd(), 'versus-server', 'docs', 'rules', `${gameType}.md`),
+        path.join(process.cwd(), 'docs', 'rules', `${gameType}.md`),
+      ];
+
+      for (const p of candidatePaths) {
+        try {
+          await access(p);
+          const content = await readFile(p, 'utf-8');
+          return content;
+        } catch {
+          // try next
+        }
+      }
+
+      return null;
     } catch (error) {
       logger.warn(`Rules not found for game type: ${gameType}`, { error });
       return null;

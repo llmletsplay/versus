@@ -1,6 +1,7 @@
 import { createApp } from '../app.js';
 import { registerGames } from '../games/index.js';
 import type { DatabaseConfig } from '../core/database.js';
+import { logger } from '../utils/logger.js';
 
 // Cloudflare Workers environment variables interface
 interface CloudflareEnv {
@@ -42,7 +43,7 @@ export default {
       await gameManager.initialize();
       await authService.initializeUserTable();
     } catch (error) {
-      logger.error('Failed to initialize services:', error);
+      logger.error('Failed to initialize services:', error instanceof Error ? error : new Error(String(error)));
       return new Response('Service initialization failed', { status: 500 });
     }
 

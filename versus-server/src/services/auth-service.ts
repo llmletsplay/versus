@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import jwt, { SignOptions, Secret } from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import {
   User,
@@ -223,7 +223,7 @@ export class AuthService {
     };
 
     // SECURITY: Sign with HS256 algorithm and expiration
-    return jwt.sign(payload, this.jwtSecret, {
+    return (jwt.sign as any)(payload, this.jwtSecret, {
       expiresIn: this.jwtExpiresIn,
     });
   }

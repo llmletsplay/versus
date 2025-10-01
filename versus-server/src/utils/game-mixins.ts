@@ -4,7 +4,7 @@
  * to reduce boilerplate and improve consistency
  */
 
-import type { MoveValidationResult, GameMetadata } from '../types/game.js';
+import type { MoveValidationResult, GameMetadata, GameState } from '../types/game.js';
 import { ERROR_MESSAGES, DIRECTIONS, Position } from './game-constants.js';
 
 /**
@@ -496,7 +496,7 @@ export class GameMetadataBuilder {
   }
 
   complexity(complexity: 'beginner' | 'intermediate' | 'advanced' | 'expert'): this {
-    this.metadata.complexity = complexity;
+    this.metadata.complexity = complexity === 'expert' ? 'advanced' : complexity;
     return this;
   }
 
@@ -536,7 +536,7 @@ export class GameMetadataBuilder {
 /**
  * Common game state patterns
  */
-export interface StandardBoardGameState<TPlayer extends string = string, TCell = any> {
+export interface StandardBoardGameState<TPlayer extends string = string, TCell = any> extends GameState {
   board: TCell[][];
   currentPlayer: TPlayer;
   gameOver: boolean;

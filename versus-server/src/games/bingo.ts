@@ -518,7 +518,9 @@ export class BingoGame extends BaseGame {
 
     for (const condition of state.winConditions) {
       const isComplete = condition.pattern.every(([row, col]) => {
-        if (typeof row !== 'number' || typeof col !== 'number') return false;
+        if (typeof row !== 'number' || typeof col !== 'number') {
+          return false;
+        }
         return card.cells[row]?.[col]?.marked === true;
       });
 

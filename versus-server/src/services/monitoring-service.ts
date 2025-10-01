@@ -44,7 +44,6 @@ export class MonitoringService {
 
           // HTTP integration for request tracking
           httpIntegration({
-            tracing: this.config.enableTracing,
             breadcrumbs: true,
           }),
 

@@ -21,7 +21,7 @@ const loginSchema = z.object({
 });
 
 export function createAuthRoutes() {
-  const app = new Hono();
+  const app = new Hono<{ Variables: { user?: any } }>();
   const authService = new AuthService();
 
   // Middleware to attach user info

@@ -7,6 +7,8 @@ import type {
   GameMove,
 } from '../types/game.js';
 import { DatabaseProvider } from '../core/database.js';
+import { logger } from '../utils/logger.js';
+import type { LogContext } from '../utils/logger.js';
 
 type Suit = 'spades' | 'hearts' | 'diamonds' | 'clubs';
 type Rank = '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A' | '2';
@@ -142,7 +144,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
       return this.getGameState();
     } catch (error) {
-      logger.error('Failed to initialize Thirteen game:', error);
+      logger.error('Failed to initialize Thirteen game:', error instanceof Error ? error : new Error(String(error)));
       throw new Error(
         `Failed to initialize game: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -272,10 +274,10 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
       return this.validatePlayAction(move, state, player);
     } catch (error) {
       // Enhanced error logging for production debugging
-      const errorContext = {
+      const errorContext: LogContext = {
         gameId: this.gameId,
         moveData: JSON.stringify(moveData),
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         error: error instanceof Error ? error.message : String(error),
       };
 
@@ -285,7 +287,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
       if (process.env.NODE_ENV === 'development') {
         logger.error(
           'Stack trace:',
-          error instanceof Error ? error.stack : 'No stack trace available'
+          error instanceof Error ? error : new Error('No stack trace available')
         );
       }
 
@@ -331,7 +333,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
       return move;
     } catch (error) {
-      logger.error('Error sanitizing move:', error);
+      logger.error('Error sanitizing move:', error instanceof Error ? error : new Error(String(error)));
       return null;
     }
   }

@@ -18,6 +18,21 @@ export interface GameTemplate {
   estimatedDuration: string;
 }
 
+// Map template complexity to metadata complexity
+function mapComplexity(complexity?: string): 'beginner' | 'intermediate' | 'advanced' {
+  switch (complexity) {
+    case 'beginner':
+    case 'easy':
+      return 'beginner';
+    case 'medium':
+      return 'intermediate';
+    case 'advanced':
+    case 'expert':
+    default:
+      return 'advanced';
+  }
+}
+
 // Board game template
 export interface BoardGameConfig extends GameConfig {
   boardSize?: number;
@@ -266,7 +281,7 @@ export class GameCreationHelper {
       minPlayers: template.minPlayers || 2,
       maxPlayers: template.maxPlayers || 4,
       estimatedDuration: template.estimatedDuration || '30 minutes',
-      complexity: template.complexity || 'medium',
+      complexity: mapComplexity(template.complexity || 'medium'),
       categories: template.categories || ['board', 'strategy'],
     };
   }
@@ -278,7 +293,7 @@ export class GameCreationHelper {
       minPlayers: template.minPlayers || 2,
       maxPlayers: template.maxPlayers || 6,
       estimatedDuration: template.estimatedDuration || '20 minutes',
-      complexity: template.complexity || 'easy',
+      complexity: mapComplexity(template.complexity || 'easy'),
       categories: template.categories || ['card', 'casual'],
     };
   }
@@ -300,7 +315,7 @@ export class GameCreationHelper {
  * Common validation helpers
  */
 export class ValidationHelper {
-  static requireFields<T>(data: T, fields: (keyof T)[]): MoveValidationResult {
+  static requireFields<T extends object>(data: T, fields: (keyof T)[]): MoveValidationResult {
     for (const field of fields) {
       if (!(field in data) || data[field] === undefined || data[field] === null) {
         return { valid: false, error: `Missing required field: ${String(field)}` };

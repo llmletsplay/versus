@@ -42,6 +42,7 @@ make clean      # Remove all data
 - `QUICK_START.md` - Getting started guide
 - `PACKAGE_MANAGER.md` - Why Bun vs npm/pnpm
 - `Makefile` - 4 simple commands
+- `AGENTS.md` - Repository guidelines for contributors
 
 ## Troubleshooting
 

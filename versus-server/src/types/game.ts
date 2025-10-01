@@ -26,6 +26,7 @@ export interface MoveValidationResult {
 export interface GameConfig {
   maxPlayers?: number;
   minPlayers?: number;
+  playerCount?: number;
   timeLimit?: number;
   customRules?: Record<string, any>;
 }

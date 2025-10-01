@@ -27,26 +27,36 @@ export function createGameRoutes(gameManager: GameManager) {
 
   /**
    * GET /
-   * List all available game types
+   * List all available game types (raw array for client compatibility)
    */
   app.get('/', async c => {
     try {
-      const metadata = await gameManager.getAllGameMetadata();
-      return c.json({
-        success: true,
-        data: metadata,
-        message: 'Available games retrieved successfully',
-      });
+      const gameTypes = gameManager.getAvailableGameTypes();
+      return c.json(gameTypes);
     } catch (error) {
       logger.error('Error getting game metadata', { error });
       return c.json(
         {
           success: false,
-          error: 'Failed to get game types',
-          code: 'METADATA_ERROR',
+          error: 'Failed to list game types',
+          code: 'GAME_TYPES_ERROR',
         },
         500
       );
+    }
+  });
+
+  /**
+   * GET /metadata
+   * Return metadata for all games (Record<string, GameMetadata>)
+   */
+  app.get('/metadata', async c => {
+    try {
+      const metadata = await gameManager.getAllGameMetadata();
+      return c.json({ success: true, data: metadata });
+    } catch (error) {
+      logger.error('Error getting game metadata', { error });
+      return c.json({ success: false, error: 'Failed to get game metadata', code: 'METADATA_ERROR' }, 500);
     }
   });
 
@@ -194,41 +204,113 @@ export function createGameRoutes(gameManager: GameManager) {
   });
 
   /**
-   * GET /:gameType/:gameId/metadata
-   * Get game metadata including rules and configuration
+   * GET /:gameType/metadata
+   * Get metadata for specific game type
    */
-  app.get('/:gameType/:gameId/metadata', async c => {
+  app.get('/:gameType/metadata', async c => {
     try {
       const gameType = c.req.param('gameType');
-      const gameId = c.req.param('gameId');
-
-      const game = await gameManager.getGame(gameType, gameId);
-      if (!game) {
-        return c.json(
-          {
-            success: false,
-            error: 'Game not found',
-            code: 'GAME_NOT_FOUND',
-          },
-          404
-        );
+      const metadata = await gameManager.getGameMetadata(gameType);
+      if (!metadata) {
+        return c.json({ success: false, error: `Game type not found: ${gameType}` , code: 'UNKNOWN_GAME_TYPE'}, 404);
       }
-
-      const metadata = await game.getMetadata();
-      return c.json({
-        success: true,
-        data: metadata,
-      });
+      return c.json({ success: true, data: metadata });
     } catch (error) {
-      logger.error('Error getting game metadata', { gameId: c.req.param('gameId'), error });
-      return c.json(
-        {
-          success: false,
-          error: 'Failed to get game metadata',
-          code: 'METADATA_ERROR',
-        },
-        500
-      );
+      logger.error('Error getting game metadata by type', { gameType: c.req.param('gameType'), error });
+      return c.json({ success: false, error: 'Failed to get game metadata', code: 'METADATA_ERROR' }, 500);
+    }
+  });
+
+  /**
+   * GET /:gameType/rules
+   * Return markdown rules for the game type
+   */
+  app.get('/:gameType/rules', async c => {
+    try {
+      const gameType = c.req.param('gameType');
+      const rules = await gameManager.getGameRules(gameType);
+      if (!rules) {
+        return c.json({ success: false, error: `Rules not found for game type: ${gameType}`, code: 'RULES_NOT_FOUND' }, 404);
+      }
+      return c.json({ success: true, data: { gameType, rules } });
+    } catch (error) {
+      logger.error('Error getting game rules', { gameType: c.req.param('gameType'), error });
+      return c.json({ success: false, error: 'Failed to load game rules', code: 'RULES_ERROR' }, 500);
+    }
+  });
+
+  /**
+   * GET /:gameType/:gameId/history
+   * Get game history (moves array)
+   */
+  app.get('/:gameType/:gameId/history', async c => {
+    try {
+      const { gameType, gameId } = { gameType: c.req.param('gameType'), gameId: c.req.param('gameId') };
+      const history = await gameManager.getGameHistory(gameType, gameId);
+      return c.json({ success: true, data: history });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error';
+      if (message.includes('Game not found')) {
+        return c.json({ success: false, error: message, code: 'GAME_NOT_FOUND' }, 404);
+      }
+      logger.error('Error getting game history', { gameId: c.req.param('gameId'), error });
+      return c.json({ success: false, error: 'Failed to get game history', code: 'HISTORY_ERROR' }, 500);
+    }
+  });
+
+  /**
+   * POST /:gameType/:gameId/validate
+   * Validate a move without applying it
+   */
+  app.post('/:gameType/:gameId/validate', zValidator('json', moveDataSchema), async c => {
+    try {
+      const { gameType, gameId } = { gameType: c.req.param('gameType'), gameId: c.req.param('gameId') };
+      const moveData = c.req.valid('json');
+      const game = await gameManager.getGame(gameType, gameId);
+      const validation = await (game as any).validateMove(moveData);
+      return c.json({ success: true, data: validation });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error';
+      if (message.includes('Game not found')) {
+        return c.json({ success: false, error: message, code: 'GAME_NOT_FOUND' }, 404);
+      }
+      logger.error('Error validating move', { gameId: c.req.param('gameId'), error });
+      return c.json({ success: false, error: 'Failed to validate move', code: 'VALIDATION_ERROR' }, 500);
+    }
+  });
+
+  /**
+   * POST /:gameType/:gameId/restore
+   * Restore game state from a provided history
+   */
+  app.post('/:gameType/:gameId/restore', zValidator('json', z.object({ history: z.array(z.any()) })), async c => {
+    try {
+      const { gameType, gameId } = { gameType: c.req.param('gameType'), gameId: c.req.param('gameId') };
+      const { history } = c.req.valid('json') as { history: any[] };
+      await gameManager.restoreGame(gameType, gameId, history as any);
+      return c.json({ success: true, data: { status: 'restored' } });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error';
+      if (message.includes('Game not found')) {
+        return c.json({ success: false, error: message, code: 'GAME_NOT_FOUND' }, 404);
+      }
+      logger.error('Error restoring game', { gameId: c.req.param('gameId'), error });
+      return c.json({ success: false, error: 'Failed to restore game', code: 'RESTORE_ERROR' }, 500);
+    }
+  });
+
+  /**
+   * DELETE /:gameId
+   * Delete a game by id
+   */
+  app.delete('/:gameId', async c => {
+    try {
+      const gameId = c.req.param('gameId');
+      await gameManager.deleteGame(gameId);
+      return c.json({ success: true, data: { status: 'deleted' } });
+    } catch (error) {
+      logger.error('Error deleting game', { gameId: c.req.param('gameId'), error });
+      return c.json({ success: false, error: 'Failed to delete game', code: 'DELETE_ERROR' }, 500);
     }
   });
 

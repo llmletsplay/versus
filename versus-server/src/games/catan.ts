@@ -1,5 +1,6 @@
 import { BaseGame } from '../core/base-game.js';
 import { DatabaseProvider } from '../core/database.js';
+import { logger, type LogContext } from '../utils/logger.js';
 import type {
   GameState,
   GameConfig,
@@ -503,10 +504,10 @@ export class CatanGame extends BaseGame {
       return { valid: false, error: CATAN_ERROR_MESSAGES.INVALID_GAME_PHASE };
     } catch (error) {
       // Enhanced error logging for production debugging
-      const errorContext = {
+      const errorContext: LogContext = {
         gameId: this.gameId,
         moveData: JSON.stringify(moveData),
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         error: error instanceof Error ? error.message : String(error),
       };
 
@@ -516,7 +517,7 @@ export class CatanGame extends BaseGame {
       if (process.env.NODE_ENV === 'development') {
         logger.error(
           'Stack trace:',
-          error instanceof Error ? error.stack : 'No stack trace available'
+          error instanceof Error ? error : new Error('No stack trace available')
         );
       }
 

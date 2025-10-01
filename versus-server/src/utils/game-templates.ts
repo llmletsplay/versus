@@ -41,7 +41,7 @@ export abstract class SimpleBoardGameTemplate<
   protected state!: StandardBoardGameState<TPlayer, TCell>;
 
   constructor(gameId: string, gameType: string, database: DatabaseProvider) {
-    super(gameId, gameType, this.database);
+    super(gameId, gameType, database);
   }
 
   async initializeGame(_config?: GameConfig): Promise<GameState> {
@@ -144,7 +144,7 @@ export abstract class SimpleCardGameTemplate<TPlayer extends string = string> ex
   protected state!: StandardCardGameState<TPlayer>;
 
   constructor(gameId: string, gameType: string, database: DatabaseProvider) {
-    super(gameId, gameType, this.database);
+    super(gameId, gameType, database);
   }
 
   async initializeGame(_config?: GameConfig): Promise<GameState> {
@@ -273,7 +273,7 @@ export abstract class ScoredGameTemplate<TPlayer extends string = string> extend
   protected state!: StandardScoredGameState<TPlayer>;
 
   constructor(gameId: string, gameType: string, database: DatabaseProvider) {
-    super(gameId, gameType, this.database);
+    super(gameId, gameType, database);
   }
 
   async initializeGame(_config?: GameConfig): Promise<GameState> {
