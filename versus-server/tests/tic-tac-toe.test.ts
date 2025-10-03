@@ -1,11 +1,14 @@
 import { describe, test, expect, beforeEach } from '@jest/globals';
 import { TicTacToeGame } from '../src/games/tic-tac-toe.js';
+import { createMockDatabase } from './helpers/gameTestHelpers.js';
 
 describe('TicTacToeGame', () => {
   let game: TicTacToeGame;
+  let mockDb: any;
 
-  beforeEach(() => {
-    game = new TicTacToeGame('test-game');
+  beforeEach(async () => {
+    mockDb = await createMockDatabase();
+    game = new TicTacToeGame('test-game', mockDb);
   });
 
   describe('Game Initialization', () => {

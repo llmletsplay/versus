@@ -1,4 +1,5 @@
 // Test setup file for jest
+import { jest } from '@jest/globals';
 import { SQLiteProvider } from '../src/core/database.js';
 
 // Global test utilities

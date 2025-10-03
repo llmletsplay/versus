@@ -31,6 +31,18 @@ export interface ServerConfig {
   enableHelmet: boolean;
   rateLimitWindowMs: number;
   rateLimitMaxRequests: number;
+
+  // Payment/Stripe settings
+  stripeSecretKey?: string;
+  stripeWebhookSecret?: string;
+
+  // JWT settings
+  jwtSecret: string;
+  jwtExpiration: string;
+
+  // Redis settings (for rate limiting and caching)
+  redisUrl?: string;
+  redisPrefix?: string;
 }
 
 export class ConfigManager {
@@ -82,6 +94,18 @@ export class ConfigManager {
       enableHelmet: process.env.ENABLE_HELMET !== 'false',
       rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
       rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
+
+      // Payment/Stripe settings
+      stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+
+      // JWT settings
+      jwtSecret: process.env.JWT_SECRET || 'change-me-in-production',
+      jwtExpiration: process.env.JWT_EXPIRATION || '7d',
+
+      // Redis settings
+      redisUrl: process.env.REDIS_URL,
+      redisPrefix: process.env.REDIS_PREFIX || 'versus:',
     };
   }
 
@@ -118,6 +142,15 @@ export class ConfigManager {
     // Validate rate limiting
     if (this.config.rateLimitMaxRequests < 1) {
       errors.push('rateLimitMaxRequests must be greater than 0');
+    }
+
+    // Validate JWT
+    if (this.config.jwtSecret === 'change-me-in-production' && this.isProduction()) {
+      errors.push('JWT_SECRET must be set in production');
+    }
+
+    if (this.config.jwtSecret.length < 32) {
+      errors.push('JWT_SECRET must be at least 32 characters long');
     }
 
     if (errors.length > 0) {
@@ -195,6 +228,43 @@ export class ConfigManager {
 
   public getLogLevel(): string {
     return this.config.logLevel;
+  }
+
+  // Payment configuration helpers
+  public getStripeConfig(): {
+    secretKey?: string;
+    webhookSecret?: string;
+    enabled: boolean;
+  } {
+    return {
+      secretKey: this.config.stripeSecretKey,
+      webhookSecret: this.config.stripeWebhookSecret,
+      enabled: !!this.config.stripeSecretKey,
+    };
+  }
+
+  // JWT configuration helper
+  public getJwtConfig(): {
+    secret: string;
+    expiration: string;
+  } {
+    return {
+      secret: this.config.jwtSecret,
+      expiration: this.config.jwtExpiration,
+    };
+  }
+
+  // Redis configuration helper
+  public getRedisConfig(): {
+    url?: string;
+    prefix: string;
+    enabled: boolean;
+  } {
+    return {
+      url: this.config.redisUrl,
+      prefix: this.config.redisPrefix || 'versus:',
+      enabled: !!this.config.redisUrl,
+    };
   }
 
   // Update configuration at runtime (for testing or dynamic updates)

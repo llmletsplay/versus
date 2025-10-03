@@ -55,6 +55,11 @@ async function startServer() {
         includeUserData: true,
         includeStats: true,
       },
+      getStripeConfig: () => ({
+        secretKey: process.env.STRIPE_SECRET_KEY,
+        webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+        enabled: !!process.env.STRIPE_SECRET_KEY,
+      }),
     });
 
     app = result.app;

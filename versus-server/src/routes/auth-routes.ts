@@ -3,6 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { AuthService } from '../services/auth-service.js';
 import { logger } from '../utils/logger.js';
+import { authRateLimit } from '../middleware/hono-rate-limit.js';
 
 // Validation schemas
 const registerSchema = z.object({
@@ -49,7 +50,7 @@ export function createAuthRoutes() {
    * POST /register
    * Register a new user account
    */
-  app.post('/register', zValidator('json', registerSchema), async c => {
+  app.post('/register', authRateLimit, zValidator('json', registerSchema), async (c) => {
     try {
       const userData = c.req.valid('json');
       const result = await authService.createUser(userData);
@@ -105,7 +106,7 @@ export function createAuthRoutes() {
    * POST /login
    * Login with username and password
    */
-  app.post('/login', zValidator('json', loginSchema), async c => {
+  app.post('/login', authRateLimit, zValidator('json', loginSchema), async (c) => {
     try {
       const credentials = c.req.valid('json');
       const result = await authService.login(credentials);
@@ -149,7 +150,7 @@ export function createAuthRoutes() {
    * GET /me
    * Get current user information
    */
-  app.get('/me', async c => {
+  app.get('/me', async (c) => {
     const user = c.get('user') as { userId: string; username: string; role: string } | undefined;
 
     if (!user) {
@@ -198,7 +199,7 @@ export function createAuthRoutes() {
    * POST /refresh
    * Refresh authentication token
    */
-  app.post('/refresh', async c => {
+  app.post('/refresh', async (c) => {
     const user = c.get('user') as { userId: string; username: string; role: string } | undefined;
 
     if (!user) {

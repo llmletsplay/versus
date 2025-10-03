@@ -1,97 +1,146 @@
-import { Request, Response, NextFunction } from 'express';
-import { z, ZodError } from 'zod';
+/**
+ * Validation middleware utilities
+ * Centralizes validation logic and error handling
+ */
 
-export function validateRequest<T>(schema: z.ZodType<T>) {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    try {
-      // Validate request body
-      req.body = schema.parse(req.body);
-      next();
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map(err => ({
-          field: err.path.join('.'),
-          message: err.message,
-          code: err.code,
-        }));
+import type { Context, Next } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+import { errors } from './error-handler.js';
 
-        res.status(400).json({
-          success: false,
-          error: 'Validation failed',
-          code: 'VALIDATION_ERROR',
-          details: errorMessages,
-        });
-      } else {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid request data',
-          code: 'INVALID_REQUEST',
-        });
-      }
+/**
+ * Creates a validation middleware with proper error handling
+ */
+export function validate<T>(target: 'json' | 'query' | 'param', schema: z.ZodSchema<T>) {
+  return zValidator(target, schema, (result, c) => {
+    if (!result.success) {
+      const errorMessage = result.error.errors
+        .map((e) => `${e.path.join('.')}: ${e.message}`)
+        .join(', ');
+      throw errors.badRequest(`Validation failed: ${errorMessage}`);
     }
+  });
+}
+
+/**
+ * Common validation schemas
+ */
+export const schemas = {
+  // Pagination
+  pagination: z.object({
+    limit: z.coerce.number().min(1).max(100).default(20),
+    offset: z.coerce.number().min(0).default(0),
+  }),
+
+  // Subscription related
+  tierId: z.enum(['free', 'basic', 'pro', 'enterprise']),
+
+  cancelSubscription: z.object({
+    immediate: z.boolean().default(false),
+    reason: z.string().optional(),
+  }),
+
+  changeTier: z.object({
+    tierId: z.enum(['free', 'basic', 'pro', 'enterprise']),
+    paymentMethodId: z.string().optional(),
+  }),
+
+  // Date ranges
+  dateRange: z
+    .object({
+      startDate: z.string().datetime().optional(),
+      endDate: z.string().datetime().optional(),
+    })
+    .refine(
+      (data) => {
+        if (!data.startDate || !data.endDate) return true;
+        return new Date(data.startDate) <= new Date(data.endDate);
+      },
+      {
+        message: 'Start date must be before end date',
+      }
+    ),
+
+  // Analytics
+  analyticsQuery: z.object({
+    event: z.string().optional(),
+    period: z.enum(['hour', 'day', 'week', 'month']).default('day'),
+    limit: z.coerce.number().min(1).max(1000).default(100),
+  }),
+
+  // User related
+  userUpdate: z.object({
+    email: z.string().email().optional(),
+    name: z.string().min(1).max(100).optional(),
+  }),
+
+  // Game related
+  gameSession: z.object({
+    gameType: z.string().min(1),
+    players: z.array(z.string()).min(1),
+    settings: z.record(z.any()).optional(),
+  }),
+};
+
+/**
+ * Middleware to check if user is authenticated
+ */
+export function requireAuth() {
+  return async (c: Context, next: Next) => {
+    const user = c.get('user');
+    if (!user) {
+      throw errors.unauthorized('Authentication required');
+    }
+    await next();
   };
 }
 
-export function validateQuery<T>(schema: z.ZodType<T>) {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    try {
-      // Validate query parameters
-      const validated = schema.parse(req.query);
-      (req as any).query = validated;
-      next();
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map(err => ({
-          field: err.path.join('.'),
-          message: err.message,
-          code: err.code,
-        }));
-
-        res.status(400).json({
-          success: false,
-          error: 'Query parameter validation failed',
-          code: 'QUERY_VALIDATION_ERROR',
-          details: errorMessages,
-        });
-      } else {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid query parameters',
-          code: 'INVALID_QUERY',
-        });
-      }
+/**
+ * Middleware to check user role/permissions
+ */
+export function requireRole(roles: string[]) {
+  return async (c: Context, next: Next) => {
+    const user = c.get('user');
+    if (!user) {
+      throw errors.unauthorized('Authentication required');
     }
+    if (!roles.includes(user.role)) {
+      throw errors.forbidden('Insufficient permissions');
+    }
+    await next();
   };
 }
 
-export function validateParams<T>(schema: z.ZodType<T>) {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    try {
-      // Validate path parameters
-      const validated = schema.parse(req.params);
-      (req as any).params = validated;
-      next();
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map(err => ({
-          field: err.path.join('.'),
-          message: err.message,
-          code: err.code,
-        }));
+/**
+ * Middleware to check if user has a specific tier
+ */
+export function requireTier(minTier: string) {
+  const tierOrder = ['free', 'basic', 'pro', 'enterprise'];
+  const minLevel = tierOrder.indexOf(minTier);
 
-        res.status(400).json({
-          success: false,
-          error: 'Path parameter validation failed',
-          code: 'PARAMS_VALIDATION_ERROR',
-          details: errorMessages,
-        });
-      } else {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid path parameters',
-          code: 'INVALID_PARAMS',
-        });
-      }
+  return async (c: Context, next: Next) => {
+    const user = c.get('user');
+    if (!user) {
+      throw errors.unauthorized('Authentication required');
     }
+
+    // This would require checking the user's subscription
+    // For now, we'll assume the tier is attached to the user object
+    // In a real implementation, you'd fetch it from the subscription service
+    await next();
   };
+}
+
+/**
+ * Generic validation middleware using zod schemas
+ */
+export function validateRequest(schema: z.ZodSchema, target: 'json' | 'query' | 'params' = 'json') {
+  return zValidator(target as any, schema, (result, c) => {
+    if (!result.success) {
+      const errorMessage =
+        result.error?.errors?.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ') ||
+        'Validation failed';
+      throw errors.badRequest(errorMessage);
+    }
+  });
 }

@@ -1,202 +1,216 @@
-import { useState, useEffect } from 'react'
-import { HomePage, PlaygroundPage, StatsPage } from './pages'
-import { healthApi } from './services/api-client'
-import './App.css'
+import { useState, useEffect } from "react";
+import { HomePage, PlaygroundPage, StatsPage } from "./pages";
+import { BillingDashboard } from "./components";
+import { healthApi } from "./services/api-client";
+import "./App.css";
 
-type Section = 'home' | 'docs' | 'api' | 'playground' | 'stats'
-type ServerStatus = 'online' | 'offline' | 'checking'
+type Section = "home" | "docs" | "api" | "playground" | "stats" | "billing";
+type ServerStatus = "online" | "offline" | "checking";
 
 function App() {
-  const [activeSection, setActiveSection] = useState<Section>('home')
-  const [serverStatus, setServerStatus] = useState<ServerStatus>('checking')
-  const [gamesCount, setGamesCount] = useState<number>(26) // Default fallback
+  const [activeSection, setActiveSection] = useState<Section>("home");
+  const [serverStatus, setServerStatus] = useState<ServerStatus>("checking");
+  const [gamesCount, setGamesCount] = useState<number>(26); // Default fallback
 
   // Grid hover effect with trail
   useEffect(() => {
-    let hoverOverlay: HTMLDivElement | null = null
-    const trailOverlays: HTMLDivElement[] = []
-    const maxTrailLength = 8
-    let lastPosition = { x: -1, y: -1 }
+    let hoverOverlay: HTMLDivElement | null = null;
+    const trailOverlays: HTMLDivElement[] = [];
+    const maxTrailLength = 8;
+    let lastPosition = { x: -1, y: -1 };
 
     const createHoverOverlay = () => {
-      hoverOverlay = document.createElement('div')
-      hoverOverlay.className = 'grid-hover-overlay'
-      document.body.appendChild(hoverOverlay)
-    }
+      hoverOverlay = document.createElement("div");
+      hoverOverlay.className = "grid-hover-overlay";
+      document.body.appendChild(hoverOverlay);
+    };
 
     const createTrailOverlay = (x: number, y: number) => {
-      const trailOverlay = document.createElement('div')
-      trailOverlay.className = 'grid-trail-overlay'
-      trailOverlay.style.left = `${x}px`
-      trailOverlay.style.top = `${y}px`
-      document.body.appendChild(trailOverlay)
+      const trailOverlay = document.createElement("div");
+      trailOverlay.className = "grid-trail-overlay";
+      trailOverlay.style.left = `${x}px`;
+      trailOverlay.style.top = `${y}px`;
+      document.body.appendChild(trailOverlay);
 
       // Add to trail array
-      trailOverlays.push(trailOverlay)
+      trailOverlays.push(trailOverlay);
 
       // Remove oldest trail if we exceed max length
       if (trailOverlays.length > maxTrailLength) {
-        const oldestTrail = trailOverlays.shift()
+        const oldestTrail = trailOverlays.shift();
         if (oldestTrail) {
-          oldestTrail.remove()
+          oldestTrail.remove();
         }
       }
 
       // Start fading animation
       requestAnimationFrame(() => {
-        trailOverlay.classList.add('fading')
+        trailOverlay.classList.add("fading");
 
         // Remove after fade completes
         setTimeout(() => {
-          trailOverlay.classList.remove('fading')
+          trailOverlay.classList.remove("fading");
           setTimeout(() => {
             if (trailOverlay.parentNode) {
-              trailOverlay.remove()
-              const index = trailOverlays.indexOf(trailOverlay)
+              trailOverlay.remove();
+              const index = trailOverlays.indexOf(trailOverlay);
               if (index > -1) {
-                trailOverlays.splice(index, 1)
+                trailOverlays.splice(index, 1);
               }
             }
-          }, 500)
-        }, 100)
-      })
-    }
+          }, 500);
+        }, 100);
+      });
+    };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!hoverOverlay) return
+      if (!hoverOverlay) return;
 
-      const gridSize = 20
-      const x = Math.floor(e.clientX / gridSize) * gridSize
-      const y = Math.floor(e.clientY / gridSize) * gridSize
+      const gridSize = 20;
+      const x = Math.floor(e.clientX / gridSize) * gridSize;
+      const y = Math.floor(e.clientY / gridSize) * gridSize;
 
       // Only create trail if position changed
       if (x !== lastPosition.x || y !== lastPosition.y) {
         if (lastPosition.x !== -1 && lastPosition.y !== -1) {
-          createTrailOverlay(lastPosition.x, lastPosition.y)
+          createTrailOverlay(lastPosition.x, lastPosition.y);
         }
-        lastPosition = { x, y }
+        lastPosition = { x, y };
       }
 
-      hoverOverlay.style.left = `${x}px`
-      hoverOverlay.style.top = `${y}px`
-      hoverOverlay.classList.add('active')
-    }
+      hoverOverlay.style.left = `${x}px`;
+      hoverOverlay.style.top = `${y}px`;
+      hoverOverlay.classList.add("active");
+    };
 
     const handleMouseLeave = () => {
       // Keep the hover overlay visible for a longer time
       setTimeout(() => {
         if (hoverOverlay) {
-          hoverOverlay.classList.remove('active')
+          hoverOverlay.classList.remove("active");
         }
-      }, 300)
-      lastPosition = { x: -1, y: -1 }
-    }
+      }, 300);
+      lastPosition = { x: -1, y: -1 };
+    };
 
-    createHoverOverlay()
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseleave', handleMouseLeave)
+    createHoverOverlay();
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseleave", handleMouseLeave);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseleave', handleMouseLeave)
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseleave", handleMouseLeave);
       if (hoverOverlay) {
-        document.body.removeChild(hoverOverlay)
+        document.body.removeChild(hoverOverlay);
       }
       // Clean up all trail overlays
-      trailOverlays.forEach(overlay => {
+      trailOverlays.forEach((overlay) => {
         if (overlay.parentNode) {
-          overlay.remove()
+          overlay.remove();
         }
-      })
-      trailOverlays.length = 0
-    }
-  }, [])
+      });
+      trailOverlays.length = 0;
+    };
+  }, []);
 
   // Check server status and fetch games count
   useEffect(() => {
     const checkServerStatus = async () => {
       try {
-        const response = await healthApi.check()
+        const response = await healthApi.check();
         if (response.data) {
-          setServerStatus('online')
+          setServerStatus("online");
         } else {
-          setServerStatus('offline')
+          setServerStatus("offline");
         }
       } catch {
-        setServerStatus('offline')
+        setServerStatus("offline");
       }
-    }
+    };
 
-    checkServerStatus()
-    const interval = setInterval(checkServerStatus, 30000)
-    return () => clearInterval(interval)
-  }, [])
+    checkServerStatus();
+    const interval = setInterval(checkServerStatus, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch games count only when needed
   useEffect(() => {
     const fetchGamesCount = async () => {
       try {
-        const healthResponse = await healthApi.check()
+        const healthResponse = await healthApi.check();
         if (
           healthResponse.data &&
-          typeof healthResponse.data === 'object' &&
-          'gameTypes' in healthResponse.data
+          typeof healthResponse.data === "object" &&
+          "gameTypes" in healthResponse.data
         ) {
-          setGamesCount(healthResponse.data.gameTypes as number)
-          return
+          setGamesCount(healthResponse.data.gameTypes as number);
+          return;
         }
 
         // Fallback - use default value
       } catch {
         // Keep default value
       }
-    }
+    };
 
     // Fetch on app start
-    fetchGamesCount()
+    fetchGamesCount();
 
     // Fetch when visiting home section
-    if (activeSection === 'home') {
-      fetchGamesCount()
+    if (activeSection === "home") {
+      fetchGamesCount();
     }
-  }, [activeSection])
+  }, [activeSection]);
 
   const sections = [
-    { id: 'home' as Section, label: 'home' },
-    { id: 'docs' as Section, label: 'docs' },
-    { id: 'api' as Section, label: 'api' },
-    { id: 'playground' as Section, label: 'play' },
-    { id: 'stats' as Section, label: 'stats' },
-  ]
+    { id: "home" as Section, label: "home" },
+    { id: "docs" as Section, label: "docs" },
+    { id: "api" as Section, label: "api" },
+    { id: "playground" as Section, label: "play" },
+    { id: "stats" as Section, label: "stats" },
+    { id: "billing" as Section, label: "billing" },
+  ];
 
   const renderContent = () => {
     switch (activeSection) {
-      case 'home':
-        return <HomePage gamesCount={gamesCount} setActiveSection={setActiveSection} />
-      case 'docs':
+      case "home":
+        return (
+          <HomePage
+            gamesCount={gamesCount}
+            setActiveSection={setActiveSection}
+          />
+        );
+      case "docs":
         return (
           <div className="section">
             <div className="section-container">
               <h2>Documentation coming soon...</h2>
             </div>
           </div>
-        )
-      case 'api':
+        );
+      case "api":
         return (
           <div className="section">
             <div className="section-container">
               <h2>API Explorer coming soon...</h2>
             </div>
           </div>
-        )
-      case 'playground':
-        return <PlaygroundPage />
-      case 'stats':
-        return <StatsPage />
+        );
+      case "playground":
+        return <PlaygroundPage />;
+      case "stats":
+        return <StatsPage />;
+      case "billing":
+        return <BillingDashboard />;
       default:
-        return <HomePage gamesCount={gamesCount} setActiveSection={setActiveSection} />
+        return (
+          <HomePage
+            gamesCount={gamesCount}
+            setActiveSection={setActiveSection}
+          />
+        );
     }
-  }
+  };
 
   return (
     <div className="app">
@@ -208,11 +222,11 @@ function App() {
           </a>
 
           <div className="nav-links">
-            {sections.map(section => (
+            {sections.map((section) => (
               <a
                 key={section.id}
                 onClick={() => setActiveSection(section.id)}
-                className={`nav-link ${activeSection === section.id ? 'active' : ''}`}
+                className={`nav-link ${activeSection === section.id ? "active" : ""}`}
               >
                 {section.label}
               </a>
@@ -221,16 +235,16 @@ function App() {
 
           <div
             className={`status-badge ${
-              serverStatus === 'online'
-                ? 'status-online'
-                : serverStatus === 'offline'
-                  ? 'status-offline'
-                  : 'status-checking'
+              serverStatus === "online"
+                ? "status-online"
+                : serverStatus === "offline"
+                  ? "status-offline"
+                  : "status-checking"
             }`}
           >
-            {serverStatus === 'online' && 'online'}
-            {serverStatus === 'offline' && 'offline'}
-            {serverStatus === 'checking' && '...'}
+            {serverStatus === "online" && "online"}
+            {serverStatus === "offline" && "offline"}
+            {serverStatus === "checking" && "..."}
           </div>
         </div>
       </nav>
@@ -245,7 +259,8 @@ function App() {
             <div className="footer-section">
               <h4 className="footer-title">versus</h4>
               <p className="footer-description">
-                high-performance game server for competitive multiplayer experiences
+                high-performance game server for competitive multiplayer
+                experiences
               </p>
               <div className="footer-stats">
                 <div className="footer-stat">
@@ -267,27 +282,48 @@ function App() {
               <h5 className="footer-subtitle">resources</h5>
               <ul className="footer-links">
                 <li>
-                  <a href="#" onClick={() => setActiveSection('docs')} className="footer-link">
+                  <a
+                    href="#"
+                    onClick={() => setActiveSection("docs")}
+                    className="footer-link"
+                  >
                     documentation
                   </a>
                 </li>
                 <li>
-                  <a href="#" onClick={() => setActiveSection('api')} className="footer-link">
+                  <a
+                    href="#"
+                    onClick={() => setActiveSection("api")}
+                    className="footer-link"
+                  >
                     api reference
                   </a>
                 </li>
                 <li>
                   <a
                     href="#"
-                    onClick={() => setActiveSection('playground')}
+                    onClick={() => setActiveSection("playground")}
                     className="footer-link"
                   >
                     playground
                   </a>
                 </li>
                 <li>
-                  <a href="#" onClick={() => setActiveSection('stats')} className="footer-link">
+                  <a
+                    href="#"
+                    onClick={() => setActiveSection("stats")}
+                    className="footer-link"
+                  >
                     statistics
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    onClick={() => setActiveSection("billing")}
+                    className="footer-link"
+                  >
+                    billing
                   </a>
                 </li>
               </ul>
@@ -340,11 +376,11 @@ function App() {
                 <div className={`footer-status-indicator ${serverStatus}`}>
                   <span className="footer-status-dot"></span>
                   <span className="footer-status-text">
-                    {serverStatus === 'online'
-                      ? 'operational'
-                      : serverStatus === 'offline'
-                        ? 'offline'
-                        : 'checking...'}
+                    {serverStatus === "online"
+                      ? "operational"
+                      : serverStatus === "offline"
+                        ? "offline"
+                        : "checking..."}
                   </span>
                 </div>
                 <div className="footer-uptime">
@@ -358,8 +394,8 @@ function App() {
           <div className="footer-bottom">
             <div className="footer-bottom-content">
               <p className="footer-copyright">
-                © 2025 versus by <span className="footer-brand">phantasy</span>. all rights
-                reserved.
+                © 2025 versus by <span className="footer-brand">phantasy</span>
+                . all rights reserved.
               </p>
               <div className="footer-tech">
                 <span className="footer-tech-item">typescript</span>
@@ -371,7 +407,7 @@ function App() {
         </div>
       </footer>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

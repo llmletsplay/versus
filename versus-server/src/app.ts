@@ -12,7 +12,23 @@ import { GameManager } from './core/game-manager.js';
 import { createGameRoutes } from './routes/game-routes.js';
 import { createAuthRoutes } from './routes/auth-routes.js';
 import { logger } from './utils/logger.js';
-import { ErrorHandler, GameError } from './utils/error-handler.js';
+import { isAppError, toAppError } from './utils/errors.js';
+import { GameError } from './utils/error-handler.js';
+import { config } from './utils/config.js';
+import {
+  apiRateLimit,
+  authRateLimit,
+  gameCreationRateLimit,
+  moveRateLimit,
+  healthRateLimit,
+} from './middleware/hono-rate-limit.js';
+import { PaymentService, SUBSCRIPTION_TIERS } from './services/payment-service.js';
+import { AnalyticsService } from './services/analytics-service.js';
+import { RateLimitService } from './services/rate-limit-service.js';
+import { SubscriptionService } from './services/subscription-service.js';
+import { createPaymentRoutes } from './routes/payment-routes.js';
+import { createAnalyticsRoutes } from './routes/analytics-routes.js';
+import { createSubscriptionRoutes } from './routes/subscription-routes.js';
 import type { DatabaseConfig } from './core/database.js';
 
 export interface AppConfig {
@@ -22,6 +38,13 @@ export interface AppConfig {
   jwtSecret?: string;
   monitoring?: MonitoringConfig;
   backup?: BackupConfig;
+
+  // Configuration helper methods
+  getStripeConfig(): {
+    secretKey?: string;
+    webhookSecret?: string;
+    enabled: boolean;
+  };
 }
 
 export async function createApp(config: AppConfig) {
@@ -68,16 +91,13 @@ export async function createApp(config: AppConfig) {
     );
   }
 
-  // DEBT: Rate limiting not implemented - security vulnerability
-  // TODO: Implement custom rate limiting middleware for Hono
-  // Impact: Server vulnerable to DoS attacks without rate limiting
-  // Estimated effort: 2-3 days
+  // Apply general API rate limiting to all /api routes
+  app.use('/api/*', apiRateLimit);
 
   // Initialize services
   const gameManager = new GameManager(config.databaseConfig);
   const authService = new AuthService(config.databaseConfig);
   const healthService = new HealthService(gameManager.getDatabase());
-  const errorHandler = ErrorHandler.getInstance();
 
   // Initialize monitoring if configured
   let monitoringService: MonitoringService | undefined;
@@ -92,8 +112,51 @@ export async function createApp(config: AppConfig) {
     backupService = new BackupService(gameManager.getDatabase(), config.backup);
   }
 
-  // Comprehensive health check endpoint
-  app.get('/api/v1/health', async (c) => {
+  // Initialize payment service if Stripe is configured
+  let paymentService: PaymentService | undefined;
+  const stripeConfig = config.getStripeConfig();
+  if (stripeConfig.enabled) {
+    try {
+      paymentService = new PaymentService(stripeConfig.secretKey!, gameManager.getDatabase());
+      logger.info('Payment service initialized');
+    } catch (error) {
+      logger.error('Failed to initialize payment service', { error });
+    }
+  }
+
+  // Initialize analytics service
+  const analyticsService = new AnalyticsService(gameManager.getDatabase());
+  logger.info('Analytics service initialized');
+
+  // Initialize subscription service if payment service is available
+  let subscriptionService: SubscriptionService | undefined;
+  if (paymentService) {
+    try {
+      subscriptionService = new SubscriptionService(gameManager.getDatabase(), paymentService);
+      await subscriptionService.initializeTables();
+      logger.info('Subscription service initialized');
+    } catch (error) {
+      logger.error('Failed to initialize subscription service', { error });
+    }
+  }
+
+  // Initialize rate limit service with Redis if available
+  let rateLimitService: RateLimitService | undefined;
+  if (process.env.REDIS_URL) {
+    try {
+      rateLimitService = new RateLimitService(
+        process.env.REDIS_URL,
+        gameManager.getDatabase(),
+        paymentService as any
+      );
+      logger.info('Redis-based rate limiting initialized');
+    } catch (error) {
+      logger.error('Failed to initialize Redis rate limiting', { error });
+    }
+  }
+
+  // Comprehensive health check endpoint with strict rate limit
+  app.get('/api/v1/health', healthRateLimit, async (c) => {
     try {
       const healthCheck = await healthService.performHealthCheck();
 
@@ -115,8 +178,8 @@ export async function createApp(config: AppConfig) {
     }
   });
 
-  // Metrics endpoint for monitoring
-  app.get('/api/v1/metrics', (c) => {
+  // Metrics endpoint for monitoring with rate limit
+  app.get('/api/v1/metrics', healthRateLimit, (c) => {
     try {
       const metrics = healthService.getMetrics();
       return c.json(metrics);
@@ -146,28 +209,67 @@ export async function createApp(config: AppConfig) {
   app.route('/api/v1/auth', createAuthRoutes());
   app.route('/api/v1/games', createGameRoutes(gameManager));
 
+  // Mount payment routes if payment service is available
+  if (paymentService) {
+    app.route('/api/v1/payments', createPaymentRoutes(paymentService));
+  }
+
+  // Mount subscription routes if subscription service is available
+  if (subscriptionService && paymentService && rateLimitService) {
+    app.route(
+      '/api/v1/subscriptions',
+      createSubscriptionRoutes(subscriptionService, paymentService as any, rateLimitService)
+    );
+  }
+
+  // Mount analytics routes
+  if (rateLimitService) {
+    app.route('/api/v1/analytics', createAnalyticsRoutes(analyticsService, rateLimitService));
+  } else {
+    // Fallback to basic analytics
+    app.route(
+      '/api/v1/analytics',
+      createAnalyticsRoutes(
+        analyticsService,
+        new RateLimitService(undefined, gameManager.getDatabase(), paymentService as any)
+      )
+    );
+  }
+
   // Production-ready global error handler
   app.onError((err, c) => {
-    // Convert to GameError if needed
-    const gameError = err instanceof GameError ? err : errorHandler.handleError(err);
+    // Convert to AppError if needed
+    let appError;
+    if (isAppError(err)) {
+      appError = err;
+    } else if (err instanceof GameError) {
+      // Convert GameError to AppError
+      appError = toAppError(err);
+    } else {
+      appError = toAppError(err);
+    }
 
     // Log error with full context
     logger.error('API Error', {
-      error: gameError.message,
-      code: gameError.code,
-      isOperational: gameError.isOperational,
+      error: appError.message,
+      code: appError.code,
+      isOperational: appError.isOperational,
       stack: config.nodeEnv === 'development' ? err.stack : undefined,
       method: c.req.method,
       url: c.req.url,
       userAgent: c.req.header('User-Agent'),
-      context: gameError.context,
+      context: appError.context,
     });
 
     // Convert to production-safe API response
-    const apiResponse = errorHandler.toAPIResponse(gameError);
-    const { statusCode, ...responseBody } = apiResponse;
+    const responseBody = {
+      success: false,
+      error: appError.message,
+      code: appError.code,
+      ...(appError.context && { details: appError.context }),
+    };
 
-    return c.json(responseBody, statusCode as any);
+    return c.json(responseBody, appError.statusCode as any);
   });
 
   // 404 handler

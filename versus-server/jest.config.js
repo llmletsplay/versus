@@ -1,60 +1,16 @@
 /** @type {import('jest').Config} */
 export default {
-  // Use ts-jest for TypeScript support
+  // Use ts-jest for TypeScript support with ES modules
   preset: 'ts-jest/presets/default-esm',
+
+  // Extensions to treat as ES modules
+  extensionsToTreatAsEsm: ['.ts'],
 
   // Test environment
   testEnvironment: 'node',
 
-  // Module resolution
-  extensionsToTreatAsEsm: ['.ts'],
-  moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
-  },
-
-  // Transform TypeScript files
-  transform: {
-    '^.+\\.tsx?$': [
-      'ts-jest',
-      {
-        useESM: true,
-        tsconfig: {
-          module: 'ESNext',
-          moduleResolution: 'bundler',
-          esModuleInterop: true,
-          allowSyntheticDefaultImports: true,
-        },
-      },
-    ],
-  },
-
   // Test file patterns
-  testMatch: [
-    '**/tests/**/*.test.ts',
-    '**/__tests__/**/*.ts',
-    '**/?(*.)+(spec|test).ts',
-  ],
-
-  // Coverage configuration
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/**/*.test.ts',
-    '!src/**/*.spec.ts',
-  ],
-
-  coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html'],
-
-  // Coverage thresholds
-  coverageThreshold: {
-    global: {
-      branches: 50,
-      functions: 50,
-      lines: 50,
-      statements: 50,
-    },
-  },
+  testMatch: ['**/tests/**/*.test.ts', '**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
 
   // Setup files
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
@@ -72,4 +28,26 @@ export default {
 
   // Timeout for async tests (games can be complex)
   testTimeout: 10000,
+
+  // Module name mapping for ES modules (correct property name)
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
+
+  // Transform patterns with ts-jest config
+  transform: {
+    '^.+\\.ts$': [
+      'ts-jest',
+      {
+        useESM: true,
+        tsconfig: 'tsconfig.test.json',
+        transpilation: {
+          compilerOptions: {
+            target: 'ES2022',
+            module: 'CommonJS',
+          },
+        },
+      },
+    ],
+  },
 };

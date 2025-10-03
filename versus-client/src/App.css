@@ -50,6 +50,102 @@
   border-radius: 2px;
 }
 
+/* Chess Board Styles */
+.chess-board {
+  display: inline-block;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+}
+
+.chess-row {
+  display: flex;
+}
+
+.chess-square {
+  width: 50px;
+  height: 50px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  background: var(--color-bg);
+}
+
+.chess-square.light {
+  background: var(--color-bg);
+}
+
+.chess-square.dark {
+  background: var(--color-bg-tertiary);
+}
+
+.chess-square:hover:not(:disabled) {
+  background: rgba(0, 255, 136, 0.1);
+}
+
+.chess-square.selected {
+  background: rgba(0, 255, 136, 0.3);
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.chess-square:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Checkers Board Styles */
+.checkers-board {
+  display: inline-block;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+}
+
+.checkers-row {
+  display: flex;
+}
+
+.checkers-square {
+  width: 50px;
+  height: 50px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.checkers-square.light {
+  background: var(--color-bg);
+}
+
+.checkers-square.dark {
+  background: var(--color-bg-tertiary);
+}
+
+.checkers-square:hover:not(:disabled) {
+  background: rgba(0, 255, 136, 0.1);
+}
+
+.checkers-square.selected {
+  background: rgba(0, 255, 136, 0.3);
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.checkers-square:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+}
+
 .grid-hover-overlay.active {
   opacity: 0.8;
 }
@@ -2157,4 +2253,99 @@
   color: var(--color-accent);
   border-color: rgba(0, 255, 136, 0.3);
   background: rgba(0, 255, 136, 0.1);
+}
+
+/* Chess Board Styles */
+.chess-board {
+  display: inline-block;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+}
+
+.chess-row {
+  display: flex;
+}
+
+.chess-square {
+  width: 50px;
+  height: 50px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  background: var(--color-bg);
+}
+
+.chess-square.light {
+  background: var(--color-bg);
+}
+
+.chess-square.dark {
+  background: var(--color-bg-tertiary);
+}
+
+.chess-square:hover:not(:disabled) {
+  background: rgba(0, 255, 136, 0.1);
+}
+
+.chess-square.selected {
+  background: rgba(0, 255, 136, 0.3);
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.chess-square:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Checkers Board Styles */
+.checkers-board {
+  display: inline-block;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+}
+
+.checkers-row {
+  display: flex;
+}
+
+.checkers-square {
+  width: 50px;
+  height: 50px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.checkers-square.light {
+  background: var(--color-bg);
+}
+
+.checkers-square.dark {
+  background: var(--color-bg-tertiary);
+}
+
+.checkers-square:hover:not(:disabled) {
+  background: rgba(0, 255, 136, 0.1);
+}
+
+.checkers-square.selected {
+  background: rgba(0, 255, 136, 0.3);
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.checkers-square:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
