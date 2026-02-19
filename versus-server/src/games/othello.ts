@@ -143,7 +143,7 @@ export class OthelloGame extends BaseGame {
   }
 
   private makeMoveOnBoard(board: Cell[][], row: number, col: number, player: Player): Cell[][] {
-    const newBoard = board.map(row => [...row]);
+    const newBoard = board.map((row) => [...row]);
     const flippable = this.findFlippablePieces(board, row, col, player);
 
     // Place the new piece

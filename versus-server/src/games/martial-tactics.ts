@@ -282,7 +282,7 @@ export class MartialTacticsGame extends BaseGame {
 
       // Check if player has the card
       const playerCards = state.playerCards[move.player];
-      const card = playerCards.find(c => c.name === move.cardName);
+      const card = playerCards.find((c) => c.name === move.cardName);
       if (!card) {
         return { valid: false, error: `Player doesn't have card: ${move.cardName}` };
       }
@@ -310,9 +310,9 @@ export class MartialTacticsGame extends BaseGame {
 
       // For blue player, flip the card moves vertically
       const validMoves =
-        move.player === 'blue' ? card.moves.map(m => ({ row: -m.row, col: m.col })) : card.moves;
+        move.player === 'blue' ? card.moves.map((m) => ({ row: -m.row, col: m.col })) : card.moves;
 
-      const isValidCardMove = validMoves.some(m => m.row === rowDiff && m.col === colDiff);
+      const isValidCardMove = validMoves.some((m) => m.row === rowDiff && m.col === colDiff);
       if (!isValidCardMove) {
         return { valid: false, error: `Invalid move for card ${move.cardName}` };
       }
@@ -346,7 +346,7 @@ export class MartialTacticsGame extends BaseGame {
     } else {
       // Exchange cards: used card goes to neutral, neutral goes to opponent
       const playerCards = state.playerCards[martialMove.player];
-      const cardIndex = playerCards.findIndex(c => c.name === martialMove.cardName);
+      const cardIndex = playerCards.findIndex((c) => c.name === martialMove.cardName);
       const usedCard = playerCards[cardIndex]!;
 
       playerCards[cardIndex] = state.neutralCard;

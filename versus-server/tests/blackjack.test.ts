@@ -362,7 +362,7 @@ describe('BlackjackGame', () => {
       const state = await game.getGameState();
 
       // Check if any aces are in hand and value is calculated correctly
-      const hasAce = state.playerHands[0].cards.some(card => card.rank === 'A');
+      const hasAce = state.playerHands[0].cards.some((card) => card.rank === 'A');
       if (hasAce) {
         // Value should be optimized (ace as 11 if possible, 1 if needed)
         expect(state.playerHands[0].value).toBeLessThanOrEqual(21);
@@ -372,7 +372,7 @@ describe('BlackjackGame', () => {
     test('should handle multiple aces correctly', async () => {
       // This is probabilistic, but we can test the logic exists
       const state = await game.getGameState();
-      const aces = state.playerHands[0].cards.filter(card => card.rank === 'A').length;
+      const aces = state.playerHands[0].cards.filter((card) => card.rank === 'A').length;
 
       if (aces > 1) {
         // Only one ace should count as 11 maximum

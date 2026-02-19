@@ -1,4 +1,5 @@
 import { logger } from './logger.js';
+import type { X402PaymentConfig } from '../services/x402-payment-service.js';
 
 export interface ServerConfig {
   // Server settings
@@ -32,17 +33,19 @@ export interface ServerConfig {
   rateLimitWindowMs: number;
   rateLimitMaxRequests: number;
 
-  // Payment/Stripe settings
-  stripeSecretKey?: string;
-  stripeWebhookSecret?: string;
+  // x402 payment settings
+  x402Enabled: boolean;
+  x402ApiKey?: string;
+  x402WebhookSecret?: string;
+  x402BaseUrl?: string;
+  x402DefaultAmountUsd?: number;
+  x402DefaultCurrency?: string;
+  x402CallbackUrl?: string;
+  x402SettlementAddress?: string;
 
   // JWT settings
   jwtSecret: string;
   jwtExpiration: string;
-
-  // Redis settings (for rate limiting and caching)
-  redisUrl?: string;
-  redisPrefix?: string;
 }
 
 export class ConfigManager {
@@ -95,17 +98,23 @@ export class ConfigManager {
       rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
       rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
 
-      // Payment/Stripe settings
-      stripeSecretKey: process.env.STRIPE_SECRET_KEY,
-      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+      // x402 payment settings
+      x402Enabled:
+        process.env.X402_ENABLED === 'true' ||
+        (!!process.env.X402_API_KEY && process.env.X402_ENABLED !== 'false'),
+      x402ApiKey: process.env.X402_API_KEY,
+      x402WebhookSecret: process.env.X402_WEBHOOK_SECRET,
+      x402BaseUrl: process.env.X402_BASE_URL,
+      x402DefaultAmountUsd: process.env.X402_DEFAULT_AMOUNT_USD
+        ? Number(process.env.X402_DEFAULT_AMOUNT_USD)
+        : undefined,
+      x402DefaultCurrency: process.env.X402_DEFAULT_CURRENCY,
+      x402CallbackUrl: process.env.X402_CALLBACK_URL,
+      x402SettlementAddress: process.env.X402_SETTLEMENT_ADDRESS,
 
-      // JWT settings
-      jwtSecret: process.env.JWT_SECRET || 'change-me-in-production',
+      // JWT settings — no default; must be set via environment variable
+      jwtSecret: process.env.JWT_SECRET || '',
       jwtExpiration: process.env.JWT_EXPIRATION || '7d',
-
-      // Redis settings
-      redisUrl: process.env.REDIS_URL,
-      redisPrefix: process.env.REDIS_PREFIX || 'versus:',
     };
   }
 
@@ -144,13 +153,15 @@ export class ConfigManager {
       errors.push('rateLimitMaxRequests must be greater than 0');
     }
 
-    // Validate JWT
-    if (this.config.jwtSecret === 'change-me-in-production' && this.isProduction()) {
-      errors.push('JWT_SECRET must be set in production');
+    // Validate JWT — always require a secret
+    if (!this.config.jwtSecret) {
+      errors.push('JWT_SECRET environment variable is required');
+    } else if (this.config.jwtSecret.length < 32) {
+      errors.push('JWT_SECRET must be at least 32 characters long');
     }
 
-    if (this.config.jwtSecret.length < 32) {
-      errors.push('JWT_SECRET must be at least 32 characters long');
+    if (this.config.x402Enabled && !this.config.x402ApiKey) {
+      errors.push('X402_API_KEY must be set when x402 payments are enabled');
     }
 
     if (errors.length > 0) {
@@ -230,16 +241,16 @@ export class ConfigManager {
     return this.config.logLevel;
   }
 
-  // Payment configuration helpers
-  public getStripeConfig(): {
-    secretKey?: string;
-    webhookSecret?: string;
-    enabled: boolean;
-  } {
+  public getX402Config(): X402PaymentConfig {
     return {
-      secretKey: this.config.stripeSecretKey,
-      webhookSecret: this.config.stripeWebhookSecret,
-      enabled: !!this.config.stripeSecretKey,
+      enabled: this.config.x402Enabled,
+      apiKey: this.config.x402ApiKey,
+      webhookSecret: this.config.x402WebhookSecret,
+      baseUrl: this.config.x402BaseUrl,
+      defaultAmountUsd: this.config.x402DefaultAmountUsd,
+      defaultCurrency: this.config.x402DefaultCurrency,
+      callbackUrl: this.config.x402CallbackUrl,
+      settlementAddress: this.config.x402SettlementAddress,
     };
   }
 
@@ -251,19 +262,6 @@ export class ConfigManager {
     return {
       secret: this.config.jwtSecret,
       expiration: this.config.jwtExpiration,
-    };
-  }
-
-  // Redis configuration helper
-  public getRedisConfig(): {
-    url?: string;
-    prefix: string;
-    enabled: boolean;
-  } {
-    return {
-      url: this.config.redisUrl,
-      prefix: this.config.redisPrefix || 'versus:',
-      enabled: !!this.config.redisUrl,
     };
   }
 
@@ -289,6 +287,7 @@ export class ConfigManager {
         cors: this.config.enableCors,
         helmet: this.config.enableHelmet,
         rateLimit: `${this.config.rateLimitMaxRequests} req/${this.config.rateLimitWindowMs / 1000}s`,
+        x402Enabled: this.config.x402Enabled,
       },
     };
   }

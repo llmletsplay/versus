@@ -260,7 +260,7 @@ export class SpadesGame extends BaseGame {
         const playerHand = state.hands[move.player];
         if (
           !playerHand.some(
-            handCard => handCard.suit === move.card!.suit && handCard.rank === move.card!.rank
+            (handCard) => handCard.suit === move.card!.suit && handCard.rank === move.card!.rank
           )
         ) {
           return { valid: false, error: 'Player does not have this card' };
@@ -289,7 +289,7 @@ export class SpadesGame extends BaseGame {
 
     // If leading, cannot lead spades unless spades broken or only spades left
     if (Object.keys(trick.cards).length === 0 && card.suit === 'spades' && !state.spadesBroken) {
-      const hasNonSpades = playerHand.some(c => c.suit !== 'spades');
+      const hasNonSpades = playerHand.some((c) => c.suit !== 'spades');
       if (hasNonSpades) {
         return { valid: false, error: 'Cannot lead spades until spades are broken' };
       }
@@ -298,7 +298,7 @@ export class SpadesGame extends BaseGame {
     // Must follow suit if possible
     if (Object.keys(trick.cards).length > 0) {
       const leadSuit = this.getLeadSuit(trick);
-      const hasLeadSuit = playerHand.some(c => c.suit === leadSuit);
+      const hasLeadSuit = playerHand.some((c) => c.suit === leadSuit);
 
       if (hasLeadSuit && card.suit !== leadSuit) {
         return { valid: false, error: `Must follow suit (${leadSuit})` };
@@ -348,7 +348,7 @@ export class SpadesGame extends BaseGame {
     };
 
     // Check if all players have bid
-    if (Object.values(state.bids).every(bid => bid !== null)) {
+    if (Object.values(state.bids).every((bid) => bid !== null)) {
       this.startPlayingPhase(state);
     } else {
       // Move to next bidder
@@ -383,7 +383,7 @@ export class SpadesGame extends BaseGame {
     // Remove card from player's hand
     const playerHand = state.hands[player];
     const cardIndex = playerHand.findIndex(
-      handCard => handCard.suit === card.suit && handCard.rank === card.rank
+      (handCard) => handCard.suit === card.suit && handCard.rank === card.rank
     );
     if (cardIndex !== -1) {
       playerHand.splice(cardIndex, 1);

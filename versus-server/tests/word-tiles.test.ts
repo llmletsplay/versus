@@ -308,8 +308,8 @@ describe('WordTilesGame', () => {
     test('should score simple word correctly', async () => {
       const internalState = getInternalState(game);
       // Find tiles that could form a word (need at least one with known value)
-      const aTile = internalState.players.player1.rack.find(t => t.letter === 'A');
-      const tTile = internalState.players.player1.rack.find(t => t.letter === 'T');
+      const aTile = internalState.players.player1.rack.find((t) => t.letter === 'A');
+      const tTile = internalState.players.player1.rack.find((t) => t.letter === 'T');
 
       if (aTile && tTile) {
         const newState = await game.makeMove({
@@ -351,7 +351,7 @@ describe('WordTilesGame', () => {
     test('should handle blank tiles in scoring', async () => {
       // This test assumes blank tiles exist in the tile distribution
       const internalState = getInternalState(game);
-      const blankTile = internalState.players.player1.rack.find(t => t.letter === '_');
+      const blankTile = internalState.players.player1.rack.find((t) => t.letter === '_');
 
       if (blankTile) {
         const newState = await game.makeMove({
@@ -434,8 +434,8 @@ describe('WordTilesGame', () => {
       expect(newRack).toHaveLength(7);
 
       // At least some tiles should be different
-      const sameCount = newRack.filter(tile =>
-        originalRack.some(orig => orig.letter === tile.letter)
+      const sameCount = newRack.filter((tile) =>
+        originalRack.some((orig) => orig.letter === tile.letter)
       ).length;
       expect(sameCount).toBeLessThan(7);
     });
@@ -585,7 +585,7 @@ describe('WordTilesGame', () => {
       expect(state.players.player2.rackSize).toBeDefined();
 
       // All players should have score visible
-      Object.values(state.players).forEach(player => {
+      Object.values(state.players).forEach((player) => {
         expect(typeof player.score).toBe('number');
       });
     });

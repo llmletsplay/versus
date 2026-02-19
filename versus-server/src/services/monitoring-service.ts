@@ -1,66 +1,58 @@
-import * as Sentry from '@sentry/node';
-import { nodeProfilingIntegration } from '@sentry/profiling-node';
-import { httpIntegration, consoleIntegration, onUncaughtExceptionIntegration } from '@sentry/node';
 import { logger } from '../utils/logger.js';
+
+type SentryModule = typeof import('@sentry/node');
 
 export interface MonitoringConfig {
   sentryDsn?: string;
   environment: string;
   release?: string;
-  enableProfiling: boolean;
-  enableTracing: boolean;
-  sampleRate: number;
-  profilesSampleRate: number;
+  enableTracing?: boolean;
+  traceSampleRate?: number;
 }
 
 export class MonitoringService {
   private config: MonitoringConfig;
   private initialized = false;
+  private sentry: SentryModule | null = null;
 
   constructor(config: MonitoringConfig) {
     this.config = config;
   }
 
-  initialize(): void {
+  async initialize(): Promise<void> {
     if (!this.config.sentryDsn) {
       logger.info('Sentry DSN not provided, monitoring disabled');
       return;
     }
 
     try {
-      Sentry.init({
+      const sentry = await import('@sentry/node').catch((error: unknown) => {
+        logger.warn('Sentry module not installed; monitoring disabled', {
+          error: error instanceof Error ? error.message : error,
+        });
+        return null;
+      });
+
+      if (!sentry) {
+        return;
+      }
+
+      const { init, httpIntegration, consoleIntegration, onUncaughtExceptionIntegration } = sentry;
+
+      init({
         dsn: this.config.sentryDsn,
         environment: this.config.environment,
         release: this.config.release || '2.0.0',
-
-        // Performance monitoring
-        tracesSampleRate: this.config.enableTracing ? this.config.sampleRate : 0,
-        profilesSampleRate: this.config.enableProfiling ? this.config.profilesSampleRate : 0,
-
-        // Integrations
+        tracesSampleRate: this.config.enableTracing ? (this.config.traceSampleRate ?? 0.1) : 0,
         integrations: [
-          // Enable profiling
-          ...(this.config.enableProfiling ? [nodeProfilingIntegration()] : []),
-
-          // HTTP integration for request tracking
-          httpIntegration({
-            breadcrumbs: true,
-          }),
-
-          // Console integration for log correlation
+          httpIntegration({ breadcrumbs: true }),
           consoleIntegration(),
-
-          // OnUncaughtException integration
           onUncaughtExceptionIntegration({
             exitEvenIfOtherHandlersAreRegistered: false,
           }),
         ],
-
-        // Enhanced error filtering
         beforeSend(event) {
-          // Filter out non-critical errors in production
           if (event.environment === 'production') {
-            // Don't send validation errors to Sentry (they're user errors)
             if (
               event.tags?.errorCode === 'VALIDATION_ERROR' ||
               event.tags?.errorCode === 'INVALID_MOVE_FORMAT'
@@ -68,11 +60,8 @@ export class MonitoringService {
               return null;
             }
           }
-
           return event;
         },
-
-        // Add custom tags
         initialScope: {
           tags: {
             component: 'versus-game-server',
@@ -81,11 +70,11 @@ export class MonitoringService {
         },
       });
 
+      this.sentry = sentry;
       this.initialized = true;
       logger.info('Sentry monitoring initialized', {
         environment: this.config.environment,
-        profiling: this.config.enableProfiling,
-        tracing: this.config.enableTracing,
+        tracing: this.config.enableTracing ?? false,
       });
     } catch (error) {
       logger.error('Failed to initialize Sentry monitoring', { error });
@@ -96,20 +85,28 @@ export class MonitoringService {
    * Capture an exception with context
    */
   captureException(error: Error, context?: Record<string, any>): void {
-    if (!this.initialized) {return;}
+    if (!this.initialized || !this.sentry) {
+      return;
+    }
 
-    Sentry.withScope(scope => {
+    this.sentry.withScope((scope) => {
       if (context) {
         // Add game-specific context
-        if (context.gameId) {scope.setTag('gameId', context.gameId);}
-        if (context.gameType) {scope.setTag('gameType', context.gameType);}
-        if (context.player) {scope.setUser({ id: context.player });}
+        if (context.gameId) {
+          scope.setTag('gameId', context.gameId);
+        }
+        if (context.gameType) {
+          scope.setTag('gameType', context.gameType);
+        }
+        if (context.player) {
+          scope.setUser({ id: context.player });
+        }
 
         // Add additional context
         scope.setContext('gameContext', context);
       }
 
-      Sentry.captureException(error);
+      this.sentry!.captureException(error);
     });
   }
 
@@ -121,16 +118,18 @@ export class MonitoringService {
     level: 'fatal' | 'error' | 'warning' | 'info' | 'debug' = 'info',
     context?: Record<string, any>
   ): void {
-    if (!this.initialized) {return;}
+    if (!this.initialized || !this.sentry) {
+      return;
+    }
 
-    Sentry.withScope(scope => {
+    this.sentry.withScope((scope) => {
       scope.setLevel(level);
 
       if (context) {
         scope.setContext('messageContext', context);
       }
 
-      Sentry.captureMessage(message);
+      this.sentry!.captureMessage(message);
     });
   }
 
@@ -138,14 +137,16 @@ export class MonitoringService {
    * Start a performance transaction
    */
   startTransaction(name: string, operation: string): any {
-    if (!this.initialized || !this.config.enableTracing) {return undefined;}
+    if (!this.initialized || !this.config.enableTracing || !this.sentry) {
+      return undefined;
+    }
 
-    return Sentry.startSpan(
+    return this.sentry.startSpan(
       {
         name,
         op: operation,
       },
-      span => span
+      (span) => span
     );
   }
 
@@ -158,9 +159,11 @@ export class MonitoringService {
     gameType: string,
     properties?: Record<string, any>
   ): void {
-    if (!this.initialized) {return;}
+    if (!this.initialized || !this.sentry) {
+      return;
+    }
 
-    Sentry.addBreadcrumb({
+    this.sentry.addBreadcrumb({
       category: 'game',
       message: eventName,
       level: 'info',
@@ -176,9 +179,11 @@ export class MonitoringService {
    * Track authentication events
    */
   trackAuthEvent(eventName: string, userId?: string, properties?: Record<string, any>): void {
-    if (!this.initialized) {return;}
+    if (!this.initialized || !this.sentry) {
+      return;
+    }
 
-    Sentry.addBreadcrumb({
+    this.sentry.addBreadcrumb({
       category: 'auth',
       message: eventName,
       level: 'info',
@@ -193,9 +198,11 @@ export class MonitoringService {
    * Set user context for error tracking
    */
   setUserContext(userId: string, username?: string, email?: string): void {
-    if (!this.initialized) {return;}
+    if (!this.initialized || !this.sentry) {
+      return;
+    }
 
-    Sentry.setUser({
+    this.sentry.setUser({
       id: userId,
       username,
       email,
@@ -206,10 +213,11 @@ export class MonitoringService {
    * Capture performance metrics manually
    */
   capturePerformanceMetric(name: string, value: number, unit: string = 'ms'): void {
-    if (!this.initialized) {return;}
+    if (!this.initialized || !this.sentry) {
+      return;
+    }
 
-    // Add as breadcrumb for now - in production integrate with custom metrics
-    Sentry.addBreadcrumb({
+    this.sentry.addBreadcrumb({
       category: 'performance',
       message: `${name}: ${value}${unit}`,
       level: 'info',
@@ -221,10 +229,12 @@ export class MonitoringService {
    * Flush pending events (useful for serverless)
    */
   async flush(timeout: number = 2000): Promise<boolean> {
-    if (!this.initialized) {return true;}
+    if (!this.initialized || !this.sentry) {
+      return true;
+    }
 
     try {
-      return await Sentry.flush(timeout);
+      return await this.sentry.flush(timeout);
     } catch (error) {
       logger.warn('Failed to flush Sentry events', { error });
       return false;
@@ -235,11 +245,13 @@ export class MonitoringService {
    * Close monitoring service
    */
   async close(): Promise<void> {
-    if (!this.initialized) {return;}
+    if (!this.initialized || !this.sentry) {
+      return;
+    }
 
     try {
       await this.flush();
-      await Sentry.close();
+      await this.sentry.close();
       logger.info('Monitoring service closed');
     } catch (error) {
       logger.error('Failed to close monitoring service', { error });

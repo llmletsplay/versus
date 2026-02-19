@@ -243,7 +243,7 @@ export class AgainstCardsGame extends BaseGame {
         // Check if player has these cards
         const playerHand = state.players[move.player]!.hand;
         for (const card of move.cards) {
-          if (!playerHand.some(handCard => handCard.id === card.id)) {
+          if (!playerHand.some((handCard) => handCard.id === card.id)) {
             return { valid: false, error: 'Player does not have submitted card' };
           }
         }
@@ -315,7 +315,7 @@ export class AgainstCardsGame extends BaseGame {
 
     // Remove cards from player's hand
     for (const card of submittedCards) {
-      const index = player.hand.findIndex(handCard => handCard.id === card.id);
+      const index = player.hand.findIndex((handCard) => handCard.id === card.id);
       if (index !== -1) {
         player.hand.splice(index, 1);
       }
@@ -338,7 +338,7 @@ export class AgainstCardsGame extends BaseGame {
     };
 
     // Check if all non-judge players have submitted
-    const nonJudgePlayers = state.playerOrder.filter(p => !state.players[p]!.isJudge);
+    const nonJudgePlayers = state.playerOrder.filter((p) => !state.players[p]!.isJudge);
     const submittedPlayers = Object.keys(state.submissions);
 
     if (submittedPlayers.length === nonJudgePlayers.length) {

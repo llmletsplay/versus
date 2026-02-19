@@ -38,7 +38,7 @@ export abstract class SimpleBoardGameTemplate<
   protected abstract readonly emptyValue: TCell;
   protected abstract readonly winLength: number;
 
-   protected state: any;
+  protected state: any;
 
   constructor(gameId: string, gameType: string, database: DatabaseProvider) {
     super(gameId, gameType, database);
@@ -47,29 +47,29 @@ export abstract class SimpleBoardGameTemplate<
   async initializeGame(_config?: GameConfig): Promise<GameState> {
     const players = this.getPlayerOrder();
 
-     this.state = {
-       scores: ScoringMixin.initializeScores(players),
-       currentPlayer: players[0] as TPlayer,
-       gameOver: false,
-       winner: null,
-       playerOrder: players as TPlayer[],
-       round: 1,
-       status: 'waiting' as const,
-       board: this.createEmptyBoard(),
-     } as any;
+    this.state = {
+      scores: ScoringMixin.initializeScores(players),
+      currentPlayer: players[0] as TPlayer,
+      gameOver: false,
+      winner: null,
+      playerOrder: players as TPlayer[],
+      round: 1,
+      status: 'waiting' as const,
+      board: this.createEmptyBoard(),
+    } as any;
 
-     return this.state;
-   }
+    return this.state;
+  }
 
-   async isGameOver(): Promise<boolean> {
-     return this.state.gameOver;
-   }
+  async isGameOver(): Promise<boolean> {
+    return this.state.gameOver;
+  }
 
-   async getWinner(): Promise<string | null> {
-     return this.state.winner;
-   }
+  async getWinner(): Promise<string | null> {
+    return this.state.winner;
+  }
 
-   protected createEmptyBoard(): TCell[][] {
+  protected createEmptyBoard(): TCell[][] {
     return Array(this.boardSize)
       .fill(null)
       .map(() => Array(this.boardSize).fill(this.emptyValue));
@@ -97,38 +97,38 @@ export abstract class SimpleCardGameTemplate<TPlayer extends string = string> ex
   protected abstract getPlayerOrder(): string[];
   protected abstract createDeck(): any[];
 
-   protected state: any;
+  protected state: any;
 
   constructor(gameId: string, gameType: string, database: DatabaseProvider) {
     super(gameId, gameType, database);
   }
 
-   async initializeGame(_config?: GameConfig): Promise<GameState> {
-     const players = this.getPlayerOrder();
-     const deck = this.shuffleArray(this.createDeck());
+  async initializeGame(_config?: GameConfig): Promise<GameState> {
+    const players = this.getPlayerOrder();
+    const deck = this.shuffleArray(this.createDeck());
 
-     // Deal cards to players
-     const dealResult = CardGameMixin.dealCards(deck, this.playerCount, this.cardsPerPlayer);
+    // Deal cards to players
+    const dealResult = CardGameMixin.dealCards(deck, this.playerCount, this.cardsPerPlayer);
 
-      // Create hands object
-      const hands: Record<TPlayer, any[]> = {} as Record<TPlayer, any[]>;
-      players.forEach((player: string, index: number) => {
-        hands[player as TPlayer] = dealResult.hands[index] || [];
-      });
+    // Create hands object
+    const hands: Record<TPlayer, any[]> = {} as Record<TPlayer, any[]>;
+    players.forEach((player: string, index: number) => {
+      hands[player as TPlayer] = dealResult.hands[index] || [];
+    });
 
-      this.state = {
-        hands,
-        deck: dealResult.remainingDeck,
-        discardPile: [],
-        currentPlayer: players[0] as TPlayer,
-        gameOver: false,
-        winner: null,
-        playerOrder: players as TPlayer[],
-        status: 'waiting' as const,
-      };
+    this.state = {
+      hands,
+      deck: dealResult.remainingDeck,
+      discardPile: [],
+      currentPlayer: players[0] as TPlayer,
+      gameOver: false,
+      winner: null,
+      playerOrder: players as TPlayer[],
+      status: 'waiting' as const,
+    };
 
-      return this.state;
-    }
+    return this.state;
+  }
 }
 
 /**

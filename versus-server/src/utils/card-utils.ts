@@ -80,7 +80,7 @@ export function createStandardDeck(
 
   if (typeof valueMapping === 'string') {
     const rankOrder = RANK_ORDERS[valueMapping];
-    getValue = _rank => rankOrder.indexOf(_rank);
+    getValue = (_rank) => rankOrder.indexOf(_rank);
   } else if (typeof valueMapping === 'function') {
     getValue = valueMapping;
   } else {
@@ -199,7 +199,7 @@ export function removeCards<T extends { suit: string; rank: string }>(
 ): boolean {
   for (const cardToRemove of cardsToRemove) {
     const index = hand.findIndex(
-      card => card.suit === cardToRemove.suit && card.rank === cardToRemove.rank
+      (card) => card.suit === cardToRemove.suit && card.rank === cardToRemove.rank
     );
     if (index === -1) {
       return false; // Card not found
@@ -219,8 +219,8 @@ export function hasCards<T extends { suit: string; rank: string }>(
   hand: T[],
   cardsToCheck: T[]
 ): boolean {
-  return cardsToCheck.every(_card =>
-    hand.some(_handCard => _handCard.suit === _card.suit && _handCard.rank === _card.rank)
+  return cardsToCheck.every((_card) =>
+    hand.some((_handCard) => _handCard.suit === _card.suit && _handCard.rank === _card.rank)
   );
 }
 

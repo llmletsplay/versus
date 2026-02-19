@@ -43,10 +43,10 @@ describe('BattleshipGame', () => {
       // Each player should have 5 ships with correct lengths
       const expectedShipLengths = [5, 4, 3, 3, 2]; // carrier, battleship, cruiser, submarine, destroyer
       const player1ShipLengths = state.boards.player1.ships
-        .map(ship => ship.length)
+        .map((ship) => ship.length)
         .sort((a, b) => b - a);
       const player2ShipLengths = state.boards.player2.ships
-        .map(ship => ship.length)
+        .map((ship) => ship.length)
         .sort((a, b) => b - a);
 
       expect(player1ShipLengths).toEqual(expectedShipLengths);
@@ -160,12 +160,12 @@ describe('BattleshipGame', () => {
       const state = await game.getGameState();
 
       // All ships should start with 0 hits and not sunk
-      state.boards.player1.ships.forEach(ship => {
+      state.boards.player1.ships.forEach((ship) => {
         expect(ship.hits).toBe(0);
         expect(ship.sunk).toBe(false);
       });
 
-      state.boards.player2.ships.forEach(ship => {
+      state.boards.player2.ships.forEach((ship) => {
         expect(ship.hits).toBe(0);
         expect(ship.sunk).toBe(false);
       });
@@ -181,14 +181,14 @@ describe('BattleshipGame', () => {
       const state = await game.getGameState();
 
       // Check that no cells show 'ship' in the public view
-      state.boards.player1.cells.forEach(row => {
-        row.forEach(cell => {
+      state.boards.player1.cells.forEach((row) => {
+        row.forEach((cell) => {
           expect(cell).not.toBe('ship');
         });
       });
 
-      state.boards.player2.cells.forEach(row => {
-        row.forEach(cell => {
+      state.boards.player2.cells.forEach((row) => {
+        row.forEach((cell) => {
           expect(cell).not.toBe('ship');
         });
       });
@@ -198,11 +198,11 @@ describe('BattleshipGame', () => {
       const state = await game.getGameState();
 
       // Initially no ships should be sunk, so no positions revealed
-      state.boards.player1.ships.forEach(ship => {
+      state.boards.player1.ships.forEach((ship) => {
         expect(ship.positions).toEqual([]);
       });
 
-      state.boards.player2.ships.forEach(ship => {
+      state.boards.player2.ships.forEach((ship) => {
         expect(ship.positions).toEqual([]);
       });
     });

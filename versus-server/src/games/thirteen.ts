@@ -144,7 +144,10 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
       return this.getGameState();
     } catch (error) {
-      logger.error('Failed to initialize Thirteen game:', error instanceof Error ? error : new Error(String(error)));
+      logger.error(
+        'Failed to initialize Thirteen game:',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw new Error(
         `Failed to initialize game: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -181,7 +184,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
   private findPlayerWith3OfSpades(players: ThirteenState['players'], playerIds: string[]): string {
     for (const [playerId, player] of Object.entries(players)) {
-      if (player.hand.some(card => card.rank === '3' && card.suit === 'spades')) {
+      if (player.hand.some((card) => card.rank === '3' && card.suit === 'spades')) {
         return playerId;
       }
     }
@@ -333,7 +336,10 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
       return move;
     } catch (error) {
-      logger.error('Error sanitizing move:', error instanceof Error ? error : new Error(String(error)));
+      logger.error(
+        'Error sanitizing move:',
+        error instanceof Error ? error : new Error(String(error))
+      );
       return null;
     }
   }
@@ -383,7 +389,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
     // Check if player has all the cards they want to play
     for (const card of move.cards) {
       const hasCard = player.hand.some(
-        handCard => handCard.suit === card.suit && handCard.rank === card.rank
+        (handCard) => handCard.suit === card.suit && handCard.rank === card.rank
       );
       if (!hasCard) {
         return {
@@ -407,7 +413,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
       !state.lastPlay &&
       state.currentPlayer === this.findPlayerWith3OfSpades(state.players, state.playerOrder)
     ) {
-      const has3OfSpades = move.cards.some(card => card.rank === '3' && card.suit === 'spades');
+      const has3OfSpades = move.cards.some((card) => card.rank === '3' && card.suit === 'spades');
       if (!has3OfSpades) {
         return { valid: false, error: THIRTEEN_ERROR_MESSAGES.FIRST_PLAY_NEEDS_3_SPADES };
       }
@@ -526,7 +532,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
       return false;
     }
     const suit = cards[0]!.suit;
-    return cards.every(card => card.suit === suit);
+    return cards.every((card) => card.suit === suit);
   }
 
   private isFourOfAKind(sortedCards: Card[]): boolean {
@@ -549,7 +555,8 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
     return (
       (sortedCards[0]!.rank === sortedCards[2]!.rank &&
         sortedCards[3]!.rank === sortedCards[4]!.rank) ||
-      (sortedCards[0]!.rank === sortedCards[1]!.rank && sortedCards[2]!.rank === sortedCards[4]!.rank)
+      (sortedCards[0]!.rank === sortedCards[1]!.rank &&
+        sortedCards[2]!.rank === sortedCards[4]!.rank)
     );
   }
 
@@ -572,12 +579,12 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
         );
 
       case 'flush':
-        return Math.max(...sorted.map(card => card.value * 4 + this.getSuitValue(card.suit)));
+        return Math.max(...sorted.map((card) => card.value * 4 + this.getSuitValue(card.suit)));
 
       case 'fullHouse':
         // Find the triple
         const triple = sorted[2]!.rank;
-        const tripleValue = sorted.find(card => card.rank === triple)!.value;
+        const tripleValue = sorted.find((card) => card.rank === triple)!.value;
         return tripleValue * 4;
 
       default:
@@ -598,9 +605,9 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
       state.passedPlayers.add(thirteenMove.player);
 
       // Check if all other players have passed
-      const activePlayers = state.playerOrder.filter(p => !state.players[p]!.isOut);
+      const activePlayers = state.playerOrder.filter((p) => !state.players[p]!.isOut);
       const allOthersPassedOrOut = activePlayers.every(
-        p => p === state.currentPlayer || state.passedPlayers.has(p) || state.players[p]!.isOut
+        (p) => p === state.currentPlayer || state.passedPlayers.has(p) || state.players[p]!.isOut
       );
 
       if (allOthersPassedOrOut) {
@@ -618,7 +625,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
       if (thirteenMove.cards) {
         for (const cardToPlay of thirteenMove.cards) {
           const index = player!.hand.findIndex(
-            handCard => handCard.suit === cardToPlay.suit && handCard.rank === cardToPlay.rank
+            (handCard) => handCard.suit === cardToPlay.suit && handCard.rank === cardToPlay.rank
           );
           if (index !== -1) {
             player!.hand.splice(index, 1);
@@ -638,7 +645,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
         // Check if player is out
         if (player!.hand.length === 0) {
           player!.isOut = true;
-          const finishedCount = Object.values(state.players).filter(p => p!.isOut).length;
+          const finishedCount = Object.values(state.players).filter((p) => p!.isOut).length;
           player!.position = finishedCount;
 
           // Check win condition
@@ -657,7 +664,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
   }
 
   private moveToNextPlayer(state: ThirteenState): void {
-    const activePlayers = state.playerOrder.filter(p => !state.players[p]!.isOut);
+    const activePlayers = state.playerOrder.filter((p) => !state.players[p]!.isOut);
     const currentIndex = activePlayers.indexOf(state.currentPlayer);
     const nextIndex = (currentIndex + 1) % activePlayers.length;
     state.currentPlayer = activePlayers[nextIndex]!;

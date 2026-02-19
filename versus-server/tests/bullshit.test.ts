@@ -72,7 +72,7 @@ describe('BullshitGame', () => {
 
       // Get a card of the current rank from player's hand
       const playerHand = state.players[currentPlayer].hand;
-      const validCards = playerHand.filter(card => card.rank === currentRank);
+      const validCards = playerHand.filter((card) => card.rank === currentRank);
 
       if (validCards.length > 0) {
         const result = await game.validateMove({
@@ -271,7 +271,7 @@ describe('BullshitGame', () => {
       const challenger = 'player2';
 
       // Find a card that doesn't match the current rank (for lying)
-      const wrongCard = playerHand.find(card => card.rank !== state.currentRank);
+      const wrongCard = playerHand.find((card) => card.rank !== state.currentRank);
 
       if (wrongCard) {
         const initialTargetHandSize = state.players[currentPlayer].handSize;
@@ -307,7 +307,7 @@ describe('BullshitGame', () => {
       const challenger = 'player2';
 
       // Find a card that matches the current rank (for telling truth)
-      const truthCard = playerHand.find(card => card.rank === state.currentRank);
+      const truthCard = playerHand.find((card) => card.rank === state.currentRank);
 
       if (truthCard) {
         await game.makeMove({
@@ -339,7 +339,7 @@ describe('BullshitGame', () => {
       const playerHand = state.players[currentPlayer].hand;
 
       // Find multiple cards of the current rank
-      const matchingCards = playerHand.filter(card => card.rank === state.currentRank);
+      const matchingCards = playerHand.filter((card) => card.rank === state.currentRank);
 
       if (matchingCards.length >= 2) {
         const cardsToPlay = matchingCards.slice(0, 2);

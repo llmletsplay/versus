@@ -7,9 +7,15 @@ export interface User {
   updatedAt: Date;
   isActive: boolean;
   role: UserRole;
+  /** If this user represents an AI agent */
+  isAgent: boolean;
+  /** Reference to agent_registry.id */
+  agentId: string | null;
+  /** Wallet address for crypto operations */
+  walletAddress: string | null;
 }
 
-export type UserRole = 'player' | 'admin';
+export type UserRole = 'player' | 'admin' | 'agent';
 
 export interface CreateUserRequest {
   username: string;

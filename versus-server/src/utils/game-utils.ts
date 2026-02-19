@@ -193,7 +193,7 @@ export function createGrid<T>(rows: number, cols: number, defaultValue: T): T[][
  * @returns Cloned grid
  */
 export function cloneGrid<T>(grid: T[][]): T[][] {
-  return grid.map(row => [...row]);
+  return grid.map((row) => [...row]);
 }
 
 /**

@@ -1,5 +1,5 @@
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:6789'
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5556'
 export const API_V1_URL = `${API_BASE_URL}/api/v1`
 export const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '10000')
 export const API_RETRY_ATTEMPTS = parseInt(import.meta.env.VITE_API_RETRY_ATTEMPTS || '3')

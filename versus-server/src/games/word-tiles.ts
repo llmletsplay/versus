@@ -505,7 +505,7 @@ export class WordTilesGame extends BaseGame {
         const playerRack = state.players[move.player]!.rack;
         for (const tile of move.exchangeTiles) {
           const hasThisTile = playerRack.some(
-            rackTile => rackTile.letter === tile.letter && rackTile.value === tile.value
+            (rackTile) => rackTile.letter === tile.letter && rackTile.value === tile.value
           );
           if (!hasThisTile) {
             return {
@@ -539,7 +539,7 @@ export class WordTilesGame extends BaseGame {
     // Verify player has all the tiles they're trying to place
     for (const placement of placements) {
       const hasThisTile = playerRack.some(
-        rackTile =>
+        (rackTile) =>
           rackTile.letter === placement.tile.letter && rackTile.value === placement.tile.value
       );
       if (!hasThisTile) {
@@ -568,7 +568,7 @@ export class WordTilesGame extends BaseGame {
 
     // First move must cover the center star
     if (state.firstMove) {
-      const coversStar = placements.some(p => p.row === 7 && p.col === 7);
+      const coversStar = placements.some((p) => p.row === 7 && p.col === 7);
       if (!coversStar) {
         return { valid: false, error: 'First move must cover the center star' };
       }
@@ -593,11 +593,11 @@ export class WordTilesGame extends BaseGame {
       return true;
     }
 
-    const rows = placements.map(p => p.row);
-    const cols = placements.map(p => p.col);
+    const rows = placements.map((p) => p.row);
+    const cols = placements.map((p) => p.col);
 
-    const sameRow = rows.every(r => r === rows[0]);
-    const sameCol = cols.every(c => c === cols[0]);
+    const sameRow = rows.every((r) => r === rows[0]);
+    const sameCol = cols.every((c) => c === cols[0]);
 
     return sameRow || sameCol;
   }
@@ -675,7 +675,7 @@ export class WordTilesGame extends BaseGame {
     // Remove tiles from player's rack
     for (const tile of tilesToExchange) {
       const index = player.rack.findIndex(
-        rackTile => rackTile.letter === tile.letter && rackTile.value === tile.value
+        (rackTile) => rackTile.letter === tile.letter && rackTile.value === tile.value
       );
       if (index !== -1) {
         player.rack.splice(index, 1);
@@ -710,7 +710,7 @@ export class WordTilesGame extends BaseGame {
 
       // Remove tile from player's rack
       const rackIndex = player.rack.findIndex(
-        rackTile =>
+        (rackTile) =>
           rackTile.letter === placement.tile.letter && rackTile.value === placement.tile.value
       );
       if (rackIndex !== -1) {
@@ -727,7 +727,7 @@ export class WordTilesGame extends BaseGame {
       playerId: move.player,
       words,
       score,
-      tilesPlaced: placements.map(p => ({ row: p.row, col: p.col, tile: p.tile })),
+      tilesPlaced: placements.map((p) => ({ row: p.row, col: p.col, tile: p.tile })),
     };
 
     return score;
@@ -790,7 +790,7 @@ export class WordTilesGame extends BaseGame {
       return a.col - b.col;
     });
 
-    const isHorizontal = sortedPlacements.every(p => p.row === sortedPlacements[0]!.row);
+    const isHorizontal = sortedPlacements.every((p) => p.row === sortedPlacements[0]!.row);
 
     if (isHorizontal) {
       // Find the main horizontal word

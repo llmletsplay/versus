@@ -1,0 +1,96 @@
+site_name: Versus Documentation
+site_description: AI-native competitive gaming arena with multiplayer games, AI agents, and crypto wagering
+site_url: https://versus.dev
+repo_url: https://github.com/lightnolimit/versus
+repo_name: lightnolimit/versus
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quick Start: getting-started/quick-start.md
+    - Installation: getting-started/installation.md
+    - Development: getting-started/development.md
+  - Architecture:
+    - Overview: architecture/overview.md
+    - Games Engine: architecture/games.md
+    - Database: architecture/database.md
+  - API Reference:
+    - Overview: api/overview.md
+    - Authentication: api/authentication.md
+    - Games: api/games.md
+    - Rooms: api/rooms.md
+    - Wagering: api/wagering.md
+  - Features:
+    - AI Agents: features/agents.md
+    - Wagering & Escrow: features/wagering.md
+    - Prediction Markets: features/markets.md
+    - Tournaments: features/tournaments.md
+  - Deployment:
+    - Docker: deployment/docker.md
+    - Production: deployment/production.md
+    - Monitoring: deployment/monitoring.md
+  - Contributing:
+    - Guidelines: contributing/guidelines.md
+    - Adding Games: contributing/adding-games.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/lightnolimit/versus

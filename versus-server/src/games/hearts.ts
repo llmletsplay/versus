@@ -83,7 +83,7 @@ export class HeartsGame extends BaseGame {
     // Find player with 2 of clubs (starts first trick)
     let firstPlayer: Player = 'north';
     for (const [player, hand] of Object.entries(hands) as [Player, CardWithValue[]][]) {
-      if (hand.some(card => card.rank === '2' && card.suit === 'clubs')) {
+      if (hand.some((card) => card.rank === '2' && card.suit === 'clubs')) {
         firstPlayer = player;
         break;
       }
@@ -166,7 +166,9 @@ export class HeartsGame extends BaseGame {
         const playerHand = state.hands[move.player];
         for (const card of move.cards) {
           if (
-            !playerHand.some(handCard => handCard.suit === card.suit && handCard.rank === card.rank)
+            !playerHand.some(
+              (handCard) => handCard.suit === card.suit && handCard.rank === card.rank
+            )
           ) {
             return { valid: false, error: 'Player does not have one of the passed cards' };
           }
@@ -191,7 +193,7 @@ export class HeartsGame extends BaseGame {
         const playerHand = state.hands[move.player];
         if (
           !playerHand.some(
-            handCard => handCard.suit === move.card!.suit && handCard.rank === move.card!.rank
+            (handCard) => handCard.suit === move.card!.suit && handCard.rank === move.card!.rank
           )
         ) {
           return { valid: false, error: 'Player does not have this card' };
@@ -227,7 +229,7 @@ export class HeartsGame extends BaseGame {
 
     // If leading and hearts not broken, cannot lead hearts (unless only hearts left)
     if (Object.keys(trick.cards).length === 0 && card.suit === 'hearts' && !state.heartsBroken) {
-      const hasNonHearts = playerHand.some(c => c.suit !== 'hearts');
+      const hasNonHearts = playerHand.some((c) => c.suit !== 'hearts');
       if (hasNonHearts) {
         return { valid: false, error: 'Cannot lead hearts until hearts are broken' };
       }
@@ -236,7 +238,7 @@ export class HeartsGame extends BaseGame {
     // Must follow suit if possible
     if (Object.keys(trick.cards).length > 0) {
       const leadSuit = this.getLeadSuit(trick);
-      const hasLeadSuit = playerHand.some(c => c.suit === leadSuit);
+      const hasLeadSuit = playerHand.some((c) => c.suit === leadSuit);
 
       if (hasLeadSuit && card.suit !== leadSuit) {
         return { valid: false, error: `Must follow suit (${leadSuit})` };
@@ -276,7 +278,7 @@ export class HeartsGame extends BaseGame {
     const playerHand = state.hands[move.player];
     for (const card of cards) {
       const index = playerHand.findIndex(
-        handCard => handCard.suit === card.suit && handCard.rank === card.rank
+        (handCard) => handCard.suit === card.suit && handCard.rank === card.rank
       );
       if (index !== -1) {
         playerHand.splice(index, 1);
@@ -347,7 +349,7 @@ export class HeartsGame extends BaseGame {
 
     // Find player with 2 of clubs to start
     for (const [player, hand] of Object.entries(state.hands) as [Player, CardWithValue[]][]) {
-      if (hand.some(card => card.rank === '2' && card.suit === 'clubs')) {
+      if (hand.some((card) => card.rank === '2' && card.suit === 'clubs')) {
         state.currentPlayer = player;
         break;
       }
@@ -366,7 +368,7 @@ export class HeartsGame extends BaseGame {
     // Remove card from player's hand
     const playerHand = state.hands[player];
     const cardIndex = playerHand.findIndex(
-      handCard => handCard.suit === card.suit && handCard.rank === card.rank
+      (handCard) => handCard.suit === card.suit && handCard.rank === card.rank
     );
     if (cardIndex !== -1) {
       playerHand.splice(cardIndex, 1);
@@ -552,7 +554,7 @@ export class HeartsGame extends BaseGame {
 
     // Find player with 2 of clubs
     for (const [player, hand] of Object.entries(state.hands) as [Player, CardWithValue[]][]) {
-      if (hand.some(card => card.rank === '2' && card.suit === 'clubs')) {
+      if (hand.some((card) => card.rank === '2' && card.suit === 'clubs')) {
         state.currentPlayer = player;
         break;
       }

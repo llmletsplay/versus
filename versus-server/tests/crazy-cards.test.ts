@@ -158,7 +158,7 @@ describe('CrazyCardsGame', () => {
 
       // Find a card with matching color (not action cards that might change turn order)
       const matchingCard = state.players.player1.hand.find(
-        card =>
+        (card) =>
           card.color === topCard.color &&
           card.color !== 'wild' &&
           !['skip', 'reverse', 'draw2'].includes(card.value)
@@ -186,7 +186,7 @@ describe('CrazyCardsGame', () => {
 
       // Find a card with matching value but different color
       const matchingCard = state.players.player1.hand.find(
-        card =>
+        (card) =>
           card.value === topCard.value && card.color !== topCard.color && card.color !== 'wild'
       );
 
@@ -206,7 +206,7 @@ describe('CrazyCardsGame', () => {
       const state = getInternalState(game);
 
       // Find a wild card
-      const wildCard = state.players.player1.hand.find(card => card.color === 'wild');
+      const wildCard = state.players.player1.hand.find((card) => card.color === 'wild');
 
       if (wildCard) {
         await game.makeMove({
@@ -384,7 +384,7 @@ describe('CrazyCardsGame', () => {
       // Play a card
       const topCard = newState.discardPile[newState.discardPile.length - 1];
       const validCard = newState.players.player1.hand.find(
-        card =>
+        (card) =>
           card.color === 'wild' || card.color === topCard.color || card.value === topCard.value
       );
 
@@ -589,7 +589,7 @@ describe('CrazyCardsGame', () => {
 
       // Try to play a non-draw card
       const normalCard = state.players.player1.hand.find(
-        card => card.value !== 'draw2' && card.value !== 'wild_draw4'
+        (card) => card.value !== 'draw2' && card.value !== 'wild_draw4'
       );
 
       if (normalCard) {

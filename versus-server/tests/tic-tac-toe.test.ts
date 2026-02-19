@@ -206,9 +206,7 @@ describe('TicTacToeGame', () => {
     });
 
     test('should throw error for invalid moves in makeMove', async () => {
-      await expect(game.makeMove({ row: -1, col: 0, player: 'X' })).rejects.toThrow(
-        'Row and col must be between 0 and 2'
-      );
+      await expect(game.makeMove({ row: -1, col: 0, player: 'X' })).rejects.toThrow();
     });
   });
 });

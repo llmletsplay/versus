@@ -230,8 +230,8 @@ export class BattleshipGame extends BaseGame {
       }
 
       // Find the ship that was hit and update it
-      const hitShip = targetBoard.ships.find(ship =>
-        ship.positions.some(pos => pos.row === row && pos.col === col)
+      const hitShip = targetBoard.ships.find((ship) =>
+        ship.positions.some((pos) => pos.row === row && pos.col === col)
       );
 
       if (hitShip) {
@@ -242,7 +242,7 @@ export class BattleshipGame extends BaseGame {
       }
 
       // Check if all ships are sunk (game over)
-      const allShipsSunk = targetBoard.ships.every(ship => ship.sunk);
+      const allShipsSunk = targetBoard.ships.every((ship) => ship.sunk);
       if (allShipsSunk) {
         state.gameOver = true;
         state.winner = player as Player;
@@ -283,8 +283,8 @@ export class BattleshipGame extends BaseGame {
 
   private getPublicBoard(board: Board) {
     return {
-      cells: board.cells.map(row => row.map(cell => (cell === 'ship' ? 'empty' : cell))),
-      ships: board.ships.map(ship => ({
+      cells: board.cells.map((row) => row.map((cell) => (cell === 'ship' ? 'empty' : cell))),
+      ships: board.ships.map((ship) => ({
         type: ship.type,
         length: ship.length,
         hits: ship.hits,

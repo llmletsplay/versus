@@ -27,7 +27,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
 
 1. **Fork the Repository**
    ```bash
-   git clone https://github.com/yourusername/versus.git
+   git clone https://github.com/lightnolimit/versus.git
    cd versus
    ```
 
@@ -61,9 +61,9 @@ By participating in this project, you agree to abide by our Code of Conduct:
 
 ### Where to Start
 
-- Check [open issues](https://github.com/yourusername/versus/issues)
+- Check [open issues](https://github.com/lightnolimit/versus/issues)
 - Look for issues labeled `good first issue` or `help wanted`
-- Join our [discussions](https://github.com/yourusername/versus/discussions)
+- Join our [discussions](https://github.com/lightnolimit/versus/discussions)
 - Review the [roadmap](README.md#roadmap) for planned features
 
 ## 💻 Development Setup
@@ -343,14 +343,14 @@ If applicable
 ## 🎉 Recognition
 
 Contributors will be:
-- Listed in our [Contributors](https://github.com/yourusername/versus/contributors) page
+- Listed in our [Contributors](https://github.com/lightnolimit/versus/contributors) page
 - Mentioned in release notes for significant contributions
 - Given credit in the code for major features
 
 ## 📞 Getting Help
 
 - **Discord**: [Join our server](https://discord.gg/versus)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/versus/discussions)
+- **Discussions**: [GitHub Discussions](https://github.com/lightnolimit/versus/discussions)
 - **Email**: contribute@versus.dev
 
 ## 🙏 Thank You!

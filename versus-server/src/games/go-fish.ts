@@ -158,7 +158,7 @@ export class GoFishGame extends BaseGame {
       }
 
       // Check if player has at least one card of the requested rank
-      const hasRank = player.hand.some(card => card.rank === move.rank);
+      const hasRank = player.hand.some((card) => card.rank === move.rank);
       if (!hasRank) {
         return { valid: false, error: `You must have at least one ${move.rank} to ask for it` };
       }
@@ -183,13 +183,13 @@ export class GoFishGame extends BaseGame {
     const targetPlayer = state.players[goFishMove.target]!;
 
     // Find cards of requested rank in target's hand
-    const requestedCards = targetPlayer.hand.filter(card => card.rank === goFishMove.rank);
+    const requestedCards = targetPlayer.hand.filter((card) => card.rank === goFishMove.rank);
 
     if (requestedCards.length > 0) {
       // Transfer all cards of that rank to asking player
       for (const card of requestedCards) {
         const index = targetPlayer.hand.findIndex(
-          c => c.suit === card.suit && c.rank === card.rank
+          (c) => c.suit === card.suit && c.rank === card.rank
         );
         if (index !== -1) {
           const removedCard = targetPlayer.hand.splice(index, 1)[0]!;
@@ -250,7 +250,7 @@ export class GoFishGame extends BaseGame {
       if (cards.length === 4) {
         // Remove all 4 cards from hand
         for (const card of cards) {
-          const index = player.hand.findIndex(c => c.suit === card.suit && c.rank === card.rank);
+          const index = player.hand.findIndex((c) => c.suit === card.suit && c.rank === card.rank);
           if (index !== -1) {
             player.hand.splice(index, 1);
           }
@@ -288,7 +288,9 @@ export class GoFishGame extends BaseGame {
     }
 
     // Check if any player has no cards and deck is empty
-    const playersWithCards = Object.values(state.players).filter(player => player.hand.length > 0);
+    const playersWithCards = Object.values(state.players).filter(
+      (player) => player.hand.length > 0
+    );
     if (playersWithCards.length <= 1 || state.deck.length === 0) {
       state.gameOver = true;
 

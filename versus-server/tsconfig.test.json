@@ -13,15 +13,10 @@
     "noImplicitAny": false,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "src/*"
-      ]
+      "@/*": ["src/*"]
     }
   },
-  "include": [
-    "tests/**/*",
-    "src/**/*"
-  ],
+  "include": ["tests/**/*", "src/**/*"],
   "ts-node": {
     "esm": true,
     "experimentalSpecifierResolution": "node"

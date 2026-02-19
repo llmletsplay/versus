@@ -39,8 +39,8 @@ export class HealthService {
     };
 
     // Determine overall status
-    const hasFailures = Object.values(checks).some(check => check.status === 'fail');
-    const hasWarnings = Object.values(checks).some(check => check.status === 'warn');
+    const hasFailures = Object.values(checks).some((check) => check.status === 'fail');
+    const hasWarnings = Object.values(checks).some((check) => check.status === 'warn');
 
     let status: 'healthy' | 'unhealthy' | 'degraded' = 'healthy';
     if (hasFailures) {

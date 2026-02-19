@@ -53,7 +53,7 @@ describe('CatanGame', () => {
       expect(state.board.edges).toHaveLength(72);
 
       // Check that robber is on desert
-      const desertHex = state.board.hexes.find(hex => hex.resource === 'desert');
+      const desertHex = state.board.hexes.find((hex) => hex.resource === 'desert');
       expect(desertHex?.hasRobber).toBe(true);
     });
 

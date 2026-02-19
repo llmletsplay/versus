@@ -275,11 +275,11 @@ describe('ShogiGame', () => {
       expect(validMoves.length).toBeGreaterThan(0);
 
       // Should include pawn moves
-      const pawnMoves = validMoves.filter(move => move.from.row === 6 && move.to.row === 5);
+      const pawnMoves = validMoves.filter((move) => move.from.row === 6 && move.to.row === 5);
       expect(pawnMoves.length).toBeGreaterThan(0);
 
       // Should include knight moves (knights are blocked by pawns in starting position)
-      const knightMoves = validMoves.filter(move => move.from.row === 8 && move.from.col === 1);
+      const knightMoves = validMoves.filter((move) => move.from.row === 8 && move.from.col === 1);
       expect(knightMoves.length).toBe(0); // Knights have no moves in starting position
     });
   });

@@ -47,9 +47,9 @@ describe('BingoGame', () => {
     it('should have default win conditions', async () => {
       const state = await game.initializeGame();
       expect(state.winConditions.length).toBeGreaterThan(0);
-      expect(state.winConditions.some(w => w.name === 'Top Row')).toBe(true);
-      expect(state.winConditions.some(w => w.name === 'Main Diagonal')).toBe(true);
-      expect(state.winConditions.some(w => w.name === 'Four Corners')).toBe(true);
+      expect(state.winConditions.some((w) => w.name === 'Top Row')).toBe(true);
+      expect(state.winConditions.some((w) => w.name === 'Main Diagonal')).toBe(true);
+      expect(state.winConditions.some((w) => w.name === 'Four Corners')).toBe(true);
     });
 
     it('should accept custom criteria', async () => {

@@ -118,18 +118,18 @@ export class StatsService {
       const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
       const oneMonthAgo = now - 30 * 24 * 60 * 60 * 1000;
 
-      const completedGames = allGameStats.filter(g => g.status === 'completed');
-      const activeGames = allGameStats.filter(g => g.status === 'active');
+      const completedGames = allGameStats.filter((g) => g.status === 'completed');
+      const activeGames = allGameStats.filter((g) => g.status === 'active');
 
       // Game type statistics
       const gamesByType: Record<string, number> = {};
       const activeGamesByType: Record<string, number> = {};
 
-      allGameStats.forEach(game => {
+      allGameStats.forEach((game) => {
         gamesByType[game.gameType] = (gamesByType[game.gameType] || 0) + 1;
       });
 
-      activeGames.forEach(game => {
+      activeGames.forEach((game) => {
         activeGamesByType[game.gameType] = (activeGamesByType[game.gameType] || 0) + 1;
       });
 
@@ -143,7 +143,9 @@ export class StatsService {
         .sort((a, b) => b.count - a.count);
 
       // Duration statistics
-      const completedGameDurations = completedGames.filter(g => g.duration).map(g => g.duration!);
+      const completedGameDurations = completedGames
+        .filter((g) => g.duration)
+        .map((g) => g.duration!);
 
       const averageGameDuration =
         completedGameDurations.length > 0
@@ -157,26 +159,26 @@ export class StatsService {
       const allPlayers = new Set<string>();
       let totalPlayerSlots = 0;
 
-      allGameStats.forEach(game => {
-        game.players.forEach(player => allPlayers.add(player));
+      allGameStats.forEach((game) => {
+        game.players.forEach((player) => allPlayers.add(player));
         totalPlayerSlots += game.players.length;
       });
 
       // Time-based statistics
       const gamesPlayedToday = activityLog.filter(
-        activity => activity.action === 'created' && activity.timestamp > oneDayAgo
+        (activity) => activity.action === 'created' && activity.timestamp > oneDayAgo
       ).length;
 
       const gamesPlayedThisWeek = activityLog.filter(
-        activity => activity.action === 'created' && activity.timestamp > oneWeekAgo
+        (activity) => activity.action === 'created' && activity.timestamp > oneWeekAgo
       ).length;
 
       const gamesPlayedThisMonth = activityLog.filter(
-        activity => activity.action === 'created' && activity.timestamp > oneMonthAgo
+        (activity) => activity.action === 'created' && activity.timestamp > oneMonthAgo
       ).length;
 
       // Recent activity (last 20 events)
-      const recentActivity = activityLog.slice(0, 20).map(activity => ({
+      const recentActivity = activityLog.slice(0, 20).map((activity) => ({
         gameId: activity.gameId,
         gameType: activity.gameType,
         action: activity.action,
@@ -244,10 +246,10 @@ export class StatsService {
     try {
       const gameTypeStats = await this.db.getGameStatsByType(gameType);
 
-      const completedGames = gameTypeStats.filter(g => g.status === 'completed');
-      const activeGames = gameTypeStats.filter(g => g.status === 'active');
+      const completedGames = gameTypeStats.filter((g) => g.status === 'completed');
+      const activeGames = gameTypeStats.filter((g) => g.status === 'active');
 
-      const durations = completedGames.filter(g => g.duration).map(g => g.duration!);
+      const durations = completedGames.filter((g) => g.duration).map((g) => g.duration!);
 
       const averageDuration =
         durations.length > 0
@@ -258,7 +260,7 @@ export class StatsService {
       const winCounts: Record<string, number> = {};
       const totalCompletedGames = completedGames.length;
 
-      completedGames.forEach(game => {
+      completedGames.forEach((game) => {
         if (game.winner && game.winner !== 'draw') {
           winCounts[game.winner] = (winCounts[game.winner] || 0) + 1;
         }

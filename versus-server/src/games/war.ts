@@ -239,8 +239,8 @@ export class WarGame extends BaseGame {
       return false;
     }
 
-    const activePlayers = state.playerOrder.filter(p => state.players[p]!.deck.length > 0);
-    return activePlayers.every(p => state.currentBattle!.cardsPlayed[p]);
+    const activePlayers = state.playerOrder.filter((p) => state.players[p]!.deck.length > 0);
+    return activePlayers.every((p) => state.currentBattle!.cardsPlayed[p]);
   }
 
   private resolveBattle(state: WarState): void {
@@ -279,7 +279,7 @@ export class WarGame extends BaseGame {
       battle.round++;
 
       // Remove players who don't have enough cards for war
-      const eligiblePlayers = winners.filter(p => state.players[p]!.deck.length >= 4);
+      const eligiblePlayers = winners.filter((p) => state.players[p]!.deck.length >= 4);
 
       if (eligiblePlayers.length === 1) {
         // Only one player can continue war, they win
@@ -347,7 +347,7 @@ export class WarGame extends BaseGame {
     }
 
     // Split evenly among active players
-    const activePlayers = state.playerOrder.filter(p => state.players[p]!.deck.length > 0);
+    const activePlayers = state.playerOrder.filter((p) => state.players[p]!.deck.length > 0);
     const cardsPerPlayer = Math.floor(allCards.length / activePlayers.length);
 
     this.shuffleDeck(allCards);
@@ -389,7 +389,7 @@ export class WarGame extends BaseGame {
     }
 
     // Check for winner (player with all cards)
-    const activePlayers = state.playerOrder.filter(p => {
+    const activePlayers = state.playerOrder.filter((p) => {
       const player = state.players[p]!;
       return player.deck.length > 0 || player.cardsWon.length > 0;
     });

@@ -189,7 +189,7 @@ export class VersusGameMCPServer {
     });
 
     // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, async request => {
+    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
       try {
@@ -499,14 +499,14 @@ export class VersusGameMCPServer {
     }
 
     // Check for winning moves
-    const winningMoves = availableMoves.filter(move => {
+    const winningMoves = availableMoves.filter((move) => {
       const testBoard = board.map((row: any[]) => [...row]);
       testBoard[move.row][move.col] = player;
       return this.checkTicTacToeWin(testBoard, player);
     });
 
     // Check for blocking moves (prevent opponent from winning)
-    const blockingMoves = availableMoves.filter(move => {
+    const blockingMoves = availableMoves.filter((move) => {
       const testBoard = board.map((row: any[]) => [...row]);
       testBoard[move.row][move.col] = _opponent;
       return this.checkTicTacToeWin(testBoard, _opponent);
@@ -764,7 +764,7 @@ export class VersusGameMCPServer {
 
       if (extraTurnMoves.length > 0) {
         analysis.analysis = 'You can get extra turns! Choose moves that end in your store.';
-        analysis.suggestedMoves = extraTurnMoves.map(pit => ({ pit, player }));
+        analysis.suggestedMoves = extraTurnMoves.map((pit) => ({ pit, player }));
       } else {
         analysis.analysis = `Score: You ${playerScore}, Opponent ${opponentScore}. Look for capture opportunities.`;
         analysis.suggestedMoves = validMoves.slice(0, 3).map((pit: any) => ({ pit, player }));
@@ -920,7 +920,7 @@ export class VersusGameMCPServer {
 // Start MCP server if this file is run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   const mcpServer = new VersusGameMCPServer();
-  mcpServer.start().catch(error => {
+  mcpServer.start().catch((error) => {
     logger.error('MCP Server failed to start', {
       error: error instanceof Error ? error.message : error,
     });

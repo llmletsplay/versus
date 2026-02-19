@@ -613,7 +613,7 @@ describe('ThirteenGame', () => {
 
       // All should have consistent results
       const firstResult = results[0];
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.valid).toBe(firstResult.valid);
         if (!result.valid) {
           expect(result.error).toBe(firstResult.error);

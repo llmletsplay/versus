@@ -1,7 +1,7 @@
 {
   "name": "versus",
   "version": "1.0.0",
-  "description": "A comprehensive multiplayer game platform with 27+ classic games, AI integration, and modern web technologies",
+  "description": "AI-native competitive gaming arena with multiplayer games, AI agents, and crypto wagering",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -9,21 +9,21 @@
     "versus-client"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:all": "concurrently \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:docs\"",
+    "dev": "concurrently \"bun run dev:server\" \"bun run dev:client\"",
     "dev:server": "cd versus-server && bun run dev",
     "dev:client": "cd versus-client && bun run dev",
-    "dev:docs": "serve docs -p 3001",
-    "build": "npm run build:server && npm run build:client",
+    "dev:docs": "cd docs && mkdocs serve -a localhost:8000",
+    "build": "bun run build:server && bun run build:client",
     "build:server": "cd versus-server && bun run build",
     "build:client": "cd versus-client && bun run build",
-    "docker:build": "docker-compose build",
+    "test": "cd versus-server && bun test",
+    "lint": "cd versus-server && bun run lint",
+    "type-check": "cd versus-server && bun run type-check",
+    "format": "cd versus-server && bun run format",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f",
-    "deploy:production": "./deploy.sh",
-    "health:check": "curl -f http://localhost:6789/api/v1/health | jq",
-    "metrics": "curl -f http://localhost:6789/api/v1/metrics | jq"
+    "health": "curl -f http://localhost:5556/api/v1/health | jq",
+    "metrics": "curl -f http://localhost:5556/api/v1/metrics | jq"
   },
   "keywords": [
     "games",
@@ -34,35 +34,21 @@
     "mcp",
     "chess",
     "poker",
-    "arcade",
     "typescript",
     "react",
-    "bun",
-    "vite"
+    "bun"
   ],
   "author": "",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/username/versus.git"
+    "url": "https://github.com/lightnolimit/versus.git"
   },
-  "bugs": {
-    "url": "https://github.com/username/versus/issues"
-  },
-  "homepage": "https://github.com/username/versus#readme",
   "engines": {
     "node": ">=18.0.0",
     "bun": ">=1.0.0"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0",
-    "serve": "^14.2.4"
-  },
-  "dependencies": {
-    "@hono/node-server": "^1.19.3",
-    "@hono/zod-validator": "^0.7.2",
-    "@sentry/node": "^10.12.0",
-    "@sentry/profiling-node": "^10.12.0",
-    "hono": "^4.9.7"
+    "concurrently": "^9.1.0"
   }
 }

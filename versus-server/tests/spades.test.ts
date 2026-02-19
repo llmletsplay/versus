@@ -386,11 +386,11 @@ describe('SpadesGame', () => {
       const internalState = getInternalState(game);
 
       // Find a spade in current player's hand
-      const spadeCard = state.hands[state.currentPlayer].find(c => c.suit === 'spades');
+      const spadeCard = state.hands[state.currentPlayer].find((c) => c.suit === 'spades');
 
       if (spadeCard) {
         // Make sure player has non-spades
-        const hasNonSpades = state.hands[state.currentPlayer].some(c => c.suit !== 'spades');
+        const hasNonSpades = state.hands[state.currentPlayer].some((c) => c.suit !== 'spades');
 
         if (hasNonSpades && !internalState.spadesBroken) {
           const validation = await game.validateMove({
@@ -411,7 +411,7 @@ describe('SpadesGame', () => {
 
       // Artificially give player only spades
       internalState.hands[state.currentPlayer] = state.hands[state.currentPlayer].filter(
-        c => c.suit === 'spades'
+        (c) => c.suit === 'spades'
       );
 
       const spadeCard = internalState.hands[state.currentPlayer][0];
@@ -459,7 +459,7 @@ describe('SpadesGame', () => {
       const state = await game.getGameState();
       const leadPlayer = state.currentPlayer;
       const leadCard =
-        state.hands[leadPlayer].find(c => c.suit !== 'spades') || state.hands[leadPlayer][0];
+        state.hands[leadPlayer].find((c) => c.suit !== 'spades') || state.hands[leadPlayer][0];
 
       // Lead a card
       await game.makeMove({
@@ -473,8 +473,8 @@ describe('SpadesGame', () => {
       const nextHand = newState.hands[nextPlayer];
 
       // Check if next player has the led suit
-      const hasLeadSuit = nextHand.some(c => c.suit === leadCard.suit);
-      const wrongSuitCard = nextHand.find(c => c.suit !== leadCard.suit);
+      const hasLeadSuit = nextHand.some((c) => c.suit === leadCard.suit);
+      const wrongSuitCard = nextHand.find((c) => c.suit !== leadCard.suit);
 
       if (hasLeadSuit && wrongSuitCard) {
         const validation = await game.validateMove({
@@ -495,7 +495,7 @@ describe('SpadesGame', () => {
 
       // Find a suit that lead player has but we can make next player not have
       const leadCard =
-        state.hands[leadPlayer].find(c => c.suit === 'hearts') || state.hands[leadPlayer][0];
+        state.hands[leadPlayer].find((c) => c.suit === 'hearts') || state.hands[leadPlayer][0];
 
       // Lead the card
       await game.makeMove({
@@ -509,7 +509,7 @@ describe('SpadesGame', () => {
 
       // Remove all cards of lead suit from next player (simulate void)
       const nextHand = newState.hands[nextPlayer];
-      internalState.hands[nextPlayer] = nextHand.filter(c => c.suit !== leadCard.suit);
+      internalState.hands[nextPlayer] = nextHand.filter((c) => c.suit !== leadCard.suit);
 
       // If player now has no cards of lead suit, they can play anything
       if (internalState.hands[nextPlayer].length > 0) {
@@ -574,7 +574,7 @@ describe('SpadesGame', () => {
 
       // Force a situation where player can play a spade
       const player = state.currentPlayer;
-      const nonSpadeCard = state.hands[player].find(c => c.suit !== 'spades');
+      const nonSpadeCard = state.hands[player].find((c) => c.suit !== 'spades');
 
       if (nonSpadeCard) {
         // Lead with non-spade
@@ -589,7 +589,7 @@ describe('SpadesGame', () => {
 
         // Remove all non-spades from next player to force spade play
         internalState.hands[nextPlayer] = nextState.hands[nextPlayer].filter(
-          c => c.suit === 'spades'
+          (c) => c.suit === 'spades'
         );
 
         const spadeCard = internalState.hands[nextPlayer][0];

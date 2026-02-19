@@ -111,7 +111,7 @@ export class MemoryManager {
     let averageGameAge = 0;
 
     if (gameTimes.length > 0) {
-      const ages = gameTimes.map(time => now - time);
+      const ages = gameTimes.map((time) => now - time);
       oldestGameAge = Math.max(...ages);
       averageGameAge = ages.reduce((sum, age) => sum + age, 0) / ages.length;
     }
@@ -193,8 +193,8 @@ export class MemoryManager {
 
       // Force cleanup of oldest games when memory is high
       const oldestGames = this.getOldestGames(Math.min(10, this.gameAccessTimes.size / 4));
-      oldestGames.forEach(gameId => {
-        this.cleanupGame(gameId).catch(error => {
+      oldestGames.forEach((gameId) => {
+        this.cleanupGame(gameId).catch((error) => {
           logger.error('Error during emergency cleanup', error as Error, { gameId });
         });
       });

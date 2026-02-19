@@ -19,13 +19,9 @@ export enum ErrorCode {
   // Resource Not Found
   NOT_FOUND = 'NOT_FOUND',
   USER_NOT_FOUND = 'USER_NOT_FOUND',
-  SUBSCRIPTION_NOT_FOUND = 'SUBSCRIPTION_NOT_FOUND',
   GAME_NOT_FOUND = 'GAME_NOT_FOUND',
 
   // Business Logic
-  SUBSCRIPTION_ACTIVE = 'SUBSCRIPTION_ACTIVE',
-  SUBSCRIPTION_INACTIVE = 'SUBSCRIPTION_INACTIVE',
-  INVALID_TIER = 'INVALID_TIER',
   DUPLICATE_RESOURCE = 'DUPLICATE_RESOURCE',
 
   // Payment & Billing
@@ -40,7 +36,6 @@ export enum ErrorCode {
 
   // External Services
   EXTERNAL_SERVICE_ERROR = 'EXTERNAL_SERVICE_ERROR',
-  STRIPE_ERROR = 'STRIPE_ERROR',
   EMAIL_SERVICE_ERROR = 'EMAIL_SERVICE_ERROR',
 
   // System
@@ -118,11 +113,9 @@ export class NotFoundError extends AppError {
       : `${resource} not found`;
     const code = resource.toLowerCase().includes('user')
       ? ErrorCode.USER_NOT_FOUND
-      : resource.toLowerCase().includes('subscription')
-        ? ErrorCode.SUBSCRIPTION_NOT_FOUND
-        : resource.toLowerCase().includes('game')
-          ? ErrorCode.GAME_NOT_FOUND
-          : ErrorCode.NOT_FOUND;
+      : resource.toLowerCase().includes('game')
+        ? ErrorCode.GAME_NOT_FOUND
+        : ErrorCode.NOT_FOUND;
 
     super(
       code,
@@ -147,8 +140,11 @@ export class BusinessLogicError extends AppError {
 }
 
 export class PaymentError extends AppError {
-  constructor(message: string, stripeCode?: string) {
-    super(ErrorCode.PAYMENT_ERROR, message, 402, true, stripeCode ? { stripeCode } : undefined);
+  constructor(message: string, providerCode?: string, context?: Record<string, any>) {
+    super(ErrorCode.PAYMENT_ERROR, message, 402, true, {
+      providerCode,
+      ...context,
+    });
   }
 }
 
@@ -220,8 +216,8 @@ export const throwError = {
     throw new BusinessLogicError(code, message, context);
   },
 
-  payment: (message: string, stripeCode?: string) => {
-    throw new PaymentError(message, stripeCode);
+  payment: (message: string, providerCode?: string, context?: Record<string, any>) => {
+    throw new PaymentError(message, providerCode, context);
   },
 
   rateLimit: (limit: number, windowMs: number) => {

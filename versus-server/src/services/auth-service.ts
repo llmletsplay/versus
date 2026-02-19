@@ -1,6 +1,6 @@
-import bcrypt from "bcryptjs";
-import jwt, { SignOptions, Secret } from "jsonwebtoken";
-import { v4 as uuidv4 } from "uuid";
+import bcrypt from 'bcryptjs';
+import jwt, { SignOptions, Secret } from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 import {
   User,
   CreateUserRequest,
@@ -8,13 +8,9 @@ import {
   AuthResponse,
   JWTPayload,
   UserRole,
-} from "../types/auth";
-import {
-  DatabaseProvider,
-  createDatabaseProvider,
-  DatabaseConfig,
-} from "../core/database";
-import { logger } from "../utils/logger";
+} from '../types/auth';
+import { DatabaseProvider, createDatabaseProvider, DatabaseConfig } from '../core/database';
+import { logger } from '../utils/logger';
 
 // CRITICAL: Authentication service - handles all user security
 // SECURITY: Contains password hashing, JWT generation, and user validation
@@ -30,14 +26,14 @@ export class AuthService {
       dbConfig ||
       (process.env.DATABASE_URL
         ? {
-            type: "postgresql",
+            type: 'postgresql',
             connectionString: process.env.DATABASE_URL,
           }
         : {
-            type: "sqlite",
+            type: 'sqlite',
             sqlitePath: process.env.GAME_DATA_PATH
               ? `${process.env.GAME_DATA_PATH}/versus.db`
-              : "./game_data/versus.db",
+              : './game_data/versus.db',
           });
 
     this.db = createDatabaseProvider(config);
@@ -46,32 +42,46 @@ export class AuthService {
     // Ensures minimum security standards for JWT signing
     // DO NOT modify without security team approval
     if (!process.env.JWT_SECRET) {
-      throw new Error(
-        "SECURITY ERROR: JWT_SECRET environment variable is required",
-      );
+      throw new Error('SECURITY ERROR: JWT_SECRET environment variable is required');
     }
+
+    const nodeEnv = process.env.NODE_ENV || 'development';
+    const isProduction = nodeEnv === 'production';
 
     if (process.env.JWT_SECRET.length < 32) {
-      throw new Error(
-        "SECURITY ERROR: JWT_SECRET must be at least 32 characters for production security",
+      if (isProduction) {
+        throw new Error(
+          'SECURITY ERROR: JWT_SECRET must be at least 32 characters for production security'
+        );
+      }
+
+      logger.warn(
+        'Using short JWT_SECRET (<32 chars) in non-production environment. Increase length before deploying to production.'
       );
     }
 
-    // SECURITY: Validate JWT secret entropy
-    // Prevents weak secrets that could be brute-forced
+    // SECURITY: Validate JWT secret entropy in production environments.
+    // For development we only log warnings to keep local setup flexible while
+    // still nudging developers toward strong secrets.
     const hasUpperCase = /[A-Z]/.test(process.env.JWT_SECRET);
     const hasLowerCase = /[a-z]/.test(process.env.JWT_SECRET);
     const hasNumbers = /\d/.test(process.env.JWT_SECRET);
     const hasSpecialChars = /[^A-Za-z0-9]/.test(process.env.JWT_SECRET);
 
     if (!(hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChars)) {
-      throw new Error(
-        "SECURITY ERROR: JWT_SECRET must contain uppercase, lowercase, numbers, and special characters",
+      if (isProduction) {
+        throw new Error(
+          'SECURITY ERROR: JWT_SECRET must contain uppercase, lowercase, numbers, and special characters'
+        );
+      }
+
+      logger.warn(
+        `JWT_SECRET lacks recommended complexity (uppercase/lowercase/number/special). Accepting for ${nodeEnv} but enforce stronger secret in production.`
       );
     }
 
     this.jwtSecret = process.env.JWT_SECRET;
-    this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || "24h";
+    this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
   }
 
   // API: User registration endpoint contract
@@ -79,64 +89,53 @@ export class AuthService {
   async createUser(userData: CreateUserRequest): Promise<AuthResponse> {
     // SECURITY: Input validation - prevents malformed data attacks
     if (!userData.username || userData.username.length < 3) {
-      throw new Error("Username must be at least 3 characters long");
+      throw new Error('Username must be at least 3 characters long');
     }
 
     // SECURITY: Username validation - prevents SQL injection and XSS
     // Regex ensures only safe characters in usernames
     if (!/^[a-zA-Z0-9_-]+$/.test(userData.username)) {
-      throw new Error(
-        "Username can only contain letters, numbers, hyphens, and underscores",
-      );
+      throw new Error('Username can only contain letters, numbers, hyphens, and underscores');
     }
 
     if (!userData.email || !this.isValidEmail(userData.email)) {
-      throw new Error("Valid email address is required");
+      throw new Error('Valid email address is required');
     }
 
     // SECURITY: Strong password requirements - industry standard minimum
     // 12+ characters significantly improves security against brute force
     if (!userData.password || userData.password.length < 12) {
-      throw new Error("Password must be at least 12 characters long");
+      throw new Error('Password must be at least 12 characters long');
     }
 
     // SECURITY: Password complexity validation - prevents weak passwords
-    const passwordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
     if (!passwordRegex.test(userData.password)) {
       throw new Error(
-        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+        'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'
       );
     }
 
     // SECURITY: Common password check - prevents easily guessable passwords
     // TODO: Expand this list or use a proper password dictionary
-    const commonPasswords = [
-      "password123",
-      "admin123",
-      "qwerty123",
-      "letmein123",
-      "welcome123",
-    ];
+    const commonPasswords = ['password123', 'admin123', 'qwerty123', 'letmein123', 'welcome123'];
     if (
       commonPasswords.some((common) =>
-        userData.password.toLowerCase().includes(common.toLowerCase()),
+        userData.password.toLowerCase().includes(common.toLowerCase())
       )
     ) {
-      throw new Error(
-        "Password is too common. Please choose a more secure password",
-      );
+      throw new Error('Password is too common. Please choose a more secure password');
     }
 
     // Check if user already exists
     const existingUser = await this.getUserByUsername(userData.username);
     if (existingUser) {
-      throw new Error("Username already exists");
+      throw new Error('Username already exists');
     }
 
     const existingEmail = await this.getUserByEmail(userData.email);
     if (existingEmail) {
-      throw new Error("Email already registered");
+      throw new Error('Email already registered');
     }
 
     // SECURITY: Password hashing with bcrypt - 12 rounds provides strong protection
@@ -153,7 +152,10 @@ export class AuthService {
       createdAt: new Date(),
       updatedAt: new Date(),
       isActive: true,
-      role: "player",
+      role: 'player',
+      isAgent: false,
+      agentId: null,
+      walletAddress: null,
     };
 
     // Save user to database
@@ -173,30 +175,27 @@ export class AuthService {
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     // SECURITY: Input validation for login credentials
     if (!credentials.username || !credentials.password) {
-      throw new Error("Username and password are required");
+      throw new Error('Username and password are required');
     }
 
     // SECURITY: User lookup and validation
     const user = await this.getUserByUsername(credentials.username);
     if (!user) {
       // SECURITY: Generic error message prevents username enumeration
-      throw new Error("Invalid credentials");
+      throw new Error('Invalid credentials');
     }
 
     // SECURITY: Account status verification
     if (!user.isActive) {
-      throw new Error("Account is deactivated");
+      throw new Error('Account is deactivated');
     }
 
     // SECURITY: Password verification using timing-safe comparison
     // bcrypt.compare is inherently timing-safe
-    const isValidPassword = await bcrypt.compare(
-      credentials.password,
-      user.passwordHash,
-    );
+    const isValidPassword = await bcrypt.compare(credentials.password, user.passwordHash);
     if (!isValidPassword) {
       // SECURITY: Generic error message prevents timing attacks
-      throw new Error("Invalid credentials");
+      throw new Error('Invalid credentials');
     }
 
     // Update last login
@@ -236,7 +235,7 @@ export class AuthService {
       return jwt.verify(token, this.jwtSecret) as JWTPayload;
     } catch (_error) {
       // SECURITY: Generic error message prevents token analysis
-      throw new Error("Invalid or expired token");
+      throw new Error('Invalid or expired token');
     }
   }
 
@@ -245,11 +244,11 @@ export class AuthService {
   async getUserById(userId: string): Promise<User | null> {
     try {
       // SECURITY: Parameterized query prevents SQL injection
-      const query = "SELECT * FROM users WHERE id = ?";
+      const query = 'SELECT * FROM users WHERE id = ?';
       const result = await this.db.query(query, [userId]);
       return result[0] ? this.deserializeUser(result[0]) : null;
     } catch (error) {
-      logger.error("Error getting user by ID", {
+      logger.error('Error getting user by ID', {
         userId,
         error: error instanceof Error ? error.message : error,
       });
@@ -262,11 +261,11 @@ export class AuthService {
   async getUserByUsername(username: string): Promise<User | null> {
     try {
       // SECURITY: Parameterized query prevents SQL injection
-      const query = "SELECT * FROM users WHERE username = ?";
+      const query = 'SELECT * FROM users WHERE username = ?';
       const result = await this.db.query(query, [username]);
       return result[0] ? this.deserializeUser(result[0]) : null;
     } catch (error) {
-      logger.error("Error getting user by username", {
+      logger.error('Error getting user by username', {
         username,
         error: error instanceof Error ? error.message : error,
       });
@@ -276,11 +275,11 @@ export class AuthService {
 
   async getUserByEmail(email: string): Promise<User | null> {
     try {
-      const query = "SELECT * FROM users WHERE email = ?";
+      const query = 'SELECT * FROM users WHERE email = ?';
       const result = await this.db.query(query, [email]);
       return result[0] ? this.deserializeUser(result[0]) : null;
     } catch (error) {
-      logger.error("Error getting user by email", {
+      logger.error('Error getting user by email', {
         email,
         error: error instanceof Error ? error.message : error,
       });
@@ -334,12 +333,15 @@ export class AuthService {
       updatedAt: new Date(row.updated_at),
       isActive: Boolean(row.is_active),
       role: row.role as UserRole,
+      isAgent: Boolean(row.is_agent),
+      agentId: row.agent_id ?? null,
+      walletAddress: row.wallet_address ?? null,
     };
   }
 
   // SECURITY: Remove sensitive data before sending to client
   // CRITICAL: Must never expose password hashes to API responses
-  private sanitizeUser(user: User): Omit<User, "passwordHash"> {
+  private sanitizeUser(user: User): Omit<User, 'passwordHash'> {
     const { passwordHash: _passwordHash, ...sanitized } = user;
     return sanitized;
   }
@@ -374,7 +376,7 @@ export class AuthService {
     try {
       await this.db.query(createTableQuery);
     } catch (error) {
-      logger.error("Error creating users table", {
+      logger.error('Error creating users table', {
         error: error instanceof Error ? error.message : error,
       });
       throw error;

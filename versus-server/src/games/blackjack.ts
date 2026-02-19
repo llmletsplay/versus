@@ -119,7 +119,7 @@ export class BlackjackGame extends BaseGame {
 
   private startRound(state: BlackjackState, bets: number[]): void {
     // Create player hands
-    state.playerHands = bets.map(bet => ({
+    state.playerHands = bets.map((bet) => ({
       cards: [],
       bet,
       isDouble: false,
@@ -357,7 +357,7 @@ export class BlackjackGame extends BaseGame {
       phase: state.phase,
       gameOver: state.gameOver,
       currentHandIndex: state.currentHandIndex,
-      playerHands: state.playerHands.map(hand => ({
+      playerHands: state.playerHands.map((hand) => ({
         cards: hand.cards,
         value: this.calculateHandValue(hand),
         bet: hand.bet,

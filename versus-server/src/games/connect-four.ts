@@ -202,6 +202,6 @@ export class ConnectFourGame extends BaseGame {
   }
 
   private isBoardFull(board: Board): boolean {
-    return board[0]?.every(cell => cell !== null) ?? false;
+    return board[0]?.every((cell) => cell !== null) ?? false;
   }
 }

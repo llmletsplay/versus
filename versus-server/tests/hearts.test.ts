@@ -53,7 +53,7 @@ describe('HeartsGame', () => {
       // Find who has 2 of clubs
       let playerWith2C = null;
       for (const [player, hand] of Object.entries(state.hands)) {
-        if (hand.some(card => card.rank === '2' && card.suit === 'clubs')) {
+        if (hand.some((card) => card.rank === '2' && card.suit === 'clubs')) {
           playerWith2C = player;
           break;
         }
@@ -304,7 +304,7 @@ describe('HeartsGame', () => {
       // If it's the first trick, we need to play 2 of clubs
       let card;
       if (state.trickNumber === 0 && Object.keys(state.currentTrick.cards).length === 0) {
-        card = state.hands[player].find(c => c.rank === '2' && c.suit === 'clubs');
+        card = state.hands[player].find((c) => c.rank === '2' && c.suit === 'clubs');
         // If current player doesn't have 2 of clubs, skip to trick 1
         if (!card) {
           const internalState = getInternalState(game);
@@ -348,7 +348,7 @@ describe('HeartsGame', () => {
       // Find player with 2 of clubs
       let playerWith2C = null;
       for (const [player, hand] of Object.entries(state.hands)) {
-        const card = hand.find(c => c.rank === '2' && c.suit === 'clubs');
+        const card = hand.find((c) => c.rank === '2' && c.suit === 'clubs');
         if (card) {
           playerWith2C = player;
           break;
@@ -360,7 +360,7 @@ describe('HeartsGame', () => {
 
       // Try to play different card
       const otherCard = state.hands[playerWith2C].find(
-        c => !(c.rank === '2' && c.suit === 'clubs')
+        (c) => !(c.rank === '2' && c.suit === 'clubs')
       );
 
       if (otherCard) {
@@ -387,8 +387,8 @@ describe('HeartsGame', () => {
       let testPlayer = null;
       let heartCard = null;
       for (const [player, hand] of Object.entries(state.hands)) {
-        const heart = hand.find(c => c.suit === 'hearts');
-        const nonHeart = hand.find(c => c.suit !== 'hearts');
+        const heart = hand.find((c) => c.suit === 'hearts');
+        const nonHeart = hand.find((c) => c.suit !== 'hearts');
         if (heart && nonHeart) {
           testPlayer = player;
           heartCard = heart;
@@ -416,7 +416,7 @@ describe('HeartsGame', () => {
 
       // Give player only hearts
       const player = 'north';
-      internalState.hands[player] = state.hands[player].filter(c => c.suit === 'hearts');
+      internalState.hands[player] = state.hands[player].filter((c) => c.suit === 'hearts');
       internalState.currentPlayer = player;
       internalState.trickNumber = 1;
 
@@ -442,11 +442,11 @@ describe('HeartsGame', () => {
       let penaltyCard = null;
 
       for (const [player, hand] of Object.entries(state.hands)) {
-        const has2C = hand.some(c => c.rank === '2' && c.suit === 'clubs');
+        const has2C = hand.some((c) => c.rank === '2' && c.suit === 'clubs');
         if (has2C) {
           // Look for hearts or queen of spades
           penaltyCard = hand.find(
-            c => c.suit === 'hearts' || (c.suit === 'spades' && c.rank === 'Q')
+            (c) => c.suit === 'hearts' || (c.suit === 'spades' && c.rank === 'Q')
           );
           if (penaltyCard) {
             testPlayer = player;
@@ -457,7 +457,9 @@ describe('HeartsGame', () => {
 
       if (testPlayer && penaltyCard) {
         // Play 2 of clubs first
-        const twoOfClubs = state.hands[testPlayer].find(c => c.rank === '2' && c.suit === 'clubs');
+        const twoOfClubs = state.hands[testPlayer].find(
+          (c) => c.rank === '2' && c.suit === 'clubs'
+        );
         await game.makeMove({
           player: testPlayer,
           action: 'play',
@@ -495,7 +497,7 @@ describe('HeartsGame', () => {
       const state = await game.getGameState();
       const leadPlayer = state.currentPlayer;
       const leadCard =
-        state.hands[leadPlayer].find(c => c.suit === 'diamonds') || state.hands[leadPlayer][0];
+        state.hands[leadPlayer].find((c) => c.suit === 'diamonds') || state.hands[leadPlayer][0];
 
       // Lead a card
       await game.makeMove({
@@ -509,8 +511,8 @@ describe('HeartsGame', () => {
       const nextHand = newState.hands[nextPlayer];
 
       // Check if next player has the led suit
-      const hasLeadSuit = nextHand.some(c => c.suit === leadCard.suit);
-      const wrongSuitCard = nextHand.find(c => c.suit !== leadCard.suit);
+      const hasLeadSuit = nextHand.some((c) => c.suit === leadCard.suit);
+      const wrongSuitCard = nextHand.find((c) => c.suit !== leadCard.suit);
 
       if (hasLeadSuit && wrongSuitCard) {
         const validation = await game.validateMove({
@@ -531,7 +533,7 @@ describe('HeartsGame', () => {
 
       // Lead a specific suit
       const leadCard =
-        state.hands[leadPlayer].find(c => c.suit === 'clubs') || state.hands[leadPlayer][0];
+        state.hands[leadPlayer].find((c) => c.suit === 'clubs') || state.hands[leadPlayer][0];
 
       await game.makeMove({
         player: leadPlayer,
@@ -544,7 +546,7 @@ describe('HeartsGame', () => {
 
       // Remove all cards of lead suit from next player
       internalState.hands[nextPlayer] = newState.hands[nextPlayer].filter(
-        c => c.suit !== leadCard.suit
+        (c) => c.suit !== leadCard.suit
       );
 
       if (internalState.hands[nextPlayer].length > 0) {
@@ -592,7 +594,7 @@ describe('HeartsGame', () => {
       const expectedNext = state.playerOrder[(state.playerOrder.indexOf(player) + 1) % 4];
 
       // Find a non-heart card to lead with (hearts not broken yet)
-      let card = state.hands[player].find(c => c.suit !== 'hearts');
+      let card = state.hands[player].find((c) => c.suit !== 'hearts');
       if (!card) {
         // If only hearts, break hearts first
         const internalState = getInternalState(game);
@@ -616,7 +618,7 @@ describe('HeartsGame', () => {
 
       // Lead non-heart
       const player = state.currentPlayer;
-      const nonHeartCard = state.hands[player].find(c => c.suit !== 'hearts');
+      const nonHeartCard = state.hands[player].find((c) => c.suit !== 'hearts');
 
       if (nonHeartCard) {
         await game.makeMove({
@@ -628,12 +630,12 @@ describe('HeartsGame', () => {
         // Next player plays heart
         const nextState = await game.getGameState();
         const nextPlayer = nextState.currentPlayer;
-        const heartCard = nextState.hands[nextPlayer].find(c => c.suit === 'hearts');
+        const heartCard = nextState.hands[nextPlayer].find((c) => c.suit === 'hearts');
 
         if (heartCard) {
           // Remove cards of lead suit to allow heart play
           internalState.hands[nextPlayer] = nextState.hands[nextPlayer].filter(
-            c => c.suit !== nonHeartCard.suit
+            (c) => c.suit !== nonHeartCard.suit
           );
 
           await game.makeMove({
@@ -1039,7 +1041,7 @@ describe('HeartsGame', () => {
 
       // Player with 2 of clubs should be current player
       const currentHand = playingState.hands[playingState.currentPlayer];
-      const has2C = currentHand.some(c => c.rank === '2' && c.suit === 'clubs');
+      const has2C = currentHand.some((c) => c.rank === '2' && c.suit === 'clubs');
 
       if (has2C) {
         expect(has2C).toBe(true);
@@ -1072,7 +1074,7 @@ describe('HeartsGame', () => {
       // Find player with 2 of clubs
       let firstPlayer = null;
       for (const [player, hand] of Object.entries(state.hands)) {
-        if (hand.some(c => c.rank === '2' && c.suit === 'clubs')) {
+        if (hand.some((c) => c.rank === '2' && c.suit === 'clubs')) {
           firstPlayer = player;
           break;
         }
@@ -1084,7 +1086,9 @@ describe('HeartsGame', () => {
         internalState.currentPlayer = firstPlayer;
 
         // Must play 2 of clubs
-        const twoOfClubs = state.hands[firstPlayer].find(c => c.rank === '2' && c.suit === 'clubs');
+        const twoOfClubs = state.hands[firstPlayer].find(
+          (c) => c.rank === '2' && c.suit === 'clubs'
+        );
 
         expect(twoOfClubs).toBeDefined();
       }

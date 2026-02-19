@@ -32,19 +32,6 @@ export const schemas = {
     offset: z.coerce.number().min(0).default(0),
   }),
 
-  // Subscription related
-  tierId: z.enum(['free', 'basic', 'pro', 'enterprise']),
-
-  cancelSubscription: z.object({
-    immediate: z.boolean().default(false),
-    reason: z.string().optional(),
-  }),
-
-  changeTier: z.object({
-    tierId: z.enum(['free', 'basic', 'pro', 'enterprise']),
-    paymentMethodId: z.string().optional(),
-  }),
-
   // Date ranges
   dateRange: z
     .object({
@@ -60,13 +47,6 @@ export const schemas = {
         message: 'Start date must be before end date',
       }
     ),
-
-  // Analytics
-  analyticsQuery: z.object({
-    event: z.string().optional(),
-    period: z.enum(['hour', 'day', 'week', 'month']).default('day'),
-    limit: z.coerce.number().min(1).max(1000).default(100),
-  }),
 
   // User related
   userUpdate: z.object({
@@ -107,26 +87,6 @@ export function requireRole(roles: string[]) {
     if (!roles.includes(user.role)) {
       throw errors.forbidden('Insufficient permissions');
     }
-    await next();
-  };
-}
-
-/**
- * Middleware to check if user has a specific tier
- */
-export function requireTier(minTier: string) {
-  const tierOrder = ['free', 'basic', 'pro', 'enterprise'];
-  const minLevel = tierOrder.indexOf(minTier);
-
-  return async (c: Context, next: Next) => {
-    const user = c.get('user');
-    if (!user) {
-      throw errors.unauthorized('Authentication required');
-    }
-
-    // This would require checking the user's subscription
-    // For now, we'll assume the tier is attached to the user object
-    // In a real implementation, you'd fetch it from the subscription service
     await next();
   };
 }

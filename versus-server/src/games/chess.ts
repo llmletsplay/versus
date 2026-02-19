@@ -424,7 +424,7 @@ export class ChessGame extends BaseGame {
 
   private wouldLeaveKingInCheck(move: ChessMove, state: ChessState): boolean {
     // Create a copy of the board with the move applied
-    const testBoard = state.board.map(row => [...row]);
+    const testBoard = state.board.map((row) => [...row]);
     const piece = testBoard[move.from.row]![move.from.col]!;
 
     // Apply the move

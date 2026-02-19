@@ -183,7 +183,7 @@ export class OmokGame extends BaseGame {
   }
 
   private isBoardFull(board: Board): boolean {
-    return board.every(row => row?.every(cell => cell !== null) ?? false);
+    return board.every((row) => row?.every((cell) => cell !== null) ?? false);
   }
 
   async getGameState(): Promise<GameState> {

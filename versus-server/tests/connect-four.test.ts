@@ -19,7 +19,7 @@ describe('ConnectFourGame', () => {
       expect(state.winner).toBeNull();
       expect(state.board).toHaveLength(6);
       expect(state.board[0]).toHaveLength(7);
-      expect(state.board.every(row => row.every(cell => cell === null))).toBe(true);
+      expect(state.board.every((row) => row.every((cell) => cell === null))).toBe(true);
     });
 
     test('should return correct metadata', () => {

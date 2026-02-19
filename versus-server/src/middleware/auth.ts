@@ -1,154 +1,112 @@
-import { Request, Response, NextFunction } from 'express';
-import { AuthService } from '../services/auth-service';
-import { JWTPayload } from '../types/auth';
+import { Context, Next } from 'hono';
+import jwt from 'jsonwebtoken';
+import type { JWTPayload, UserRole } from '../types/auth.js';
+import { logger } from '../utils/logger.js';
 
-// SECURITY: Extended request interface with authenticated user data
-export interface AuthenticatedRequest extends Request {
-  user?: JWTPayload;
-}
+/**
+ * Hono-compatible JWT authentication middleware.
+ *
+ * Extracts and verifies the Bearer token from the Authorization header,
+ * then sets `jwtPayload` on the Hono context so downstream handlers can
+ * access the authenticated user via `c.get('jwtPayload')`.
+ */
 
-// CRITICAL: Authentication middleware - secures all protected endpoints
-// SECURITY: Validates JWT tokens and user permissions
-export class AuthMiddleware {
-  private authService: AuthService;
+// Extend Hono's context variable map so TypeScript knows about `jwtPayload`
+export type AuthVariables = {
+  jwtPayload: JWTPayload;
+};
 
-  constructor() {
-    // SECURITY: Initialize auth service for token validation
-    this.authService = new AuthService();
+/**
+ * Middleware: require a valid JWT Bearer token.
+ * Returns 401 if token is missing/invalid/expired.
+ */
+export async function requireAuth(c: Context, next: Next): Promise<Response | void> {
+  const authHeader = c.req.header('Authorization');
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return c.json({ success: false, error: 'Access token required', code: 'NO_TOKEN' }, 401);
   }
 
-  // SECURITY: JWT authentication middleware - validates Bearer tokens
-  // CRITICAL: Primary authentication gate for protected endpoints
-  authenticateJWT = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
-    try {
-      // SECURITY: Extract Authorization header
-      const authHeader = req.header('Authorization');
+  const token = authHeader.slice(7); // strip "Bearer "
 
-      // SECURITY: Reject requests without authorization header
-      if (!authHeader) {
-        res.status(401).json({
-          error: 'Access token required',
-          code: 'NO_TOKEN',
-        });
-        return;
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    logger.error('JWT_SECRET is not configured');
+    return c.json({ success: false, error: 'Server misconfiguration', code: 'SERVER_ERROR' }, 500);
+  }
+
+  try {
+    const payload = jwt.verify(token, secret) as JWTPayload;
+    c.set('jwtPayload', payload);
+    await next();
+  } catch (_err) {
+    return c.json(
+      { success: false, error: 'Invalid or expired token', code: 'INVALID_TOKEN' },
+      401
+    );
+  }
+}
+
+/**
+ * Middleware: optionally attach JWT payload if a valid token is present.
+ * Does NOT reject unauthenticated requests — use for public endpoints
+ * that behave differently when a user is logged in.
+ */
+export async function optionalAuth(c: Context, next: Next) {
+  const authHeader = c.req.header('Authorization');
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    const secret = process.env.JWT_SECRET;
+
+    if (secret) {
+      try {
+        const payload = jwt.verify(token, secret) as JWTPayload;
+        c.set('jwtPayload', payload);
+      } catch {
+        // Invalid token — continue without user context
       }
-
-      // SECURITY: Extract token from Bearer format
-      const token = authHeader.replace('Bearer ', '');
-
-      // SECURITY: Validate Bearer token format
-      if (!token || token === authHeader) {
-        res.status(401).json({
-          error: 'Invalid authorization format. Use: Bearer <token>',
-          code: 'INVALID_FORMAT',
-        });
-        return;
-      }
-
-      // SECURITY: Verify token signature and expiration
-      const payload = this.authService.verifyToken(token);
-
-      // SECURITY: Verify user still exists and is active
-      // Prevents deleted/deactivated users from accessing system
-      const user = await this.authService.getUserById(payload.userId);
-      if (!user || !user.isActive) {
-        res.status(401).json({
-          error: 'User not found or inactive',
-          code: 'USER_INACTIVE',
-        });
-        return;
-      }
-
-      // SECURITY: Attach validated user info to request
-      req.user = payload;
-      next();
-    } catch (_error) {
-      // SECURITY: Generic error response prevents token analysis
-      res.status(403).json({
-        error: 'Invalid or expired token',
-        code: 'INVALID_TOKEN',
-      });
     }
-  };
+  }
 
-  // SECURITY: Role-based access control middleware
-  // CRITICAL: Enforces permission boundaries based on user roles
-  requireRole = (requiredRole: string) => {
-    return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-      // SECURITY: Ensure user is authenticated first
-      if (!req.user) {
-        res.status(401).json({
-          error: 'Authentication required',
-          code: 'NO_AUTH',
-        });
-        return;
-      }
+  await next();
+}
 
-      // SECURITY: Role hierarchy - admin can access everything
-      // Other roles must match exactly or be escalated to admin
-      if (req.user.role !== requiredRole && req.user.role !== 'admin') {
-        res.status(403).json({
+/**
+ * Middleware factory: require a specific role (or admin).
+ * Must be used AFTER `requireAuth`.
+ */
+export function requireRole(requiredRole: UserRole) {
+  return async (c: Context, next: Next): Promise<Response | void> => {
+    const payload = c.get('jwtPayload') as JWTPayload | undefined;
+
+    if (!payload) {
+      return c.json({ success: false, error: 'Authentication required', code: 'NO_AUTH' }, 401);
+    }
+
+    if (payload.role !== requiredRole && payload.role !== 'admin') {
+      return c.json(
+        {
+          success: false,
           error: 'Insufficient permissions',
           code: 'INSUFFICIENT_PERMISSIONS',
-          required: requiredRole,
-          current: req.user.role,
-        });
-        return;
-      }
-
-      next();
-    };
-  };
-
-  // SECURITY: Optional authentication - for public endpoints with user context
-  // Allows endpoints to work without auth but provides user data if available
-  optionalAuth = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
-    try {
-      // SECURITY: Check for authorization header
-      const authHeader = req.header('Authorization');
-
-      if (!authHeader) {
-        // SECURITY: No auth header, continue without user context
-        next();
-        return;
-      }
-
-      // SECURITY: Extract token from Bearer format
-      const token = authHeader.replace('Bearer ', '');
-
-      if (!token || token === authHeader) {
-        // SECURITY: Invalid format, continue without user context
-        next();
-        return;
-      }
-
-      // SECURITY: Attempt token verification without failing request
-      try {
-        const payload = this.authService.verifyToken(token);
-        const user = await this.authService.getUserById(payload.userId);
-
-        // SECURITY: Only attach user if token is valid and user is active
-        if (user && user.isActive) {
-          req.user = payload;
-        }
-      } catch (_error) {
-        // SECURITY: Invalid token, continue without user context
-        // This is expected behavior for optional auth
-      }
-
-      next();
-    } catch (_error) {
-      // SECURITY: Any error, continue without user context
-      // Optional auth should never block requests
-      next();
+        },
+        403
+      );
     }
+
+    await next();
   };
+}
+
+/**
+ * Helper: extract the authenticated userId from the Hono context.
+ * Throws if no JWT payload is present (use after `requireAuth`).
+ */
+export function getAuthUserId(c: Context): string {
+  const payload = c.get('jwtPayload') as JWTPayload | undefined;
+  if (!payload) {
+    throw new Error('UNAUTHORIZED');
+  }
+  return payload.userId;
 }

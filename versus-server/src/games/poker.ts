@@ -113,8 +113,8 @@ export class PokerGame extends BaseGame {
     }
 
     // Set blinds
-    const smallBlindPlayer = Object.values(players).find(p => p.isSmallBlind)!;
-    const bigBlindPlayer = Object.values(players).find(p => p.isBigBlind)!;
+    const smallBlindPlayer = Object.values(players).find((p) => p.isSmallBlind)!;
+    const bigBlindPlayer = Object.values(players).find((p) => p.isBigBlind)!;
 
     smallBlindPlayer.currentBet = smallBlind;
     smallBlindPlayer.chips -= smallBlind;
@@ -122,7 +122,7 @@ export class PokerGame extends BaseGame {
     bigBlindPlayer.chips -= bigBlind;
 
     // Find the player after the big blind to start
-    const bigBlindIndex = playerIds.findIndex(id => players[id]!.isBigBlind);
+    const bigBlindIndex = playerIds.findIndex((id) => players[id]!.isBigBlind);
     const firstPlayerIndex = (bigBlindIndex + 1) % playerIds.length;
 
     const initialState: PokerState = {
@@ -499,7 +499,7 @@ export class PokerGame extends BaseGame {
 
   private getCombinations(arr: Card[], k: number): Card[][] {
     if (k === 1) {
-      return arr.map(item => [item]);
+      return arr.map((item) => [item]);
     }
     if (k === arr.length) {
       return [arr];
@@ -531,18 +531,18 @@ export class PokerGame extends BaseGame {
 
     const groups = this.groupByRank(sorted);
     const groupSizes = Object.values(groups)
-      .map(g => g.length)
+      .map((g) => g.length)
       .sort((a, b) => b - a);
 
     if (groupSizes[0] === 4) {
-      const fourOfAKind = Object.values(groups).find(g => g.length === 4)!;
-      const kicker = Object.values(groups).find(g => g.length === 1)!;
+      const fourOfAKind = Object.values(groups).find((g) => g.length === 4)!;
+      const kicker = Object.values(groups).find((g) => g.length === 1)!;
       return { rank: 8, name: 'Four of a Kind', cards: fourOfAKind, kickers: kicker };
     }
 
     if (groupSizes[0] === 3 && groupSizes[1] === 2) {
-      const three = Object.values(groups).find(g => g.length === 3)!;
-      const pair = Object.values(groups).find(g => g.length === 2)!;
+      const three = Object.values(groups).find((g) => g.length === 3)!;
+      const pair = Object.values(groups).find((g) => g.length === 2)!;
       return { rank: 7, name: 'Full House', cards: [...three, ...pair], kickers: [] };
     }
 
@@ -555,23 +555,23 @@ export class PokerGame extends BaseGame {
     }
 
     if (groupSizes[0] === 3) {
-      const three = Object.values(groups).find(g => g.length === 3)!;
+      const three = Object.values(groups).find((g) => g.length === 3)!;
       const kickers = Object.values(groups)
-        .filter(g => g.length === 1)
+        .filter((g) => g.length === 1)
         .flat();
       return { rank: 4, name: 'Three of a Kind', cards: three, kickers };
     }
 
     if (groupSizes[0] === 2 && groupSizes[1] === 2) {
-      const pairs = Object.values(groups).filter(g => g.length === 2);
-      const kicker = Object.values(groups).find(g => g.length === 1)!;
+      const pairs = Object.values(groups).filter((g) => g.length === 2);
+      const kicker = Object.values(groups).find((g) => g.length === 1)!;
       return { rank: 3, name: 'Two Pair', cards: pairs.flat(), kickers: kicker };
     }
 
     if (groupSizes[0] === 2) {
-      const pair = Object.values(groups).find(g => g.length === 2)!;
+      const pair = Object.values(groups).find((g) => g.length === 2)!;
       const kickers = Object.values(groups)
-        .filter(g => g.length === 1)
+        .filter((g) => g.length === 1)
         .flat();
       return { rank: 2, name: 'Pair', cards: pair, kickers };
     }
@@ -580,11 +580,11 @@ export class PokerGame extends BaseGame {
   }
 
   private isFlush(cards: Card[]): boolean {
-    return cards.every(card => card.suit === cards[0]!.suit);
+    return cards.every((card) => card.suit === cards[0]!.suit);
   }
 
   private isStraight(cards: Card[]): boolean {
-    const values = cards.map(c => c.value).sort((a, b) => a - b);
+    const values = cards.map((c) => c.value).sort((a, b) => a - b);
 
     // Check for regular straight
     for (let i = 1; i < values.length; i++) {
@@ -616,8 +616,8 @@ export class PokerGame extends BaseGame {
     }
 
     // Compare by card values
-    const values1 = hand1.cards.map(c => c.value).sort((a, b) => b - a);
-    const values2 = hand2.cards.map(c => c.value).sort((a, b) => b - a);
+    const values1 = hand1.cards.map((c) => c.value).sort((a, b) => b - a);
+    const values2 = hand2.cards.map((c) => c.value).sort((a, b) => b - a);
 
     for (let i = 0; i < values1.length; i++) {
       if (values1[i] !== values2[i]) {
@@ -626,8 +626,8 @@ export class PokerGame extends BaseGame {
     }
 
     // Compare kickers
-    const kickers1 = hand1.kickers.map(c => c.value).sort((a, b) => b - a);
-    const kickers2 = hand2.kickers.map(c => c.value).sort((a, b) => b - a);
+    const kickers1 = hand1.kickers.map((c) => c.value).sort((a, b) => b - a);
+    const kickers2 = hand2.kickers.map((c) => c.value).sort((a, b) => b - a);
 
     for (let i = 0; i < Math.max(kickers1.length, kickers2.length); i++) {
       const k1 = kickers1[i] || 0;

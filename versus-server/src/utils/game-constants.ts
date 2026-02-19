@@ -272,7 +272,7 @@ export class GameValidators {
   }
 
   static validateMoveFormat(move: any, requiredFields: string[]): boolean {
-    return requiredFields.every(field => move && typeof move[field] !== 'undefined');
+    return requiredFields.every((field) => move && typeof move[field] !== 'undefined');
   }
 }
 

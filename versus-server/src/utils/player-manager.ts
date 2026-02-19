@@ -54,7 +54,7 @@ export class PlayerManager {
         this.players.push({
           id: playerIds[i]!,
           name: playerNames?.[i] || playerIds[i]!,
-          type: (playerTypes?.[i]) || 'human',
+          type: playerTypes?.[i] || 'human',
           order: i,
         });
       }
@@ -95,7 +95,7 @@ export class PlayerManager {
    * Get player IDs in order
    */
   getPlayerIds(): string[] {
-    return this.players.map(p => p.id);
+    return this.players.map((p) => p.id);
   }
 
   /**
@@ -127,7 +127,7 @@ export class PlayerManager {
    * Set current player by ID
    */
   setCurrentPlayer(playerId: string): boolean {
-    const index = this.players.findIndex(p => p.id === playerId);
+    const index = this.players.findIndex((p) => p.id === playerId);
     if (index === -1) {
       return false;
     }
@@ -150,14 +150,14 @@ export class PlayerManager {
    * Get player by ID
    */
   getPlayer(playerId: string): Player | null {
-    return this.players.find(p => p.id === playerId) || null;
+    return this.players.find((p) => p.id === playerId) || null;
   }
 
   /**
    * Validate if player exists
    */
   isValidPlayer(playerId: string): boolean {
-    return this.players.some(p => p.id === playerId);
+    return this.players.some((p) => p.id === playerId);
   }
 
   /**

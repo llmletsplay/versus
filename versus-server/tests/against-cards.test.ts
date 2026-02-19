@@ -356,7 +356,7 @@ describe('AgainstCardsGame', () => {
         await game.makeMove({ player: currentJudge, action: 'start_round' });
 
         // Get non-judge players
-        const nonJudgePlayers = state.playerOrder.filter(p => p !== currentJudge);
+        const nonJudgePlayers = state.playerOrder.filter((p) => p !== currentJudge);
 
         // All non-judge players submit
         const internalState = getInternalState(game);

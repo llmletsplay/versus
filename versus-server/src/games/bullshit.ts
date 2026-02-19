@@ -203,7 +203,7 @@ export class BullshitGame extends BaseGame {
 
         // Player must have the cards they're trying to play
         for (const card of move.cards) {
-          const hasCard = player.hand.some(h => h.suit === card.suit && h.rank === card.rank);
+          const hasCard = player.hand.some((h) => h.suit === card.suit && h.rank === card.rank);
           if (!hasCard) {
             return {
               valid: false,
@@ -262,7 +262,7 @@ export class BullshitGame extends BaseGame {
 
     // Remove cards from player's hand
     for (const card of cards) {
-      const index = player.hand.findIndex(h => h.suit === card.suit && h.rank === card.rank);
+      const index = player.hand.findIndex((h) => h.suit === card.suit && h.rank === card.rank);
       if (index >= 0) {
         player.hand.splice(index, 1);
       }
@@ -306,7 +306,7 @@ export class BullshitGame extends BaseGame {
     const actualCards = lastPlay.cardsPlayed;
 
     // Check if all played cards match the claimed rank
-    const allMatch = actualCards.every(card => card.rank === claimedRank);
+    const allMatch = actualCards.every((card) => card.rank === claimedRank);
 
     const discardPileSize = state.discardPile.length;
 

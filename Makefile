@@ -1,4 +1,4 @@
-.PHONY: help start stop logs-view clean
+.PHONY: help start stop logs-view clean test build docs
 
 ROOT_DIR := $(shell pwd)
 
@@ -10,7 +10,7 @@ help: ## Show this help message
 start: ## Start everything (PostgreSQL + Server + Client)
 	@echo "🚀 Starting all services..."
 	@mkdir -p $(ROOT_DIR)/logs
-	@POSTGRES_PORT=5433 docker-compose -f docker-compose.simple.yml up -d
+	@docker-compose up -d
 	@echo "✓ PostgreSQL started on port 5433"
 	@sleep 2
 	@echo "✓ Starting server on port 5556..."
@@ -32,15 +32,24 @@ stop: ## Stop all services
 	@echo "Stopping services..."
 	@[ -f logs/server.pid ] && kill $$(cat logs/server.pid) 2>/dev/null && rm logs/server.pid && echo "✓ Server stopped" || true
 	@[ -f logs/client.pid ] && kill $$(cat logs/client.pid) 2>/dev/null && rm logs/client.pid && echo "✓ Client stopped" || true
-	@docker-compose -f docker-compose.simple.yml down 2>/dev/null && echo "✓ PostgreSQL stopped" || true
+	@docker-compose down 2>/dev/null && echo "✓ PostgreSQL stopped" || true
 	@echo "All stopped!"
 
 logs-view: ## View all logs in real-time
-	@echo "Server logs (Ctrl+C to exit):"
+	@echo "Logs (Ctrl+C to exit):"
 	@tail -f logs/server.log logs/client.log 2>/dev/null || echo "No logs yet. Run 'make start' first."
 
 clean: ## Stop and remove all data
 	@$(MAKE) stop
-	@docker-compose -f docker-compose.simple.yml down -v 2>/dev/null || true
+	@docker-compose down -v 2>/dev/null || true
 	@rm -rf logs
 	@echo "✓ Cleaned up"
+
+test: ## Run all tests
+	@cd versus-server && bun test
+
+build: ## Build for production
+	@bun run build
+
+docs: ## Serve documentation locally
+	@cd docs && mkdocs serve -a localhost:8000

@@ -23,7 +23,6 @@ import {
   ConfigurationError,
   ErrorCode,
 } from '../utils/errors.js';
-import { SubscriptionError } from '../types/subscription.js';
 import { GameError } from '../utils/error-handler.js';
 
 export interface ErrorResponse {
@@ -149,31 +148,6 @@ function createErrorResponse(
     };
   }
 
-  // Handle subscription errors (legacy)
-  if (error instanceof SubscriptionError) {
-    const statusCodeMap: Record<string, number> = {
-      INVALID_TIER: 400,
-      NO_SUBSCRIPTION_TO_CANCEL: 400,
-      NO_SUBSCRIPTION_TO_RESUME: 400,
-      NO_PAYMENT_METHOD: 402,
-      CANNOT_DOWNGRADE_TO_FREE: 400,
-      GET_SUBSCRIPTION_FAILED: 500,
-      UPSERT_SUBSCRIPTION_FAILED: 500,
-      CANCEL_SUBSCRIPTION_FAILED: 500,
-      RESUME_SUBSCRIPTION_FAILED: 500,
-      CHANGE_TIER_FAILED: 500,
-      GET_USAGE_FAILED: 500,
-    };
-
-    return {
-      success: false,
-      error: error.message,
-      code: error.code,
-      requestId,
-      statusCode: statusCodeMap[error.code] || 500,
-    };
-  }
-
   // Handle validation errors (Zod)
   if (error && typeof error === 'object' && 'issues' in error) {
     return {
@@ -245,8 +219,8 @@ export const errors = {
     throw new ExternalServiceError('Service', message);
   },
 
-  payment: (message: string, stripeCode?: string): never => {
-    throw new PaymentError(message, stripeCode);
+  payment: (message: string, providerCode?: string, context?: Record<string, any>): never => {
+    throw new PaymentError(message, providerCode, context);
   },
 
   database: (message: string, query?: string, originalError?: Error): never => {

@@ -21,9 +21,9 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-export function createAuthRoutes() {
+export function createAuthRoutes(injectedAuthService?: AuthService) {
   const app = new Hono<{ Variables: { user?: any } }>();
-  const authService = new AuthService();
+  const authService = injectedAuthService ?? new AuthService();
 
   // Middleware to attach user info
   app.use('*', async (c, next) => {

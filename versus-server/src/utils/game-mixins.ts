@@ -128,7 +128,7 @@ export class BoardGameMixin {
    * Check if board is full
    */
   static isBoardFull<T>(board: T[][], emptyValue: T = null as T): boolean {
-    return board.every(row => row?.every(cell => cell !== emptyValue) ?? false);
+    return board.every((row) => row?.every((cell) => cell !== emptyValue) ?? false);
   }
 
   /**
@@ -537,33 +537,33 @@ export class GameMetadataBuilder {
  * Common game state patterns
  */
 export interface StandardBoardGameState<TPlayer extends string = string, TCell = any> {
-   board: TCell[][];
-   currentPlayer: TPlayer;
-   gameOver: boolean;
-   winner: TPlayer | 'draw' | null;
-   playerOrder: TPlayer[];
-   status: string;
+  board: TCell[][];
+  currentPlayer: TPlayer;
+  gameOver: boolean;
+  winner: TPlayer | 'draw' | null;
+  playerOrder: TPlayer[];
+  status: string;
 }
 
 export interface StandardCardGameState<TPlayer extends string = string> {
-   hands: Record<TPlayer, any[]>;
-   deck: any[];
-   discardPile: any[];
-   currentPlayer: TPlayer;
-   gameOver: boolean;
-   winner: TPlayer | null;
-   playerOrder: TPlayer[];
-   status: string;
+  hands: Record<TPlayer, any[]>;
+  deck: any[];
+  discardPile: any[];
+  currentPlayer: TPlayer;
+  gameOver: boolean;
+  winner: TPlayer | null;
+  playerOrder: TPlayer[];
+  status: string;
 }
 
 export interface StandardScoredGameState<TPlayer extends string = string> {
-   scores: Record<TPlayer, number>;
-   currentPlayer: TPlayer;
-   gameOver: boolean;
-   winner: TPlayer | null;
-   playerOrder: TPlayer[];
-   round: number;
-   status: string;
+  scores: Record<TPlayer, number>;
+  currentPlayer: TPlayer;
+  gameOver: boolean;
+  winner: TPlayer | null;
+  playerOrder: TPlayer[];
+  round: number;
+  status: string;
 }
 
 /**

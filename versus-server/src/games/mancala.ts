@@ -146,8 +146,8 @@ export class MancalaGame extends BaseGame {
     const player1Pits = this.getPlayerPits('player1');
     const player2Pits = this.getPlayerPits('player2');
 
-    const player1HasStones = player1Pits.some(pit => (state.board[pit] || 0) > 0);
-    const player2HasStones = player2Pits.some(pit => (state.board[pit] || 0) > 0);
+    const player1HasStones = player1Pits.some((pit) => (state.board[pit] || 0) > 0);
+    const player2HasStones = player2Pits.some((pit) => (state.board[pit] || 0) > 0);
 
     if (!player1HasStones || !player2HasStones) {
       // Game over - collect remaining stones
@@ -260,7 +260,7 @@ export class MancalaGame extends BaseGame {
     }
 
     const playerPits = this.getPlayerPits(state.currentPlayer);
-    return playerPits.filter(pit => (state.board[pit] || 0) > 0);
+    return playerPits.filter((pit) => (state.board[pit] || 0) > 0);
   }
 
   async isGameOver(): Promise<boolean> {

@@ -61,7 +61,12 @@ export abstract class BoardGameFactory extends BaseGame {
   protected board: any[][];
   protected boardSize: { rows: number; cols: number };
 
-  constructor(gameId: string, gameType: string, database: DatabaseProvider, config?: BoardGameConfig) {
+  constructor(
+    gameId: string,
+    gameType: string,
+    database: DatabaseProvider,
+    config?: BoardGameConfig
+  ) {
     super(gameId, gameType, database);
     this.boardSize = {
       rows: config?.rows || config?.boardSize || 8,
@@ -157,7 +162,12 @@ export abstract class CardGameFactory extends BaseGame {
   protected hands: Map<string, any[]>;
   protected discardPile: any[];
 
-  constructor(gameId: string, gameType: string, database: DatabaseProvider, _config?: CardGameConfig) {
+  constructor(
+    gameId: string,
+    gameType: string,
+    database: DatabaseProvider,
+    _config?: CardGameConfig
+  ) {
     super(gameId, gameType, database);
     this.hands = new Map();
     this.discardPile = [];
@@ -220,7 +230,7 @@ export abstract class CardGameFactory extends BaseGame {
 
   protected hasCard(playerId: string, card: any): boolean {
     const hand = this.hands.get(playerId);
-    return hand ? hand.some(c => this.cardsEqual(c, card)) : false;
+    return hand ? hand.some((c) => this.cardsEqual(c, card)) : false;
   }
 
   protected abstract cardsEqual(_card1: any, _card2: any): boolean;
@@ -235,7 +245,12 @@ export abstract class TurnBasedGameFactory extends BaseGame {
   protected turnCount: number;
   protected maxTurns?: number;
 
-  constructor(gameId: string, gameType: string, database: DatabaseProvider, config?: TurnBasedGameConfig) {
+  constructor(
+    gameId: string,
+    gameType: string,
+    database: DatabaseProvider,
+    config?: TurnBasedGameConfig
+  ) {
     super(gameId, gameType, database);
     this.playerOrder = [];
     this.currentPlayer = '';

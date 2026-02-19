@@ -590,7 +590,7 @@ describe('ChineseCheckersGame', () => {
 
       // Bottom triangle - check what's actually valid
       const hasBottomPositions = state.validPositions.some(
-        pos => pos.startsWith('11,') || pos.startsWith('12,')
+        (pos) => pos.startsWith('11,') || pos.startsWith('12,')
       );
       expect(hasBottomPositions).toBe(true);
     });

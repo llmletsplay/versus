@@ -437,7 +437,7 @@ export class ValidationBuilder<T extends Record<string, any>> {
   }
 
   required<K extends keyof T>(field: K): this {
-    this.validators.push(_data => {
+    this.validators.push((_data) => {
       if (!(field in _data) || _data[field] === undefined || _data[field] === null) {
         return { valid: false, error: `Missing required field: ${String(field)}` };
       }

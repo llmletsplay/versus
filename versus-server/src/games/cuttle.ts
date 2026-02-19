@@ -194,7 +194,7 @@ export class CuttleGame extends BaseGame {
 
       // Check if player has the card
       const hasCard = player.hand.some(
-        card => card.suit === move.card!.suit && card.rank === move.card!.rank
+        (card) => card.suit === move.card!.suit && card.rank === move.card!.rank
       );
       if (!hasCard) {
         return {
@@ -268,7 +268,7 @@ export class CuttleGame extends BaseGame {
 
     // Find target card in opponent's field
     const targetCard = targetPlayer.field.find(
-      c => c.suit === move.target!.suit && c.rank === move.target!.rank
+      (c) => c.suit === move.target!.suit && c.rank === move.target!.rank
     );
 
     if (!targetCard) {
@@ -300,10 +300,10 @@ export class CuttleGame extends BaseGame {
 
     // Check if target exists in field or face cards
     const targetInField = targetPlayer.field.some(
-      c => c.suit === move.target!.suit && c.rank === move.target!.rank
+      (c) => c.suit === move.target!.suit && c.rank === move.target!.rank
     );
     const targetInFaceCards = targetPlayer.faceCards.some(
-      c => c.suit === move.target!.suit && c.rank === move.target!.rank
+      (c) => c.suit === move.target!.suit && c.rank === move.target!.rank
     );
 
     if (!targetInField && !targetInFaceCards) {
@@ -326,7 +326,7 @@ export class CuttleGame extends BaseGame {
     const card = cuttleMove.card!;
 
     // Remove card from hand
-    const cardIndex = player.hand.findIndex(c => c.suit === card.suit && c.rank === card.rank);
+    const cardIndex = player.hand.findIndex((c) => c.suit === card.suit && c.rank === card.rank);
     if (cardIndex !== -1) {
       player.hand.splice(cardIndex, 1);
     }
@@ -383,7 +383,7 @@ export class CuttleGame extends BaseGame {
 
     // Remove target card from field
     const targetIndex = targetPlayer.field.findIndex(
-      c => c.suit === move.target!.suit && c.rank === move.target!.rank
+      (c) => c.suit === move.target!.suit && c.rank === move.target!.rank
     );
     if (targetIndex !== -1) {
       const targetCard = targetPlayer.field.splice(targetIndex, 1)[0]!;
@@ -427,7 +427,7 @@ export class CuttleGame extends BaseGame {
 
     // Try to remove from field first
     let targetIndex = targetPlayer.field.findIndex(
-      c => c.suit === move.target!.suit && c.rank === move.target!.rank
+      (c) => c.suit === move.target!.suit && c.rank === move.target!.rank
     );
 
     if (targetIndex !== -1) {
@@ -438,7 +438,7 @@ export class CuttleGame extends BaseGame {
 
     // Try to remove from face cards
     targetIndex = targetPlayer.faceCards.findIndex(
-      c => c.suit === move.target!.suit && c.rank === move.target!.rank
+      (c) => c.suit === move.target!.suit && c.rank === move.target!.rank
     );
 
     if (targetIndex !== -1) {

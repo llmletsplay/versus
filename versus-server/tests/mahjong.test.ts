@@ -387,13 +387,13 @@ describe('MahjongGame', () => {
       // Count suit tiles
       const allTiles = [...internalState.wall, ...Object.values(internalState.hands).flat()];
 
-      const suitTiles = allTiles.filter(tile => tile.type === 'suit');
+      const suitTiles = allTiles.filter((tile) => tile.type === 'suit');
       expect(suitTiles.length).toBe(108); // 3 suits * 9 values * 4 copies
 
       // Check each suit has correct distribution
-      const bambooTiles = suitTiles.filter(tile => tile.suit === 'bamboo');
-      const characterTiles = suitTiles.filter(tile => tile.suit === 'character');
-      const dotTiles = suitTiles.filter(tile => tile.suit === 'dot');
+      const bambooTiles = suitTiles.filter((tile) => tile.suit === 'bamboo');
+      const characterTiles = suitTiles.filter((tile) => tile.suit === 'character');
+      const dotTiles = suitTiles.filter((tile) => tile.suit === 'dot');
 
       expect(bambooTiles.length).toBe(36);
       expect(characterTiles.length).toBe(36);
@@ -406,13 +406,13 @@ describe('MahjongGame', () => {
       // Count honor tiles
       const allTiles = [...internalState.wall, ...Object.values(internalState.hands).flat()];
 
-      const honorTiles = allTiles.filter(tile => tile.type === 'honor');
+      const honorTiles = allTiles.filter((tile) => tile.type === 'honor');
       expect(honorTiles.length).toBe(28); // 7 honors * 4 copies
 
       // Check each honor type
       const honors = ['east', 'south', 'west', 'north', 'red', 'green', 'white'];
       for (const honor of honors) {
-        const honorCount = honorTiles.filter(tile => tile.honor === honor).length;
+        const honorCount = honorTiles.filter((tile) => tile.honor === honor).length;
         expect(honorCount).toBe(4);
       }
     });
@@ -422,7 +422,7 @@ describe('MahjongGame', () => {
 
       const allTiles = [...internalState.wall, ...Object.values(internalState.hands).flat()];
 
-      const tileIds = allTiles.map(tile => tile.id);
+      const tileIds = allTiles.map((tile) => tile.id);
       const uniqueIds = new Set(tileIds);
 
       expect(uniqueIds.size).toBe(tileIds.length);
