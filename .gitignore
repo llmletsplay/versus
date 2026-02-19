@@ -18,6 +18,7 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
 
 # Logs
 logs/
@@ -120,8 +121,16 @@ ENV/
 *.sqlite3
 *.db
 
+# pnpm store
+.pnpm-store/
+
 # Custom
 .notes/
 TODO.md
 scratch/
 opencode.json
+
+# Code review tools
+.coderabbit.yml
+**/coderabbit.yml
+**/.coderabbit.yml
