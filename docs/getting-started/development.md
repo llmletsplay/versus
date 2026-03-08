@@ -62,20 +62,20 @@ bun run format:check  # Check formatting
 
 ```bash
 cd versus-server
-bun test
+bun run test
 ```
 
 ### Run Specific Test
 
 ```bash
-bun test tic-tac-toe
-bun test chess.test.ts
+bun run test -- tic-tac-toe
+bun run test -- chess.test.ts
 ```
 
 ### Test with Coverage
 
 ```bash
-bun test --coverage
+bun run test -- --coverage
 ```
 
 ### Watch Mode
@@ -218,7 +218,7 @@ Pre-commit hooks run automatically:
 ```bash
 # Use Bun for all operations
 bun install    # vs npm install
-bun test       # vs npm test
+bun run test   # vs npm test
 ```
 
 ### Memory Management

@@ -1,47 +1,48 @@
 # Architecture Overview
 
-Versus is a multiplatform, enterprise-grade game server supporting 27+ classic games with real-time multiplayer, AI agent integration, and crypto wagering.
+Versus is organized as a package-first game platform with optional platform services layered on top.
+
+The stable center of the repo is the reusable game engine layer. The crypto settlement layer is still experimental.
 
 ## System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    CLIENT LAYER                              │
+│                  REUSABLE GAME PACKAGES                      │
 ├─────────────────────────────────────────────────────────────┤
-│  React SPA (Vite)  │  WebSocket Client  │  API Client       │
+│  @versus/game-core  │  @versus/chess  │  @versus/poker ... │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    HONO APPLICATION                          │
+│                 PLATFORM SERVER (versus-server)              │
 ├─────────────────────────────────────────────────────────────┤
-│  Security Middleware │ Rate Limiting │ Authentication       │
-├─────────────────────────────────────────────────────────────┤
-│  Auth Routes │ Game Routes │ Wager Routes │ Agent Routes    │
+│ Auth │ Games │ Rooms │ Ratings │ Tournaments │ Agent APIs    │
+│ WebSocket │ Persistence │ Match orchestration               │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     SERVICE LAYER                            │
-├──────────────┬──────────────┬──────────────┬───────────────┤
-│ AuthService  │ GameManager  │ EscrowService│ RoomService   │
-│ WagerService │ MarketService│ TournamentSvc│ AgentBridge   │
-└──────────────┴──────────────┴──────────────┴───────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     DATABASE LAYER                           │
+│          EXPERIMENTAL SETTLEMENT / MARKET LAYER              │
 ├─────────────────────────────────────────────────────────────┤
-│  SQLite (Development)  │  PostgreSQL (Production)           │
-│  Tables: users, games, rooms, wagers, tournaments           │
+│ Wagers │ Markets │ x402 │ Solver bridge │ Intent adapters   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Core Components
 
+### Reusable Game Layer
+
+The reusable game logic lives in:
+
+- [`packages/game-core`](../../packages/game-core)
+- [`packages/*`](../../packages)
+
+Each game package contains the game rules and implementation. The server consumes those packages rather than owning the canonical game logic itself.
+
 ### Application Factory (`src/app.ts`)
 
-Platform-agnostic Hono application with comprehensive middleware:
+The server in [`versus-server/src/app.ts`](../../versus-server/src/app.ts) composes the platform layer around the packages:
 
 ```typescript
 export async function createApp(config: AppConfig) {
@@ -76,7 +77,12 @@ The server supports multiple runtimes:
 
 ### Database Provider
 
-Unified database abstraction supporting both SQLite and PostgreSQL:
+There are two database abstractions in the repo:
+
+- server database providers in [`versus-server/src/core/database.ts`](../../versus-server/src/core/database.ts)
+- package-safe in-memory persistence in [`packages/game-core/src/core/database.ts`](../../packages/game-core/src/core/database.ts)
+
+That second provider is what makes the standalone packages reusable without forcing a native database dependency.
 
 ```typescript
 interface DatabaseProvider {
@@ -89,7 +95,7 @@ interface DatabaseProvider {
 
 ## Game Engine
 
-All games extend the `BaseGame` abstract class:
+All game packages extend the shared `BaseGame` from `@versus/game-core`:
 
 ```typescript
 export abstract class BaseGame<TState extends GameState> {
@@ -111,6 +117,26 @@ export abstract class BaseGame<TState extends GameState> {
 | Card Games | Poker, Blackjack, Hearts, Spades, Cuttle |
 | Classic | Tic-Tac-Toe, Connect Four, Mancala, Battleship |
 | Modern | Catan, Mahjong, Word Tiles |
+
+## Stable Vs Experimental
+
+Stable:
+
+- game packages
+- game manager and persistence
+- multiplayer APIs
+- auth, rooms, ratings, tournaments
+- MCP/OpenClaw-facing game integration
+
+Experimental:
+
+- wagers and escrow routes
+- prediction markets
+- x402 payment flows
+- NEAR/Base/Solana intent adapters
+- solver-mediated settlement
+
+The experimental layer exists in code, but it should not be described as audited or production-trustless today.
 
 ## Security Architecture
 
@@ -155,10 +181,10 @@ export abstract class BaseGame<TState extends GameState> {
 |---------|---------------|
 | `RoomService` | Multiplayer room management |
 | `RatingService` | ELO calculations |
-| `EscrowService` | Crypto escrow for wagers |
-| `PredictionMarketService` | Betting markets |
+| `EscrowService` | Experimental wager support |
+| `PredictionMarketService` | Experimental market support |
 | `TournamentService` | Tournament brackets |
-| `WagerService` | Wager settlement |
+| `WagerService` | Experimental wager lifecycle |
 | `OpenClawBridge` | AI agent integration |
 
 ## Real-time Communication
@@ -175,20 +201,15 @@ class WebSocketServer {
 }
 ```
 
-## Performance Characteristics
+## Packaging Strategy
 
-### Tested Under Load
+The repo is now structured so other applications can:
 
-- **Concurrent Users**: 100+ supported
-- **Response Time**: P95 < 500ms
-- **Error Rate**: < 5% under sustained load
-- **Memory**: < 512MB normal operation
+1. depend on standalone game packages
+2. embed those games into their own server or agent system
+3. ignore the Versus auth/rooms/tournaments/wagering stack entirely if they want
 
-### Scalability Patterns
-
-- **Stateless Design**: All state in database
-- **Connection Pooling**: PostgreSQL connection management
-- **Horizontal Scaling**: Multiple instances behind load balancer
+See [Packages](packages.md) for details.
 
 ## Configuration
 
@@ -214,6 +235,7 @@ SENTRY_DSN=https://your-sentry-dsn
 
 ## Next Steps
 
+- [Packages](packages.md) - Package-first architecture and usage
 - [Games Engine](games.md) - Game implementation details
 - [Database](database.md) - Schema and queries
 - [API Overview](../api/overview.md) - API reference

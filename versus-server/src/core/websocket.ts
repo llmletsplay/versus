@@ -385,5 +385,6 @@ export class WebSocketServer extends EventEmitter {
         }
       }
     }, HEARTBEAT_INTERVAL);
+    this.heartbeatTimer.unref?.();
   }
 }

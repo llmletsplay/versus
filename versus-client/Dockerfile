@@ -8,7 +8,7 @@ RUN bun install
 
 # Build the application
 COPY . .
-ARG VITE_API_URL=http://localhost:6789
+ARG VITE_API_URL=http://localhost:5556
 ENV NODE_ENV=production
 RUN bun run build
 

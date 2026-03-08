@@ -1,12 +1,14 @@
 {
   "name": "versus",
   "version": "1.0.0",
-  "description": "AI-native competitive gaming arena with multiplayer games, AI agents, and crypto wagering",
+  "description": "Package-first multiplayer game platform with reusable game engines, platform services, and experimental wagering layers",
   "private": true,
   "type": "module",
   "workspaces": [
+    "packages/*",
     "versus-server",
-    "versus-client"
+    "versus-client",
+    "versus-skill"
   ],
   "scripts": {
     "dev": "concurrently \"bun run dev:server\" \"bun run dev:client\"",
@@ -16,7 +18,7 @@
     "build": "bun run build:server && bun run build:client",
     "build:server": "cd versus-server && bun run build",
     "build:client": "cd versus-client && bun run build",
-    "test": "cd versus-server && bun test",
+    "test": "cd versus-server && bun run test",
     "lint": "cd versus-server && bun run lint",
     "type-check": "cd versus-server && bun run type-check",
     "format": "cd versus-server && bun run format",
@@ -45,7 +47,7 @@
     "url": "https://github.com/lightnolimit/versus.git"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=22.0.0",
     "bun": ">=1.0.0"
   },
   "devDependencies": {

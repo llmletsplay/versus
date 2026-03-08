@@ -382,4 +382,8 @@ export class AuthService {
       throw error;
     }
   }
+
+  async close(): Promise<void> {
+    await this.db.close();
+  }
 }

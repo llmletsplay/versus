@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from 'bun:test';
+import { describe, test, expect, beforeEach } from '@jest/globals';
 import { CatanGame } from '../src/games/catan.js';
 
 describe('CatanGame', () => {
@@ -323,13 +323,20 @@ describe('CatanGame', () => {
         action: 'roll_dice',
       });
 
+      // Make the resource state explicit so this assertion is deterministic.
+      (game as any).currentState.players[currentPlayer].resources = {
+        wood: 0,
+        brick: 1,
+        wool: 1,
+        grain: 1,
+        ore: 0,
+      };
+
       const result = await game.validateMove({
         player: currentPlayer,
         action: 'build_settlement',
         position: 11, // Use position connected to player1's existing settlement at 10
       });
-
-      // Player1 has {wood:0, brick:1, wool:1, grain:1, ore:0} but needs {wood:1, brick:1, wool:1, grain:1}
       expect(result.valid).toBe(false);
       expect(result.error).toContain('Insufficient resources');
     });
@@ -343,12 +350,21 @@ describe('CatanGame', () => {
         action: 'roll_dice',
       });
 
+      // Setup-round resource distribution is board-dependent, so make this explicit.
+      (game as any).currentState.players[currentPlayer].resources = {
+        wood: 0,
+        brick: 1,
+        wool: 1,
+        grain: 1,
+        ore: 0,
+      };
+
       const result = await game.validateMove({
         player: currentPlayer,
         action: 'buy_development_card',
       });
 
-      // Player1 has {wood:0, brick:1, wool:1, grain:1, ore:0} but needs {wool:1, grain:1, ore:1}
+      // A development card requires wool, grain, and ore.
       expect(result.valid).toBe(false);
       expect(result.error).toContain('Insufficient resources');
     });

@@ -1,6 +1,6 @@
-# Versus - AI-Native Competitive Gaming Arena
+# Versus
 
-Versus is a multiplayer game platform featuring 27+ classic games, AI agent integration, real-time multiplayer, and crypto wagering capabilities.
+Versus is a package-first multiplayer game platform with reusable game engines, a real-time server, and an experimental wagering/intents layer.
 
 ## Quick Start
 
@@ -20,13 +20,18 @@ Stop: `make stop`
 | Server | http://localhost:5556 |
 | Database | localhost:5433 |
 
+## Release Position
+
+- Stable: game packages, game core, multiplayer APIs, auth, rooms, ratings, tournaments, MCP/OpenClaw-facing game APIs
+- Experimental: wagers, x402 payments, prediction markets, solver bridges, NEAR/Base/Solana intent settlement
+
 ## Features
 
 - **27+ Games**: Chess, Poker, Go, Spades, Hearts, Catan, and more
+- **Reusable Packages**: Game logic is extracted into `packages/*`
 - **Real-time Multiplayer**: WebSocket-based live gameplay
-- **AI Agents**: MCP server for AI agent integration
-- **Crypto Wagering**: Non-custodial escrow and prediction markets
-- **Tournaments**: ELO-based matchmaking and competitive play
+- **AI Agents**: MCP server and OpenClaw bridge for agent play
+- **Platform Services**: Rooms, ratings, and tournaments
 
 ## Documentation
 
@@ -45,7 +50,7 @@ bun install
 bun run dev
 
 # Run tests
-cd versus-server && bun test
+cd versus-server && bun run test
 
 # Type check
 cd versus-server && bun run type-check
@@ -55,13 +60,8 @@ cd versus-server && bun run type-check
 
 ```
 versus/
-├── versus-server/     # Hono API server
-│   ├── src/
-│   │   ├── games/     # 27+ game implementations
-│   │   ├── routes/    # API route handlers
-│   │   ├── services/  # Business logic
-│   │   └── core/      # Game engine & database
-│   └── tests/         # Test suite
+├── packages/          # Reusable game packages
+├── versus-server/     # Hono platform server
 ├── versus-client/     # React frontend
 ├── docs/              # Documentation
 └── Makefile           # Development commands

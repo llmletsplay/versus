@@ -7,7 +7,13 @@ export type X402Scheme = 'exact' | 'upto';
 
 export interface X402PaymentConfig {
   enabled: boolean;
-  settlementAddress: string;
+  settlementAddress?: string;
+  apiKey?: string;
+  webhookSecret?: string;
+  baseUrl?: string;
+  defaultAmountUsd?: number;
+  defaultCurrency?: string;
+  callbackUrl?: string;
   facilitatorUrl?: string;
   defaultAsset?: string;
   defaultNetwork?: X402Network;
@@ -55,6 +61,26 @@ export interface X402PaymentRecord {
   settledAt?: string;
 }
 
+export interface X402Charge {
+  chargeId: string;
+  code: string;
+  status: X402PaymentRecord['status'];
+  hostedUrl: string;
+  amountUsd: number;
+  currency: string;
+  reference: string;
+  expiresAt: string;
+}
+
+export interface CreateX402ChargeParams {
+  reference: string;
+  amountUsd?: number;
+  currency?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+  customerEmail?: string;
+}
+
 /**
  * x402 v2 Payment Service for VERSUS Platform
  * 
@@ -69,8 +95,14 @@ export class X402PaymentService {
     this.db = db;
     this.config = {
       enabled: config.enabled ?? false,
-      settlementAddress: config.settlementAddress,
-      facilitatorUrl: config.facilitatorUrl ?? 'https://x402.org/facilitator',
+      settlementAddress: config.settlementAddress ?? 'versus-settlement',
+      apiKey: config.apiKey,
+      webhookSecret: config.webhookSecret,
+      baseUrl: config.baseUrl,
+      defaultAmountUsd: config.defaultAmountUsd ?? 0.01,
+      defaultCurrency: config.defaultCurrency ?? 'USD',
+      callbackUrl: config.callbackUrl,
+      facilitatorUrl: config.facilitatorUrl ?? config.baseUrl ?? 'https://x402.org/facilitator',
       defaultAsset: config.defaultAsset ?? '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
       defaultNetwork: config.defaultNetwork ?? 'base',
     };
@@ -202,10 +234,85 @@ export class X402PaymentService {
       network: this.config.defaultNetwork!,
       asset: this.config.defaultAsset!,
       amount,
-      recipient: this.config.settlementAddress,
+      recipient: this.config.settlementAddress!,
       description,
       deadline: now + 3600, // 1 hour
     };
+  }
+
+  async createCharge(params: CreateX402ChargeParams): Promise<X402Charge> {
+    const amountUsd = Number(params.amountUsd ?? this.config.defaultAmountUsd ?? 0.01);
+    const currency = params.currency ?? this.config.defaultCurrency ?? 'USD';
+    const description = params.description ?? 'VERSUS payment';
+    const requirement = this.createRequirement(amountUsd.toFixed(2), description);
+    const chargeId = await this.recordPayment(params.reference, requirement);
+
+    return this.toCharge(
+      {
+        id: chargeId,
+        reference: params.reference,
+        scheme: requirement.scheme,
+        network: requirement.network,
+        asset: requirement.asset,
+        amount: requirement.amount,
+        recipient: requirement.recipient,
+        status: 'pending',
+        description,
+        deadline: requirement.deadline,
+        createdAt: new Date().toISOString(),
+      },
+      currency
+    );
+  }
+
+  async getCharge(chargeId: string): Promise<X402Charge | null> {
+    const payment = await this.getPaymentById(chargeId);
+    return payment ? this.toCharge(payment) : null;
+  }
+
+  async refreshCharge(chargeId: string): Promise<X402Charge> {
+    const charge = await this.getCharge(chargeId);
+    if (!charge) {
+      throw new Error(`Charge not found: ${chargeId}`);
+    }
+    return charge;
+  }
+
+  buildPaymentRequiredHeaders(charge: X402Charge): Record<string, string> {
+    const requirement = this.createRequirement(
+      charge.amountUsd.toFixed(2),
+      `Payment for ${charge.reference}`
+    );
+
+    return {
+      'X-402-Charge-Id': charge.chargeId,
+      'X-402-Charge-Code': charge.code,
+      'X-402-Payment-Required': JSON.stringify(requirement),
+    };
+  }
+
+  async handleWebhook(payload: string, signature?: string): Promise<void> {
+    if (this.config.webhookSecret && !signature) {
+      throw new Error('Missing webhook signature');
+    }
+
+    const body = JSON.parse(payload) as {
+      chargeId?: string;
+      reference?: string;
+      status?: string;
+      payer?: string;
+    };
+
+    const payment =
+      (body.chargeId ? await this.getPaymentById(body.chargeId) : null) ??
+      (body.reference ? await this.getPaymentByReference(body.reference) : null);
+
+    if (!payment) {
+      throw new Error('Charge not found');
+    }
+
+    const status = this.normalizeChargeStatus(body.status);
+    await this.updatePaymentStatus(payment.reference, status, body.payer);
   }
 
   /**
@@ -327,6 +434,28 @@ export class X402PaymentService {
     };
   }
 
+  async getPaymentById(id: string): Promise<X402PaymentRecord | null> {
+    const row = await this.db.get('SELECT * FROM x402_payments WHERE id = ?', [id]);
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      reference: row.reference,
+      scheme: row.scheme,
+      network: row.network,
+      asset: row.asset,
+      amount: row.amount,
+      recipient: row.recipient,
+      description: row.description,
+      payer: row.payer,
+      status: row.status,
+      deadline: row.deadline,
+      createdAt: row.created_at,
+      settledAt: row.settled_at,
+    };
+  }
+
   /**
    * Update payment status
    */
@@ -385,7 +514,7 @@ export class X402PaymentService {
    * Get settlement address
    */
   getSettlementAddress(): string {
-    return this.config.settlementAddress;
+    return this.config.settlementAddress!;
   }
 
   /**
@@ -414,5 +543,37 @@ export class X402PaymentService {
    */
   getFacilitatorUrl(): string {
     return this.config.facilitatorUrl!;
+  }
+
+  private normalizeChargeStatus(status?: string): X402PaymentRecord['status'] {
+    switch (status) {
+      case 'verified':
+      case 'settled':
+      case 'failed':
+      case 'pending':
+        return status;
+      case 'confirmed':
+      case 'completed':
+        return 'settled';
+      default:
+        return 'pending';
+    }
+  }
+
+  private toCharge(payment: X402PaymentRecord, currency?: string): X402Charge {
+    const hostedBase =
+      this.config.callbackUrl ?? this.config.baseUrl ?? this.config.facilitatorUrl ?? '';
+    const deadlineMs = payment.deadline ? payment.deadline * 1000 : Date.now() + 3600_000;
+
+    return {
+      chargeId: payment.id,
+      code: payment.reference,
+      status: payment.status,
+      hostedUrl: hostedBase ? `${hostedBase.replace(/\/$/, '')}/charges/${payment.id}` : '',
+      amountUsd: Number(payment.amount),
+      currency: currency ?? this.config.defaultCurrency ?? 'USD',
+      reference: payment.reference,
+      expiresAt: new Date(deadlineMs).toISOString(),
+    };
   }
 }

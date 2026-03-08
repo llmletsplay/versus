@@ -118,14 +118,14 @@ describe('BattleshipGame', () => {
 
     test('should handle miss and switch players', async () => {
       // Find an empty position to guarantee a miss
-      const _state = await game.getGameState();
+      const internalState = (game as any).currentState;
       let emptyRow = -1,
         emptyCol = -1;
 
-      // Look for an empty position on player2's board (player1 is shooting at player2)
+      // Use the internal board here because the public view intentionally hides ships as "empty".
       for (let row = 0; row < 10; row++) {
         for (let col = 0; col < 10; col++) {
-          if (_state.boards.player2.cells[row]![col] === 'empty') {
+          if (internalState.boards.player2.cells[row]![col] === 'empty') {
             emptyRow = row;
             emptyCol = col;
             break;

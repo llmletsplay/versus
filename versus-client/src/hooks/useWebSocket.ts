@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { WSEventType, WSMessage } from "../types/websocket";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6789";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5556";
 
 function getWsUrl(token: string): string {
   const url = new URL(API_BASE_URL);

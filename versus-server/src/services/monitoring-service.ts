@@ -1,6 +1,6 @@
 import { logger } from '../utils/logger.js';
 
-type SentryModule = typeof import('@sentry/node');
+type SentryModule = any;
 
 export interface MonitoringConfig {
   sentryDsn?: string;
@@ -51,7 +51,7 @@ export class MonitoringService {
             exitEvenIfOtherHandlersAreRegistered: false,
           }),
         ],
-        beforeSend(event) {
+        beforeSend(event: any) {
           if (event.environment === 'production') {
             if (
               event.tags?.errorCode === 'VALIDATION_ERROR' ||
@@ -89,7 +89,7 @@ export class MonitoringService {
       return;
     }
 
-    this.sentry.withScope((scope) => {
+    this.sentry.withScope((scope: any) => {
       if (context) {
         // Add game-specific context
         if (context.gameId) {
@@ -122,7 +122,7 @@ export class MonitoringService {
       return;
     }
 
-    this.sentry.withScope((scope) => {
+    this.sentry.withScope((scope: any) => {
       scope.setLevel(level);
 
       if (context) {
@@ -146,7 +146,7 @@ export class MonitoringService {
         name,
         op: operation,
       },
-      (span) => span
+      (span: any) => span
     );
   }
 

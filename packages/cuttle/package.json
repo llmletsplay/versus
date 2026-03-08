@@ -1,0 +1,13 @@
+{
+  "name": "@versus/cuttle",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone Versus cuttle engine package",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@versus/game-core": "workspace:*"
+  }
+}

@@ -574,7 +574,13 @@ describe('HeartsGame', () => {
     test('should track cards played in trick', async () => {
       const state = await game.getGameState();
       const player = state.currentPlayer;
-      const card = state.hands[player][0];
+      const internalState = getInternalState(game);
+      let card = state.hands[player].find((c) => c.suit !== 'hearts');
+
+      if (!card) {
+        internalState.heartsBroken = true;
+        card = state.hands[player][0];
+      }
 
       await game.makeMove({
         player,

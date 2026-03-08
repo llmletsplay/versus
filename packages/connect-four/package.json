@@ -1,0 +1,13 @@
+{
+  "name": "@versus/connect-four",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone Versus connect-four engine package",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@versus/game-core": "workspace:*"
+  }
+}

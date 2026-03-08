@@ -4,6 +4,39 @@ import { BlackjackGame } from '../src/games/blackjack.js';
 describe('BlackjackGame', () => {
   let game: BlackjackGame;
 
+  const setControlledPlayingState = (targetGame: BlackjackGame) => {
+    const controlledState = (targetGame as any).currentState;
+    controlledState.phase = 'playing';
+    controlledState.gameOver = false;
+    controlledState.currentHandIndex = 0;
+    controlledState.playerHands = [
+      {
+        cards: [
+          { rank: '10', suit: '♠', faceUp: true },
+          { rank: '7', suit: '♥', faceUp: true },
+        ],
+        bet: 10,
+        isDouble: false,
+        isSplit: false,
+        isStand: false,
+      },
+    ];
+    controlledState.dealerHand = {
+      cards: [
+        { rank: '10', suit: '♦', faceUp: false },
+        { rank: '6', suit: '♣', faceUp: true },
+      ],
+      bet: 0,
+      isDouble: false,
+      isSplit: false,
+      isStand: false,
+    };
+    controlledState.deck = [
+      { rank: '9', suit: '♣', faceUp: true },
+      { rank: 'A', suit: '♦', faceUp: true },
+    ];
+  };
+
   beforeEach(() => {
     game = new BlackjackGame('test-game');
   });
@@ -150,15 +183,46 @@ describe('BlackjackGame', () => {
     });
 
     test('should reject double after hitting', async () => {
+      const controlledState = (game as any).currentState;
+      controlledState.phase = 'playing';
+      controlledState.gameOver = false;
+      controlledState.currentHandIndex = 0;
+      controlledState.playerHands = [
+        {
+          cards: [
+            { rank: '2', suit: '♠', faceUp: true },
+            { rank: '3', suit: '♥', faceUp: true },
+          ],
+          bet: 10,
+          isDouble: false,
+          isSplit: false,
+          isStand: false,
+        },
+      ];
+      controlledState.dealerHand = {
+        cards: [
+          { rank: '10', suit: '♦', faceUp: false },
+          { rank: '7', suit: '♣', faceUp: true },
+        ],
+        bet: 0,
+        isDouble: false,
+        isSplit: false,
+        isStand: false,
+      };
+      controlledState.deck = [
+        { rank: '9', suit: '♣', faceUp: true },
+        { rank: '4', suit: '♦', faceUp: true },
+      ];
+
       // Hit first to make hand ineligible for double
       await game.makeMove({ action: 'hit', player: 'player' });
 
       const state = await game.getGameState();
-      if (!state.gameOver) {
-        const result = await game.validateMove({ action: 'double', player: 'player' });
-        expect(result.valid).toBe(false);
-        expect(result.error).toContain('Cannot double this hand');
-      }
+      expect(state.gameOver).toBe(false);
+
+      const result = await game.validateMove({ action: 'double', player: 'player' });
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('Cannot double this hand');
     });
   });
 
@@ -330,6 +394,7 @@ describe('BlackjackGame', () => {
     });
 
     test('should make dealer play when player stands', async () => {
+      setControlledPlayingState(game);
       const initialState = await game.getGameState();
       const initialDealerCards = initialState.dealerHand.cards.length;
 
@@ -343,6 +408,7 @@ describe('BlackjackGame', () => {
     });
 
     test('should follow dealer rules (hit on 16, stand on 17)', async () => {
+      setControlledPlayingState(game);
       await game.makeMove({ action: 'stand', player: 'player' });
 
       const state = await game.getGameState();

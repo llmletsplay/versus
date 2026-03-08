@@ -128,12 +128,14 @@ export class MemoryManager {
     this.cleanupTimer = setInterval(async () => {
       await this.performCleanup();
     }, this.config.cleanupInterval);
+    this.cleanupTimer.unref?.();
   }
 
   private startMemoryMonitor(): void {
     this.memoryCheckTimer = setInterval(() => {
       this.checkMemoryUsage();
     }, this.config.memoryCheckInterval);
+    this.memoryCheckTimer.unref?.();
   }
 
   private async performCleanup(): Promise<void> {

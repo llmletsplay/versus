@@ -8,7 +8,7 @@ import type { EscrowTransaction } from '../types/escrow'
 import type { PlayerRating, LeaderboardEntry } from '../types/rating'
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:6789'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5556'
 const API_V1_URL = `${API_BASE_URL}/api/v1`
 
 // Types

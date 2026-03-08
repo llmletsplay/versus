@@ -202,6 +202,7 @@ export class BackupService {
         logger.error('Scheduled backup failed', { error });
       }
     }, intervalMs);
+    this.backupInterval.unref?.();
   }
 
   private async ensureBackupDirectory(): Promise<void> {

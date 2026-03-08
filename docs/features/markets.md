@@ -1,10 +1,14 @@
 # Prediction Markets
 
-Create and trade prediction markets on game outcomes.
+Experimental market layer built on top of the core game platform.
+
+## Status
+
+The market APIs and service layer exist, but this feature should be treated as experimental for the same reason as wagering: the settlement and resolution path is not hardened enough yet for production trust assumptions.
 
 ## Overview
 
-Prediction markets allow users to bet on:
+Prediction markets are intended to allow users to bet on:
 
 - Tournament winners
 - Match outcomes
@@ -206,7 +210,9 @@ function calcBuyPrice(
 | Trading Fee | 0.5% |
 | Resolution Fee | 0.1% |
 
-## Oracle Integration
+## Resolution
+
+The intended resolution sources are:
 
 Markets can resolve via:
 
@@ -214,8 +220,8 @@ Markets can resolve via:
 |--------|-------------|
 | `api` | Versus game API |
 | `manual` | Admin resolution |
-| `chainlink` | Chainlink oracle |
-| `uma` | UMA optimistic oracle |
+| `chainlink` | Planned integration |
+| `uma` | Planned integration |
 
 ## Examples
 

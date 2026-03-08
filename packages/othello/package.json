@@ -1,0 +1,13 @@
+{
+  "name": "@versus/othello",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone Versus othello engine package",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@versus/game-core": "workspace:*"
+  }
+}

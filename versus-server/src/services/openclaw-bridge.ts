@@ -102,6 +102,7 @@ export class OpenClawBridge extends EventEmitter {
       this.reconnectTimer = null;
       this.connectToGateway();
     }, delay);
+    this.reconnectTimer.unref?.();
   }
 
   private handleGatewayMessage(raw: string): void {

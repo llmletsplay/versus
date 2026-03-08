@@ -1,14 +1,15 @@
 import { describe, test, expect, beforeEach } from '@jest/globals';
 import { BaseGame } from '../src/core/base-game.js';
-import { createMockDatabase } from './helpers/gameTestHelpers.js';
+import { InMemoryDatabaseProvider } from '@versus/game-core';
 import { TicTacToeGame } from '../src/games/tic-tac-toe.js';
 import { ChessGame } from '../src/games/chess.js';
 
 describe('Core Game Engine', () => {
-  let mockDb: any;
+  let mockDb: InMemoryDatabaseProvider;
 
   beforeEach(async () => {
-    mockDb = await createMockDatabase();
+    mockDb = new InMemoryDatabaseProvider();
+    await mockDb.initialize();
   });
 
   describe('BaseGame', () => {

@@ -12,8 +12,9 @@ interface RateLimitStore {
 
 const store: RateLimitStore = {};
 
-// Cleanup expired entries periodically
-setInterval(() => {
+// Cleanup expired entries periodically. `unref()` keeps this from pinning test
+// processes or short-lived CLIs that import the middleware module.
+const cleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const key in store) {
     const entry = store[key];
@@ -22,18 +23,20 @@ setInterval(() => {
     }
   }
 }, 60000); // Cleanup every minute
+cleanupInterval.unref?.();
 
 /**
  * SECURITY: Rate limiting middleware to prevent DoS and brute force attacks
  * CRITICAL: This is a production security requirement
  */
 export function createRateLimiter(options: {
+  namespace: string;
   windowMs: number; // Time window in milliseconds
   max: number; // Max requests per window
   message?: string | { error: string; retryAfter?: number | string };
   keyGenerator?: (c: Context) => string;
 }) {
-  const { windowMs, max, message, keyGenerator } = options;
+  const { namespace, windowMs, max, message, keyGenerator } = options;
 
   return async (c: Context, next: Next): Promise<void> => {
     // SECURITY: Generate key for rate limiting
@@ -44,32 +47,37 @@ export function createRateLimiter(options: {
         c.req.header('x-forwarded-for') ||
         c.req.header('x-real-ip') ||
         'unknown';
+    const storageKey = `${namespace}:${key}`;
 
     const now = Date.now();
     const resetTime = now + windowMs;
 
     // Initialize or get current entry
-    if (!store[key] || store[key].resetTime < now) {
-      store[key] = {
+    if (!store[storageKey] || store[storageKey].resetTime < now) {
+      store[storageKey] = {
         count: 0,
         resetTime,
       };
     }
 
     // Increment count
-    store[key].count++;
+    store[storageKey].count++;
 
     // SECURITY: Set rate limit headers
     c.res.headers.set('X-RateLimit-Limit', max.toString());
-    c.res.headers.set('X-RateLimit-Remaining', Math.max(0, max - store[key].count).toString());
-    c.res.headers.set('X-RateLimit-Reset', new Date(store[key].resetTime).toISOString());
+    c.res.headers.set(
+      'X-RateLimit-Remaining',
+      Math.max(0, max - store[storageKey].count).toString()
+    );
+    c.res.headers.set('X-RateLimit-Reset', new Date(store[storageKey].resetTime).toISOString());
 
     // Check if limit exceeded
-    if (store[key].count > max) {
+    if (store[storageKey].count > max) {
       // SECURITY: Log rate limit violation for security monitoring
       logger.warn('Rate limit exceeded', {
+        namespace,
         key,
-        count: store[key].count,
+        count: store[storageKey].count,
         limit: max,
         path: c.req.path,
         method: c.req.method,
@@ -82,7 +90,7 @@ export function createRateLimiter(options: {
           ? { error: message }
           : message || { error: 'Too many requests, please try again later' };
 
-      await c.json(response, 429);
+      return c.json(response, 429) as any;
     }
 
     await next();
@@ -96,6 +104,7 @@ export function createRateLimiter(options: {
  * Allows 100 requests per 15 minutes per IP/user
  */
 export const apiRateLimit = createRateLimiter({
+  namespace: 'api',
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,
   message: {
@@ -109,6 +118,7 @@ export const apiRateLimit = createRateLimiter({
  * Prevents brute force attacks - 5 attempts per 15 minutes
  */
 export const authRateLimit = createRateLimiter({
+  namespace: 'auth',
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5,
   message: {
@@ -127,6 +137,7 @@ export const authRateLimit = createRateLimiter({
  * Prevents game spam - 10 games per hour per user
  */
 export const gameCreationRateLimit = createRateLimiter({
+  namespace: 'game-create',
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10,
   message: {
@@ -140,6 +151,7 @@ export const gameCreationRateLimit = createRateLimiter({
  * Prevents move spam - 60 moves per minute per game
  */
 export const moveRateLimit = createRateLimiter({
+  namespace: 'move',
   windowMs: 60 * 1000, // 1 minute
   max: 60,
   message: {
@@ -158,6 +170,7 @@ export const moveRateLimit = createRateLimiter({
  * Prevents monitoring abuse - 30 requests per minute
  */
 export const healthRateLimit = createRateLimiter({
+  namespace: 'health',
   windowMs: 60 * 1000, // 1 minute
   max: 30,
   message: {

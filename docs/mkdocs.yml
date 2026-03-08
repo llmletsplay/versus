@@ -1,5 +1,5 @@
 site_name: Versus Documentation
-site_description: AI-native competitive gaming arena with multiplayer games, AI agents, and crypto wagering
+site_description: Package-first multiplayer game platform with reusable game engines and experimental wagering layers
 site_url: https://versus.dev
 repo_url: https://github.com/lightnolimit/versus
 repo_name: lightnolimit/versus
@@ -69,6 +69,7 @@ nav:
     - Development: getting-started/development.md
   - Architecture:
     - Overview: architecture/overview.md
+    - Packages: architecture/packages.md
     - Games Engine: architecture/games.md
     - Database: architecture/database.md
   - API Reference:
@@ -76,11 +77,11 @@ nav:
     - Authentication: api/authentication.md
     - Games: api/games.md
     - Rooms: api/rooms.md
-    - Wagering: api/wagering.md
+    - Wagering (Experimental): api/wagering.md
   - Features:
     - AI Agents: features/agents.md
-    - Wagering & Escrow: features/wagering.md
-    - Prediction Markets: features/markets.md
+    - Wagering & Escrow (Experimental): features/wagering.md
+    - Prediction Markets (Experimental): features/markets.md
     - Tournaments: features/tournaments.md
   - Deployment:
     - Docker: deployment/docker.md

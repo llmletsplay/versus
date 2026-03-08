@@ -25,6 +25,7 @@ export class VersusPlatformAgent {
   private config: VersusAgentConfig;
   private isRunning = false;
   private checkInterval: ReturnType<typeof setInterval> | null = null;
+  private recurringIntervals: ReturnType<typeof setInterval>[] = [];
 
   constructor(
     acp: VirtualsACPService,
@@ -89,6 +90,11 @@ export class VersusPlatformAgent {
       this.checkInterval = null;
     }
 
+    for (const interval of this.recurringIntervals) {
+      clearInterval(interval);
+    }
+    this.recurringIntervals = [];
+
     logger.info('VERSUS platform agent stopped');
   }
 
@@ -110,6 +116,7 @@ export class VersusPlatformAgent {
         logger.error('Error processing ACP jobs', { error: error.message });
       }
     }, 30000);
+    this.checkInterval.unref?.();
   }
 
   /**
@@ -170,9 +177,7 @@ export class VersusPlatformAgent {
       gameType,
       format,
       entryFee,
-      prizePool,
-      maxPlayers,
-      createdBy: 'versus-agent',
+      maxParticipants: maxPlayers,
     });
 
     logger.info('Tournament hosted for ACP', { 
@@ -184,7 +189,7 @@ export class VersusPlatformAgent {
     return {
       tournamentId: tournament.id,
       joinUrl: `/tournaments/${tournament.id}/join`,
-      startTime: tournament.startsAt,
+      startTime: tournament.startedAt,
     };
   }
 
@@ -220,11 +225,13 @@ export class VersusPlatformAgent {
     }
 
     // Create wager
-    const wager = await this.wagers.createWager({
+    const { wager } = await this.wagers.createWager({
       gameType,
-      creatorId: 'versus-agent',
-      opponentId: opponent,
-      stake,
+      stakeAmount: String(stake),
+      stakeToken: 'USDC',
+      stakeChain: 'base',
+      playerAAddress: 'versus-agent',
+      playerBAddress: opponent,
     });
 
     return {
@@ -281,14 +288,12 @@ export class VersusPlatformAgent {
    * Monitor tournaments and auto-join suitable ones
    */
   private startTournamentMonitor(): void {
-    setInterval(async () => {
+    const interval = setInterval(async () => {
       if (!this.isRunning || !this.config.autoJoinTournaments) return;
 
       try {
         // Get upcoming tournaments
-        const tournaments = await this.tournaments.listTournaments({
-          status: 'upcoming',
-        });
+        const tournaments = await this.tournaments.listTournaments('registration');
 
         for (const tournament of tournaments) {
           // Check if tournament matches criteria
@@ -300,6 +305,8 @@ export class VersusPlatformAgent {
         logger.error('Error monitoring tournaments', { error: error.message });
       }
     }, 60000); // Check every minute
+    interval.unref?.();
+    this.recurringIntervals.push(interval);
   }
 
   /**
@@ -329,7 +336,7 @@ export class VersusPlatformAgent {
    */
   private async joinTournament(tournamentId: string): Promise<void> {
     try {
-      await this.tournaments.joinTournament(tournamentId, 'versus-agent');
+      await this.tournaments.registerParticipant(tournamentId, 'versus-agent');
       logger.info('Auto-joined tournament', { tournamentId });
     } catch (error: any) {
       logger.error('Failed to join tournament', { tournamentId, error: error.message });
@@ -342,12 +349,15 @@ export class VersusPlatformAgent {
   private startWagerMonitor(): void {
     if (!this.config.autoAcceptWagers) return;
 
-    setInterval(async () => {
+    const interval = setInterval(async () => {
       if (!this.isRunning) return;
 
       try {
         // Get open wagers
-        const openWagers = await this.wagers.listOpenWagers();
+        const openWagers = await this.wagers.listWagers({
+          status: 'proposed',
+          limit: 50,
+        });
 
         for (const wager of openWagers) {
           if (this.shouldAcceptWager(wager)) {
@@ -358,6 +368,8 @@ export class VersusPlatformAgent {
         logger.error('Error monitoring wagers', { error: error.message });
       }
     }, 30000); // Check every 30 seconds
+    interval.unref?.();
+    this.recurringIntervals.push(interval);
   }
 
   /**
@@ -365,7 +377,7 @@ export class VersusPlatformAgent {
    */
   private shouldAcceptWager(wager: any): boolean {
     // Check stake limit
-    if (wager.stake > this.config.maxWagerStake) {
+    if (Number(wager.stakeAmount) > this.config.maxWagerStake) {
       return false;
     }
 
@@ -385,8 +397,9 @@ export class VersusPlatformAgent {
    */
   private async acceptWager(wagerId: string): Promise<void> {
     try {
-      await this.wagers.acceptWager(wagerId, 'versus-agent');
-      logger.info('Auto-accepted wager', { wagerId });
+      logger.warn('Auto-accept wager is not implemented for the current wager model', {
+        wagerId,
+      });
     } catch (error: any) {
       logger.error('Failed to accept wager', { wagerId, error: error.message });
     }

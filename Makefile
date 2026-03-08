@@ -46,7 +46,7 @@ clean: ## Stop and remove all data
 	@echo "✓ Cleaned up"
 
 test: ## Run all tests
-	@cd versus-server && bun test
+	@cd versus-server && bun run test
 
 build: ## Build for production
 	@bun run build

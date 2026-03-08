@@ -12,21 +12,17 @@ Thank you for contributing to Versus!
 
 ### Prerequisites
 
-- Bun 1.0+ or Node.js 18+
+- Node.js 22
+- Bun 1.x
 - Docker and Docker Compose
 - Git
 
 ### Setup
 
 ```bash
-# Fork and clone
 git clone https://github.com/YOUR_USERNAME/versus.git
 cd versus
-
-# Install dependencies
 bun install
-
-# Start development
 make start
 ```
 
@@ -41,17 +37,10 @@ git checkout -b feature/your-feature-name
 ### Make Changes
 
 ```bash
-# Start dev server
-bun run dev
-
-# Run tests
-bun test
-
-# Type check
-bun run type-check
-
-# Lint
-bun run lint:fix
+make test
+make type-check
+make lint
+make build
 ```
 
 ### Commit Changes
@@ -92,13 +81,10 @@ refactor: simplify game state logic
 ### File Organization
 
 ```
-src/
-├── games/      # Game implementations
-├── routes/     # API routes
-├── services/   # Business logic
-├── middleware/ # Request processing
-├── core/       # Core systems
-└── utils/      # Helpers
+packages/         # Reusable game packages
+versus-server/    # Server/platform code
+versus-client/    # React client
+docs/             # Documentation
 ```
 
 ## Testing
@@ -106,9 +92,9 @@ src/
 ### Run Tests
 
 ```bash
-bun test                # All tests
-bun test chess.test.ts  # Specific file
-bun test --coverage     # With coverage
+bun run test                # All tests
+bun run test -- chess.test.ts  # Specific file
+bun run test -- --coverage     # With coverage
 ```
 
 ### Write Tests
@@ -116,7 +102,7 @@ bun test --coverage     # With coverage
 ```typescript
 describe('MyGame', () => {
   let game: MyGame;
-  
+
   beforeEach(async () => {
     game = new MyGame('test-id', database);
     await game.initializeGame();
@@ -136,6 +122,7 @@ describe('MyGame', () => {
 3. Types must check
 4. Coverage must not decrease
 5. Documentation updated
+6. New game logic should be package-first unless there is a strong reason not to
 
 ## Questions?
 

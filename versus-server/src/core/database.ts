@@ -97,6 +97,129 @@ export abstract class DatabaseProvider {
   abstract deleteGameStats(_gameId: string): Promise<void>;
 }
 
+// Lightweight provider for standalone game instances and package use.
+// It keeps game state in memory and avoids any native database dependency.
+export class InMemoryDatabaseProvider extends DatabaseProvider {
+  private gameStates = new Map<string, GameStateData>();
+  private gameStats = new Map<string, GameStats>();
+  private activityLog: ActivityLog[] = [];
+  private nextActivityId = 1;
+
+  constructor() {
+    super('sqlite');
+  }
+
+  async initialize(): Promise<void> {}
+
+  async close(): Promise<void> {
+    this.gameStates.clear();
+    this.gameStats.clear();
+    this.activityLog = [];
+    this.nextActivityId = 1;
+  }
+
+  async query<T = any>(_sql: string, _params: any[] = []): Promise<T[]> {
+    return [];
+  }
+
+  async get<T = any>(_sql: string, _params: any[] = []): Promise<T | null> {
+    return null;
+  }
+
+  async execute(_sql: string, _params: any[] = []): Promise<ExecuteResult> {
+    return { rowsAffected: 0 };
+  }
+
+  async saveGameState(gameStateData: GameStateData): Promise<void> {
+    this.gameStates.set(gameStateData.gameId, {
+      ...gameStateData,
+      gameState: structuredClone(gameStateData.gameState),
+      moveHistory: structuredClone(gameStateData.moveHistory),
+      players: [...gameStateData.players],
+    });
+  }
+
+  async getGameState(gameId: string): Promise<GameStateData | null> {
+    const gameState = this.gameStates.get(gameId);
+    return gameState
+      ? {
+          ...gameState,
+          gameState: structuredClone(gameState.gameState),
+          moveHistory: structuredClone(gameState.moveHistory),
+          players: [...gameState.players],
+        }
+      : null;
+  }
+
+  async deleteGameState(gameId: string): Promise<void> {
+    this.gameStates.delete(gameId);
+  }
+
+  async getActiveGames(): Promise<GameStateData[]> {
+    return Array.from(this.gameStates.values())
+      .filter((game) => game.status === 'active' || game.status === 'waiting')
+      .map((game) => ({
+        ...game,
+        gameState: structuredClone(game.gameState),
+        moveHistory: structuredClone(game.moveHistory),
+        players: [...game.players],
+      }));
+  }
+
+  async getGamesByPlayer(playerId: string): Promise<GameStateData[]> {
+    return Array.from(this.gameStates.values())
+      .filter((game) => game.players.includes(playerId))
+      .map((game) => ({
+        ...game,
+        gameState: structuredClone(game.gameState),
+        moveHistory: structuredClone(game.moveHistory),
+        players: [...game.players],
+      }));
+  }
+
+  async saveGameStats(gameStats: GameStats): Promise<void> {
+    this.gameStats.set(gameStats.gameId, structuredClone(gameStats));
+  }
+
+  async getGameStats(gameId: string): Promise<GameStats | null> {
+    const stats = this.gameStats.get(gameId);
+    return stats ? structuredClone(stats) : null;
+  }
+
+  async getAllGameStats(): Promise<GameStats[]> {
+    return Array.from(this.gameStats.values()).map((stats) => structuredClone(stats));
+  }
+
+  async getGameStatsByType(gameType: string): Promise<GameStats[]> {
+    return Array.from(this.gameStats.values())
+      .filter((stats) => stats.gameType === gameType)
+      .map((stats) => structuredClone(stats));
+  }
+
+  async logActivity(activity: Omit<ActivityLog, 'id'>): Promise<void> {
+    this.activityLog.push({
+      ...activity,
+      id: this.nextActivityId++,
+    });
+  }
+
+  async getActivityLog(limit: number = 100): Promise<ActivityLog[]> {
+    return this.activityLog
+      .slice(-limit)
+      .reverse()
+      .map((activity) => ({ ...activity }));
+  }
+
+  async deleteOldActivity(olderThanDays: number): Promise<void> {
+    const cutoff = Date.now() - olderThanDays * 24 * 60 * 60 * 1000;
+    this.activityLog = this.activityLog.filter((activity) => activity.timestamp >= cutoff);
+  }
+
+  async deleteGameStats(gameId: string): Promise<void> {
+    this.gameStats.delete(gameId);
+  }
+}
+
 // PERF: SQLite provider for development and small deployments
 // CRITICAL: File-based database for persistent storage
 export class SQLiteProvider extends DatabaseProvider {
@@ -111,6 +234,10 @@ export class SQLiteProvider extends DatabaseProvider {
   // CRITICAL: SQLite database initialization with schema creation
   // PERF: Uses WAL mode for better concurrent access
   async initialize(): Promise<void> {
+    if (this.db) {
+      return;
+    }
+
     try {
       // PERF: Enable WAL mode for better concurrency
       this.db = new Database(this.dbPath);
@@ -425,6 +552,10 @@ export class SQLiteProvider extends DatabaseProvider {
   // SECURITY: Parameterized queries prevent SQL injection
   async query<T = any>(sql: string, params: any[] = []): Promise<T[]> {
     if (!this.db) {
+      await this.initialize();
+    }
+
+    if (!this.db) {
       throw new Error('Database not initialized');
     }
 
@@ -448,6 +579,10 @@ export class SQLiteProvider extends DatabaseProvider {
 
   async get<T = any>(sql: string, params: any[] = []): Promise<T | null> {
     if (!this.db) {
+      await this.initialize();
+    }
+
+    if (!this.db) {
       throw new Error('Database not initialized');
     }
 
@@ -463,10 +598,20 @@ export class SQLiteProvider extends DatabaseProvider {
 
   async execute(sql: string, params: any[] = []): Promise<ExecuteResult> {
     if (!this.db) {
+      await this.initialize();
+    }
+
+    if (!this.db) {
       throw new Error('Database not initialized');
     }
 
     try {
+      const normalizedSql = normalizeSQLiteSql(sql);
+      if (params.length === 0 && normalizedSql.includes(';')) {
+        this.db.exec(normalizedSql);
+        return { rowsAffected: 0 };
+      }
+
       const stmt = this.db.prepare(normalizeSQLiteSql(sql));
       const result = stmt.run(...params);
       return {
@@ -482,6 +627,10 @@ export class SQLiteProvider extends DatabaseProvider {
   }
 
   async saveGameState(gameStateData: GameStateData): Promise<void> {
+    if (!this.db) {
+      await this.initialize();
+    }
+
     if (!this.db) {
       throw new Error('Database not initialized');
     }
@@ -740,6 +889,10 @@ export class PostgreSQLProvider extends DatabaseProvider {
   }
 
   async initialize(): Promise<void> {
+    if (this.pool) {
+      return;
+    }
+
     // PERF: Connection pool configuration - CRITICAL
     this.pool = new Pool({
       connectionString: this.connectionString,
@@ -765,7 +918,7 @@ export class PostgreSQLProvider extends DatabaseProvider {
 
     // PERF: Monitor pool statistics
     if (process.env.NODE_ENV !== 'production') {
-      setInterval(() => {
+      const poolStatsInterval = setInterval(() => {
         if (this.pool) {
           const { totalCount, idleCount, waitingCount } = this.pool;
           logger.debug(
@@ -773,6 +926,7 @@ export class PostgreSQLProvider extends DatabaseProvider {
           );
         }
       }, 30000); // Log every 30 seconds in development
+      poolStatsInterval.unref?.();
     }
 
     // Create tables if they don't exist

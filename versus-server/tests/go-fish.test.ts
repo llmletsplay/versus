@@ -22,11 +22,11 @@ describe('GoFishGame', () => {
       const playerIds = Object.keys(players);
       expect(playerIds).toHaveLength(4); // Default 4 players
 
-      // Each player should have 5 cards (4+ players rule)
+      // Each player is dealt 5 cards, then any initial books are removed from the hand.
       for (const playerId of playerIds) {
-        expect(players[playerId].handSize).toBe(5);
-        expect(players[playerId].books).toEqual([]);
-        expect(players[playerId].bookCount).toBe(0);
+        expect(players[playerId].handSize + players[playerId].bookCount * 4).toBe(5);
+        expect(Array.isArray(players[playerId].books)).toBe(true);
+        expect(players[playerId].bookCount).toBe(players[playerId].books.length);
       }
 
       // Deck should have remaining cards
@@ -53,9 +53,10 @@ describe('GoFishGame', () => {
       const playerIds = Object.keys(players);
       expect(playerIds).toHaveLength(2);
 
-      // Each player should have 7 cards (2-3 players rule)
+      // Each player is dealt 7 cards, then any initial books are removed from the hand.
       for (const playerId of playerIds) {
-        expect(players[playerId].handSize).toBe(7);
+        expect(players[playerId].handSize + players[playerId].bookCount * 4).toBe(7);
+        expect(players[playerId].bookCount).toBe(players[playerId].books.length);
       }
     });
 

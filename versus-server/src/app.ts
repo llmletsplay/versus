@@ -106,6 +106,7 @@ export async function createApp(config: AppConfig) {
 
   // ── Initialize Platform Services ─────────────────────────────────
   const db = gameManager.getDatabase();
+  await db.initialize();
   const roomService = new RoomService(db, gameManager, wsServer);
   const ratingService = new RatingService(db);
   const escrowService = new EscrowService(db, wsServer);
@@ -201,8 +202,17 @@ export async function createApp(config: AppConfig) {
     return c.json({
       name: 'Versus Platform',
       version: '2.0.0',
-      description: 'AI-native competitive gaming arena with crypto wagering and prediction markets',
+      description:
+        'Package-first multiplayer game platform with reusable game engines and optional platform services',
       platforms: ['Node.js', 'Cloudflare Workers', 'Bun', 'Deno'],
+      architecture: {
+        stable: ['game packages', 'game manager', 'real-time multiplayer', 'auth', 'rooms'],
+        experimental: ['wagers', 'x402', 'prediction markets', 'intent settlement'],
+      },
+      packages: {
+        core: '@versus/game-core',
+        games: 'packages/*',
+      },
       endpoints: {
         auth: '/api/v1/auth',
         games: '/api/v1/games',
@@ -216,13 +226,16 @@ export async function createApp(config: AppConfig) {
         health: '/api/v1/health',
       },
       features: [
+        'Reusable standalone game engines',
         'Real-time WebSocket multiplayer',
         'AI agent integration (OpenClaw + MCP)',
-        'Crypto escrow wagering',
-        'Prediction markets',
         'ELO-based matchmaking',
         'Tournament system',
-        'Non-custodial intent settlement',
+      ],
+      experimental: [
+        'Crypto escrow wagering',
+        'Prediction markets',
+        'Intent-based settlement',
         'Cross-chain wager support',
       ],
       documentation: 'https://github.com/lightnolimit/versus',
@@ -319,5 +332,16 @@ export async function createApp(config: AppConfig) {
     intentService,
     wagerService,
     solverBridge,
+    close: async () => {
+      openClawBridge?.close();
+      wsServer.close();
+
+      if (monitoringService) {
+        await monitoringService.close();
+      }
+
+      await authService.close();
+      await gameManager.close();
+    },
   };
 }

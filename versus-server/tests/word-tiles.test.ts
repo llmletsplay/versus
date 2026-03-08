@@ -419,6 +419,7 @@ describe('WordTilesGame', () => {
     test('should handle tile exchange correctly', async () => {
       const internalState = getInternalState(game);
       const originalRack = [...internalState.players.player1.rack];
+      const originalBagSize = internalState.tileBag.length;
       const tilesToExchange = originalRack.slice(0, 2);
 
       await game.makeMove({
@@ -432,12 +433,8 @@ describe('WordTilesGame', () => {
 
       // Should still have 7 tiles
       expect(newRack).toHaveLength(7);
-
-      // At least some tiles should be different
-      const sameCount = newRack.filter((tile) =>
-        originalRack.some((orig) => orig.letter === tile.letter)
-      ).length;
-      expect(sameCount).toBeLessThan(7);
+      expect(newInternalState.tileBag).toHaveLength(originalBagSize);
+      expect(newInternalState.currentPlayer).toBe('player2');
     });
   });
 

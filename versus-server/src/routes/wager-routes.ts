@@ -6,11 +6,11 @@ import type { IntentService } from '../services/intent-service.js';
 import type { X402PaymentService } from '../services/x402-payment-service.js';
 import { logger } from '../utils/logger.js';
 import { requireAuth, getAuthUserId } from '../middleware/auth.js';
-import {
-  createX402PaymentResponse,
-  createPaymentCheck,
-  type X402MiddlewareConfig,
-} from '../middleware/x402-middleware.js';
+
+interface X402RouteConfig {
+  enabled: boolean;
+  settlementAddress?: string;
+}
 
 const createWagerSchema = z.object({
   gameType: z.string().min(1),
@@ -47,14 +47,13 @@ export function createWagerRoutes(
   wagerService: WagerService,
   intentService: IntentService,
   paymentService: X402PaymentService | null,
-  x402Config: X402MiddlewareConfig
+  x402Config: X402RouteConfig
 ) {
   const app = new Hono();
-  const checkPayment = createPaymentCheck(paymentService, x402Config);
 
   app.post('/', requireAuth, zValidator('json', createWagerSchema), async (c) => {
     try {
-      const oderId = getAuthUserId(c);
+      getAuthUserId(c);
       const body = c.req.valid('json');
 
       const { wager, paymentInfo } = await wagerService.createWager({

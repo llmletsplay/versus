@@ -35,6 +35,6 @@ export const API_ENDPOINTS = {
 } as const;
 
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:6789',
+  BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:5556',
   DEFAULT_TIMEOUT: 30000,
 } as const;

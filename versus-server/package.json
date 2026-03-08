@@ -1,7 +1,7 @@
 {
   "name": "versus-server",
   "version": "1.0.0",
-  "description": "TypeScript game arcade API and MCP server for AI agents",
+  "description": "Server and platform layer for the Versus reusable game packages",
   "main": "dist/node.js",
   "type": "module",
   "scripts": {
@@ -12,8 +12,8 @@
     "start:cloudflare": "wrangler dev",
     "deploy:cloudflare": "wrangler deploy",
     "mcp": "bun run src/mcp/server.ts",
-    "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest",
-    "test:watch": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --watch",
+    "test": "/bin/zsh -lic 'NODE_OPTIONS=\"--experimental-vm-modules --no-warnings\" node ../node_modules/jest/bin/jest.js --watchman=false'",
+    "test:watch": "/bin/zsh -lic 'NODE_OPTIONS=\"--experimental-vm-modules --no-warnings\" node ../node_modules/jest/bin/jest.js --watch --watchman=false'",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "type-check": "tsc --noEmit",
@@ -30,6 +30,10 @@
   ],
   "author": "",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0",
+    "bun": ">=1.0.0"
+  },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/bun": "^1.2.18",
@@ -70,7 +74,35 @@
     "pg": "^8.16.3",
     "uuid": "^11.1.0",
     "ws": "^8.19.0",
-    "zod": "^3.25.73"
+    "zod": "^3.25.73",
+    "@versus/against-cards": "workspace:*",
+    "@versus/battleship": "workspace:*",
+    "@versus/bingo": "workspace:*",
+    "@versus/blackjack": "workspace:*",
+    "@versus/bullshit": "workspace:*",
+    "@versus/catan": "workspace:*",
+    "@versus/checkers": "workspace:*",
+    "@versus/chess": "workspace:*",
+    "@versus/chinese-checkers": "workspace:*",
+    "@versus/connect-four": "workspace:*",
+    "@versus/crazy-cards": "workspace:*",
+    "@versus/cuttle": "workspace:*",
+    "@versus/game-core": "workspace:*",
+    "@versus/go": "workspace:*",
+    "@versus/go-fish": "workspace:*",
+    "@versus/hearts": "workspace:*",
+    "@versus/mahjong": "workspace:*",
+    "@versus/mancala": "workspace:*",
+    "@versus/martial-tactics": "workspace:*",
+    "@versus/omok": "workspace:*",
+    "@versus/othello": "workspace:*",
+    "@versus/poker": "workspace:*",
+    "@versus/shogi": "workspace:*",
+    "@versus/spades": "workspace:*",
+    "@versus/thirteen": "workspace:*",
+    "@versus/tic-tac-toe": "workspace:*",
+    "@versus/war": "workspace:*",
+    "@versus/word-tiles": "workspace:*"
   },
   "lint-staged": {
     "*.{ts,js}": [

@@ -126,8 +126,9 @@ describe('AgainstCardsGame', () => {
     it('should validate submit action with correct number of cards', async () => {
       await game.makeMove({ player: 'player1', action: 'start_round' });
 
+      const state = await game.getGameState();
       const player2Hand = await game.getPlayerHand('player2');
-      const cardsToSubmit = [player2Hand[0]];
+      const cardsToSubmit = player2Hand.slice(0, state.currentPrompt.blanks);
 
       const result = await game.validateMove({
         player: 'player2',
@@ -555,12 +556,16 @@ describe('AgainstCardsGame', () => {
     it("should reject submit with cards player doesn't have", async () => {
       await game.makeMove({ player: 'player1', action: 'start_round' });
 
-      const fakeCard = { id: 'fake-card', text: 'Fake card' };
+      const requiredCards = ((game as any).currentState.currentPrompt?.blanks ?? 1) as number;
+      const fakeCards = Array.from({ length: requiredCards }, (_, index) => ({
+        id: `fake-card-${index}`,
+        text: `Fake card ${index}`,
+      }));
 
       const result = await game.validateMove({
         player: 'player2',
         action: 'submit',
-        cards: [fakeCard],
+        cards: fakeCards,
       });
       expect(result.valid).toBe(false);
       expect(result.error).toBe('Player does not have submitted card');

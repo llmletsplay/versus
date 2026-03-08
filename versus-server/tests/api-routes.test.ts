@@ -41,7 +41,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await services.gameManager.close();
+  await services.close();
   delete process.env.JWT_SECRET;
 });
 

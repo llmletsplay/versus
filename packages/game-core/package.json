@@ -1,0 +1,10 @@
+{
+  "name": "@versus/game-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared core types and helpers for standalone Versus game packages",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

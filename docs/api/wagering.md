@@ -1,13 +1,24 @@
 # Wagering API
 
-Non-custodial crypto wagering with escrow and settlement.
+Experimental API surface for wagers, stake commitments, and intent-linked settlement flows.
 
 ## Overview
 
-Versus supports on-chain wagering through:
-- **Escrow contracts** - Hold stakes during gameplay
-- **Intent-based settlement** - Non-custodial payouts
-- **x402 payment protocol** - USDC/Coinbase integration
+This API documents the current route surface, not a finished mainnet escrow product.
+
+Implemented today:
+
+- wager creation and lifecycle records
+- stake commitment endpoints
+- intent tracking endpoints
+- x402 integration hooks
+
+Not yet production-complete:
+
+- audited smart-contract escrow
+- full cryptographic signature validation across all chains
+- real NEAR/Base/Solana settlement confirmation
+- trustless dispute handling
 
 ## Endpoints
 
@@ -154,7 +165,7 @@ POST /api/v1/wagers/:wagerId/cancel
 | `cancelled` | Refunded |
 | `disputed` | Under review |
 
-## Escrow Flow
+## Intended Escrow Flow
 
 ```
 1. Create Wager → Generate escrow address
@@ -179,22 +190,26 @@ POST /api/v1/wagers/:wagerId/cancel
 
 ## Security
 
-### Non-Custodial Design
+### Design Goal
 
-- Funds held in smart contracts
-- Private keys never stored
-- Settlement via signed intents
+- funds committed without storing private keys
+- settlement driven by signed intents
+- outcome derived from deterministic game results
+
+That is the architecture target. It is not a claim that the current implementation is production-trustless.
 
 ### Dispute Resolution
 
-1. Both parties can flag dispute
-2. Evidence submitted on-chain
-3. Arbitration by platform or DAO
-4. Funds released after resolution
+1. both parties can flag dispute
+2. evidence can be attached
+3. a final resolution source is chosen
+4. funds are released after resolution
+
+The exact trust model here is still under development.
 
 ## x402 Integration
 
-Enable x402 for Coinbase/USDC payments:
+Enable x402 for experimental payment-gated flows:
 
 ```bash
 # Environment

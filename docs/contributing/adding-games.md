@@ -1,17 +1,19 @@
 # Adding New Games
 
-Guide to implementing new games for Versus.
+Guide to implementing a new reusable game package for Versus.
 
 ## Overview
 
-All games extend `BaseGame<TState>` and implement required methods.
+New game logic should live in `packages/<game>`, not directly in the server.
+
+The server should consume the package after the package exists.
 
 ## Step 1: Define State
 
 ```typescript
-// src/games/my-game.ts
-import { BaseGame } from '../core/base-game.js';
-import type { GameState, GameMove, GameMetadata } from '../types/game.js';
+// packages/my-game/src/index.ts
+import { BaseGame } from '@versus/game-core';
+import type { DatabaseProvider, GameState, GameMove, GameMetadata } from '@versus/game-core';
 
 interface MyGameState extends GameState {
   board: number[];
@@ -109,11 +111,30 @@ export class MyGame extends BaseGame<MyGameState> {
 }
 ```
 
-## Step 3: Register Game
+## Step 3: Add Package Metadata
+
+Create `packages/my-game/package.json`:
+
+```json
+{
+  "name": "@versus/my-game",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@versus/game-core": "workspace:*"
+  }
+}
+```
+
+## Step 4: Register Game In The Server
 
 ```typescript
-// src/games/index.ts
-import { MyGame } from './my-game.js';
+// versus-server/src/games/index.ts
+import { MyGame } from '@versus/my-game';
 
 export function registerGames(gameManager: GameManager): void {
   // ... existing games
@@ -121,9 +142,20 @@ export function registerGames(gameManager: GameManager): void {
 }
 ```
 
-## Step 4: Add Rules
+Create a compatibility shim:
 
-Create `docs/rules/my-game.md`:
+```typescript
+// versus-server/src/games/my-game.ts
+export * from '@versus/my-game';
+```
+
+## Step 5: Add Rules
+
+Create `versus-server/docs/rules/my-game.md` for now.
+
+During the package migration, rules docs can stay there. Longer-term they should move next to the game package or into a package README.
+
+## Step 6: Write Tests
 
 ```markdown
 # My Game Rules
@@ -146,21 +178,14 @@ Describe how to win.
 ## Step 5: Write Tests
 
 ```typescript
-// tests/my-game.test.ts
+// versus-server/tests/my-game.test.ts
 import { MyGame } from '../src/games/my-game.js';
-import { createDatabaseProvider } from '../src/core/database.js';
+import { InMemoryDatabaseProvider } from '@versus/game-core';
 
 describe('MyGame', () => {
   let game: MyGame;
-  let database: DatabaseProvider;
-  
   beforeEach(async () => {
-    database = createDatabaseProvider({ 
-      type: 'sqlite', 
-      sqlitePath: ':memory:' 
-    });
-    await database.initialize();
-    
+    const database = new InMemoryDatabaseProvider();
     game = new MyGame('test-id', database);
     await game.initializeGame();
   });
@@ -201,11 +226,11 @@ describe('MyGame', () => {
 
 ## Best Practices
 
-1. **Keep state immutable** - Always create new objects
-2. **Validate thoroughly** - Check all edge cases
-3. **Handle errors gracefully** - Return clear error messages
-4. **Test extensively** - Cover all game states
-5. **Document clearly** - Help others understand
+1. **Put canonical game logic in `packages/<game>`**
+2. **Keep server files as shims or registration points**
+3. **Use `InMemoryDatabaseProvider` for standalone tests**
+4. **Validate thoroughly** and return precise errors
+5. **Document rules clearly**
 
 ## Example Games
 
@@ -220,9 +245,11 @@ Reference existing implementations:
 ## Checklist
 
 - [ ] State interface defined
+- [ ] Package created in `packages/<game>`
 - [ ] Game class implemented
 - [ ] All required methods implemented
-- [ ] Game registered
+- [ ] Server registry updated
+- [ ] Compatibility shim added
 - [ ] Rules documented
 - [ ] Tests written
 - [ ] Tests passing

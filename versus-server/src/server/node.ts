@@ -147,7 +147,7 @@ async function startServer() {
     logger.info('   /api/v1/tournaments   — Tournament system');
 
     // Cleanup inactive games every hour
-    setInterval(
+    const cleanupInterval = setInterval(
       () => {
         const cleanedCount = gameManager.cleanupInactiveGames();
         if (cleanedCount > 0) {
@@ -156,6 +156,7 @@ async function startServer() {
       },
       60 * 60 * 1000
     );
+    cleanupInterval.unref?.();
 
     return server;
   } catch (error) {

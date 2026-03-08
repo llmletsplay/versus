@@ -25,6 +25,7 @@ export class GameManager {
   private database: DatabaseProvider;
   private statsService: StatsService;
   private cleanupInterval?: NodeJS.Timer;
+  private memoryLogInterval?: NodeJS.Timer;
 
   constructor(databaseConfig: DatabaseConfig) {
     this.database = createDatabaseProvider(databaseConfig);
@@ -45,6 +46,7 @@ export class GameManager {
     this.cleanupInterval = setInterval(() => {
       this.performPeriodicCleanup();
     }, 60000); // Every minute
+    this.cleanupInterval.unref?.();
   }
 
   // CRITICAL: System initialization - must complete successfully for server to function
@@ -59,7 +61,7 @@ export class GameManager {
 
     // PERF: Log memory stats periodically in development
     if (process.env.NODE_ENV !== 'production') {
-      setInterval(() => {
+      this.memoryLogInterval = setInterval(() => {
         const memUsage = process.memoryUsage();
         logger.debug('Memory usage', {
           activeGames: this.activeGames.size,
@@ -68,6 +70,7 @@ export class GameManager {
           heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB',
         });
       }, 30000); // Every 30 seconds
+      this.memoryLogInterval.unref?.();
     }
   }
 
@@ -75,6 +78,10 @@ export class GameManager {
     // PERF: Clean up all resources properly
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
+    }
+
+    if (this.memoryLogInterval) {
+      clearInterval(this.memoryLogInterval);
     }
 
     // Clean up all active games

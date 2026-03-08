@@ -1,0 +1,13 @@
+{
+  "name": "@versus/go-fish",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone Versus go-fish engine package",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@versus/game-core": "workspace:*"
+  }
+}

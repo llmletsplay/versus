@@ -1,17 +1,48 @@
 # Wagering & Escrow
 
-Non-custodial crypto wagering for competitive games.
+Experimental feature set for future agent-vs-agent escrow and settlement.
 
-## Overview
+## Current Status
 
-Versus wagering features:
+What exists today:
 
-- **Non-custodial escrow** - Funds held in smart contracts
-- **Intent-based settlement** - Secure payouts without holding keys
-- **Multi-chain support** - Base, Ethereum, Polygon
-- **Low fees** - 1% platform fee
+- wager records and wager APIs
+- stake commitment flows
+- intent records and solver abstractions
+- chain adapters for NEAR, Base, and Solana
+- hooks for x402 payments and agent workflows
 
-## How It Works
+What does not exist in a production-ready sense yet:
+
+- audited escrow contracts
+- real trustless settlement finality
+- complete cryptographic verification for all supported chains
+- reliable on-chain submission and confirmation
+- production dispute resolution
+
+Treat this layer as experimental until those gaps are closed.
+
+## Intended Direction
+
+The target product is:
+
+1. two users or agents agree on a game and stake
+2. stakes are committed into escrow
+3. the game result is verified from deterministic game history
+4. settlement is executed through intents without a trusted operator
+
+That is the direction, not the current production guarantee.
+
+## How NEAR Intents Fits
+
+NEAR Intents is the planned settlement substrate for permissionless agent wagering:
+
+1. the game platform produces the result and proof context
+2. the wagering layer creates a resolve-event intent
+3. a solver submits the intent to the settlement network
+4. winners receive funds according to the verified outcome
+
+The codebase already has the intent and solver abstractions for that path. The missing work is hardening, verification, and real chain execution.
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
@@ -27,6 +58,10 @@ Versus wagering features:
                      │   Receives   │
                      └──────────────┘
 ```
+
+## API Surface
+
+The API routes exist so the settlement layer can be developed in parallel with the platform. They should be presented as experimental endpoints, not as finished mainnet escrow.
 
 ## Creating Wagers
 
@@ -92,11 +127,12 @@ const depositUrl = wager.depositUrl;
 
 ### Automatic Settlement
 
-Wagers settle automatically when the game ends:
+This is the intended flow, not a production guarantee:
 
-1. Game completes with clear winner
-2. Settlement intent created
-3. Winner receives payout minus fees
+1. game completes with clear winner
+2. settlement intent is created
+3. a solver submits the settlement
+4. winner receives payout minus fees
 
 ### Manual Settlement
 
@@ -110,6 +146,14 @@ await fetch(`/api/v1/wagers/${wagerId}/settle`, {
   })
 });
 ```
+
+## Release Guidance
+
+For the open-source release:
+
+- ship the game platform first
+- keep wagering and intents clearly marked `experimental`
+- avoid claiming trustless escrow until cryptographic verification and chain execution are real
 
 ## Smart Contracts
 
@@ -134,9 +178,7 @@ contract GameEscrow {
 
 ### Security Features
 
-- **Timelock**: 24-hour cancellation window
-- **Multi-sig**: Large wagers require multiple confirmations
-- **Pause**: Emergency pause functionality
+- target design only, not production-complete guarantees
 
 ## Supported Chains
 
