@@ -1,6 +1,32 @@
 import { ShogiGame } from '../src/games/shogi.js';
 import { describe, it, expect, beforeEach } from '@jest/globals';
 
+const createEmptyShogiBoard = () => Array.from({ length: 9 }, () => Array(9).fill(null));
+
+async function restoreShogiState(game: ShogiGame, state: Record<string, any>): Promise<void> {
+  await game.restoreFromDatabase({
+    gameId: 'test-shogi-game',
+    gameType: 'shogi',
+    moveHistory: state.moveHistory ?? [],
+    players: ['sente', 'gote'],
+    status: state.gameOver ? 'completed' : 'active',
+    gameState: {
+      gameId: 'test-shogi-game',
+      gameType: 'shogi',
+      board: createEmptyShogiBoard(),
+      currentPlayer: 'sente',
+      gameOver: false,
+      winner: null,
+      capturedPieces: { sente: [], gote: [] },
+      moveHistory: [],
+      inCheck: false,
+      players: ['sente', 'gote'],
+      status: 'active',
+      ...state,
+    },
+  } as any);
+}
+
 describe('ShogiGame', () => {
   let game: ShogiGame;
 
@@ -71,7 +97,7 @@ describe('ShogiGame', () => {
         player: 'gote',
       };
 
-      await expect(game.makeMove(move)).rejects.toThrow('Invalid move');
+      await expect(game.makeMove(move)).rejects.toThrow('Not your turn');
     });
 
     it('should allow knight moves', async () => {
@@ -147,24 +173,33 @@ describe('ShogiGame', () => {
     });
 
     it('should allow pawn promotion in promotion zone', async () => {
-      // Set up a scenario where a pawn can promote
-      // This is a simplified test - in a real game this would require many moves
-      await game.getGameState();
+      const board = createEmptyShogiBoard();
+      board[0][8] = { type: 'king', player: 'gote' };
+      board[3][4] = { type: 'pawn', player: 'sente' };
+      board[8][4] = { type: 'king', player: 'sente' };
 
-      // Manually place a pawn near promotion zone for testing
-      const testGame = new ShogiGame('test-promotion');
-      await testGame.initializeGame();
+      await restoreShogiState(game, {
+        board,
+        currentPlayer: 'sente',
+      });
 
-      // We'll test the promotion logic with a hypothetical move
-      const validation = await testGame.validateMove({
-        from: { row: 1, col: 4 },
-        to: { row: 0, col: 4 },
+      const validation = await game.validateMove({
+        from: { row: 3, col: 4 },
+        to: { row: 2, col: 4 },
+        player: 'sente',
+        promote: true,
+      });
+      expect(validation.valid).toBe(true);
+
+      const state = await game.makeMove({
+        from: { row: 3, col: 4 },
+        to: { row: 2, col: 4 },
         player: 'sente',
         promote: true,
       });
 
-      // This move would be invalid in starting position, but tests the validation logic
-      expect(validation.valid).toBe(false); // Invalid because piece doesn't exist there
+      expect(state.board[2][4]).toEqual({ type: 'pawn', player: 'sente', promoted: true });
+      expect(state.board[3][4]).toBe(null);
     });
   });
 
@@ -173,23 +208,35 @@ describe('ShogiGame', () => {
       await game.initializeGame();
     });
 
-    it('should validate drop moves', async () => {
-      // First we need to capture a piece to have something to drop
-      // This is a complex scenario that would require setting up the board state
+    it('should allow legal drop moves from hand', async () => {
+      const board = createEmptyShogiBoard();
+      board[0][8] = { type: 'king', player: 'gote' };
+      board[8][4] = { type: 'king', player: 'sente' };
 
-      const testGame = new ShogiGame('test-drops');
-      await testGame.initializeGame();
+      await restoreShogiState(game, {
+        board,
+        currentPlayer: 'sente',
+        capturedPieces: { sente: ['pawn'], gote: [] },
+      });
 
-      // Test validation of a drop move (this will fail because no pieces captured yet)
-      const validation = await testGame.validateMove({
+      const validation = await game.validateMove({
+        from: { row: -1, col: -1 },
+        to: { row: 4, col: 4 },
+        player: 'sente',
+        drop: 'pawn',
+      });
+      expect(validation.valid).toBe(true);
+
+      const state = await game.makeMove({
         from: { row: -1, col: -1 },
         to: { row: 4, col: 4 },
         player: 'sente',
         drop: 'pawn',
       });
 
-      expect(validation.valid).toBe(false);
-      expect(validation.error).toBe('Piece not in hand');
+      expect(state.board[4][4]).toEqual({ type: 'pawn', player: 'sente' });
+      expect(state.capturedPieces.sente).toHaveLength(0);
+      expect(state.currentPlayer).toBe('gote');
     });
   });
 
@@ -199,17 +246,41 @@ describe('ShogiGame', () => {
     });
 
     it('should detect when king is in check', async () => {
-      // This would require setting up a specific board position
-      // For now, we test that the game starts without check
+      const board = createEmptyShogiBoard();
+      board[0][8] = { type: 'king', player: 'gote' };
+      board[4][4] = { type: 'rook', player: 'gote' };
+      board[8][4] = { type: 'king', player: 'sente' };
+
+      await restoreShogiState(game, {
+        board,
+        currentPlayer: 'sente',
+      });
+
       const state = await game.getGameState();
-      expect(state.inCheck).toBe(false);
+      expect(state.inCheck).toBe(true);
+      expect(state.gameOver).toBe(false);
     });
 
     it('should not allow moves that put own king in check', async () => {
-      // This would require a specific scenario
-      // The validation should prevent such moves
-      const state = await game.getGameState();
-      expect(state.gameOver).toBe(false);
+      const board = createEmptyShogiBoard();
+      board[0][8] = { type: 'king', player: 'gote' };
+      board[4][4] = { type: 'rook', player: 'gote' };
+      board[7][4] = { type: 'gold', player: 'sente' };
+      board[8][4] = { type: 'king', player: 'sente' };
+
+      await restoreShogiState(game, {
+        board,
+        currentPlayer: 'sente',
+      });
+
+      const validation = await game.validateMove({
+        from: { row: 7, col: 4 },
+        to: { row: 7, col: 3 },
+        player: 'sente',
+      });
+
+      expect(validation.valid).toBe(false);
+      expect(validation.error).toContain('leave king in check');
     });
   });
 
@@ -290,13 +361,17 @@ describe('ShogiGame', () => {
     });
 
     it('should enforce pawn drop restrictions', async () => {
-      // Test that pawns cannot be dropped on the last rank
-      // This requires having a pawn in hand first
-      const testGame = new ShogiGame('test-pawn-drop');
-      await testGame.initializeGame();
+      const board = createEmptyShogiBoard();
+      board[0][8] = { type: 'king', player: 'gote' };
+      board[8][4] = { type: 'king', player: 'sente' };
 
-      // This tests the validation logic even though we don't have a pawn in hand
-      const validation = await testGame.validateMove({
+      await restoreShogiState(game, {
+        board,
+        currentPlayer: 'sente',
+        capturedPieces: { sente: ['pawn'], gote: [] },
+      });
+
+      const validation = await game.validateMove({
         from: { row: -1, col: -1 },
         to: { row: 0, col: 4 },
         player: 'sente',
@@ -304,31 +379,62 @@ describe('ShogiGame', () => {
       });
 
       expect(validation.valid).toBe(false);
+      expect(validation.error).toBe('Illegal drop');
+    });
+
+    it('should reject a pawn drop that gives immediate checkmate', async () => {
+      const board = createEmptyShogiBoard();
+      board[0][4] = { type: 'king', player: 'gote' };
+      board[2][1] = { type: 'bishop', player: 'sente' };
+      board[2][4] = { type: 'gold', player: 'sente' };
+      board[2][7] = { type: 'bishop', player: 'sente' };
+      board[8][4] = { type: 'king', player: 'sente' };
+
+      await restoreShogiState(game, {
+        board,
+        currentPlayer: 'sente',
+        capturedPieces: { sente: ['pawn'], gote: [] },
+      });
+
+      const validation = await game.validateMove({
+        from: { row: -1, col: -1 },
+        to: { row: 1, col: 4 },
+        player: 'sente',
+        drop: 'pawn',
+      });
+
+      expect(validation.valid).toBe(false);
+      expect(validation.error).toBe('Illegal drop');
     });
 
     it('should enforce lance and knight drop restrictions', async () => {
-      const testGame = new ShogiGame('test-piece-drops');
-      await testGame.initializeGame();
+      const board = createEmptyShogiBoard();
+      board[0][8] = { type: 'king', player: 'gote' };
+      board[8][4] = { type: 'king', player: 'sente' };
 
-      // Test lance drop on last rank
-      const lanceValidation = await testGame.validateMove({
+      await restoreShogiState(game, {
+        board,
+        currentPlayer: 'sente',
+        capturedPieces: { sente: ['lance', 'knight'], gote: [] },
+      });
+
+      const lanceValidation = await game.validateMove({
         from: { row: -1, col: -1 },
         to: { row: 0, col: 4 },
         player: 'sente',
         drop: 'lance',
       });
-
       expect(lanceValidation.valid).toBe(false);
+      expect(lanceValidation.error).toBe('Illegal drop');
 
-      // Test knight drop on second-to-last rank
-      const knightValidation = await testGame.validateMove({
+      const knightValidation = await game.validateMove({
         from: { row: -1, col: -1 },
         to: { row: 1, col: 4 },
         player: 'sente',
         drop: 'knight',
       });
-
       expect(knightValidation.valid).toBe(false);
+      expect(knightValidation.error).toBe('Illegal drop');
     });
   });
 
@@ -353,3 +459,6 @@ describe('ShogiGame', () => {
     });
   });
 });
+
+
+

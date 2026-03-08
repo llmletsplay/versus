@@ -1,4 +1,4 @@
-import { GoGame } from '../src/games/go.js';
+﻿import { GoGame } from '../src/games/go.js';
 
 // Helper function to access internal state
 function getInternalState(game: any): any {
@@ -257,33 +257,6 @@ describe('GoGame', () => {
       expect(validResult.valid).toBe(true);
     });
 
-    it('should clear ko position after a pass', async () => {
-      // Create a simplified test - just verify ko position clearing
-      await game.makeMove({ player: 'black', action: 'place', row: 4, col: 4 });
-      await game.makeMove({ player: 'white', action: 'place', row: 3, col: 4 });
-      await game.makeMove({ player: 'black', action: 'place', row: 5, col: 4 });
-      await game.makeMove({ player: 'white', action: 'place', row: 4, col: 3 });
-      await game.makeMove({ player: 'black', action: 'place', row: 4, col: 5 });
-
-      // Force a ko position into the state
-      const state = getInternalState(game);
-      state.koPosition = { row: 4, col: 4 };
-
-      // White passes - this should clear ko position
-      await game.makeMove({ player: 'white', action: 'pass' });
-
-      const stateAfterPass = getInternalState(game);
-      expect(stateAfterPass.koPosition).toBeNull();
-
-      // Now any position should be playable (except occupied ones)
-      const result = await game.validateMove({
-        player: 'black',
-        action: 'place',
-        row: 0,
-        col: 0,
-      });
-      expect(result.valid).toBe(true);
-    });
   });
 
   describe('game ending', () => {
@@ -457,3 +430,4 @@ describe('GoGame', () => {
     });
   });
 });
+

@@ -1,5 +1,6 @@
 import { WordTilesGame } from '../src/games/word-tiles.js';
 import { describe, test, expect, beforeEach } from '@jest/globals';
+import { restoreGameState } from './helpers/restore-game-state.js';
 
 // Helper to access internal state for testing
 function getInternalState(game: any): any {
@@ -443,14 +444,6 @@ describe('WordTilesGame', () => {
       await game.initializeGame();
     });
 
-    test('should detect game over when player uses all tiles', async () => {
-      // This is a complex scenario to set up, so we'll check the logic exists
-      expect(await game.isGameOver()).toBe(false);
-
-      // Game should end when a player's rack is empty and no tiles in bag
-      const state = await game.getGameState();
-      expect(state.gameOver).toBe(false);
-    });
 
     test('should detect game over after consecutive passes', async () => {
       // Simulate multiple consecutive passes
@@ -507,10 +500,14 @@ describe('WordTilesGame', () => {
     });
 
     test('should prevent moves after game over', async () => {
-      // Force game over by simulating end condition
-      // This would require complex setup, so we test the validation exists
-      const isGameOver = await game.isGameOver();
-      expect(typeof isGameOver).toBe('boolean');
+      await restoreGameState(game, { gameOver: true, winner: 'player1' });
+
+      const validation = await game.validateMove({
+        player: 'player1',
+        action: 'pass',
+      });
+      expect(validation.valid).toBe(false);
+      expect(validation.error).toContain('already over');
     });
 
     test('should reject tiles not in player rack', async () => {
@@ -518,7 +515,7 @@ describe('WordTilesGame', () => {
         player: 'player1',
         action: 'play',
         placements: [
-          { row: 7, col: 7, tile: { letter: 'Z', value: 10 } }, // Tile not in rack
+          { row: 7, col: 7, tile: { letter: 'Z', value: 999 } }, // Impossible tile value guarantees it is not in the rack
         ],
       };
 
@@ -527,21 +524,6 @@ describe('WordTilesGame', () => {
       expect(validation.error).toContain('You do not have one or more of the tiles');
     });
 
-    test('should reject exchange when tile bag is too small', async () => {
-      // This would require manipulating the tile bag to be very small
-      const internalState = getInternalState(game);
-      const allTiles = internalState.players.player1.rack;
-
-      const moveData = {
-        player: 'player1',
-        action: 'exchange',
-        exchangeTiles: allTiles, // Try to exchange all 7 tiles
-      };
-
-      // Should validate based on tile bag size
-      const validation = await game.validateMove(moveData);
-      expect(validation.valid).toBeTruthy(); // Bag should be large enough initially
-    });
   });
 
   describe('Game State Management', () => {
@@ -698,3 +680,6 @@ describe('WordTilesGame', () => {
     });
   });
 });
+
+
+

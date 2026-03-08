@@ -14,7 +14,7 @@ type Player = 'X' | 'O';
 type Cell = Player | null;
 type Board = Cell[][];
 
-interface TicTacToeState extends GameState {
+export interface TicTacToeState extends GameState {
   board: Board;
   currentPlayer: Player;
   gameOver: boolean;
@@ -25,7 +25,7 @@ export class TicTacToeGame extends BaseGame {
   private static readonly BOARD_SIZE = 3;
   private static readonly WIN_LENGTH = 3;
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'tic-tac-toe', database);
   }
 
@@ -168,3 +168,4 @@ export function createTicTacToeGame(
 ): TicTacToeGame {
   return new TicTacToeGame(gameId, database);
 }
+

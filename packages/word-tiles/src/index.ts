@@ -49,7 +49,7 @@ interface BoardCell {
   multiplier?: 'DL' | 'TL' | 'DW' | 'TW' | 'STAR'; // Double Letter, Triple Letter, Double Word, Triple Word, Star (center)
 }
 
-interface WordsState extends GameState {
+export interface WordsState extends GameState {
   board: BoardCell[][];
   players: {
     [playerId: string]: {
@@ -292,7 +292,7 @@ export class WordTilesGame extends BaseGame {
     'FREIGHT',
   ]);
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'word-tiles', database);
     this.initializePremiumSquares();
   }
@@ -1008,3 +1008,4 @@ export function createWordTilesGame(
 ): WordTilesGame {
   return new WordTilesGame(gameId, database);
 }
+

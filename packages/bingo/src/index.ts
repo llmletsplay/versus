@@ -20,7 +20,7 @@ interface BingoCard {
   playerId: string;
 }
 
-interface BingoState extends GameState {
+export interface BingoState extends GameState {
   cards: { [playerId: string]: BingoCard };
   calledNumbers: (string | number)[];
   currentCall: string | number | null;
@@ -250,7 +250,7 @@ export class BingoGame extends BaseGame {
     },
   ];
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'bingo', database);
   }
 
@@ -600,3 +600,4 @@ export function createBingoGame(
 ): BingoGame {
   return new BingoGame(gameId, database);
 }
+

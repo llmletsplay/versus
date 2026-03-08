@@ -20,7 +20,7 @@ interface MovementCard {
   description: string;
 }
 
-interface MartialTacticsState extends GameState {
+export interface MartialTacticsState extends GameState {
   board: Board;
   currentPlayer: Player;
   gameOver: boolean;
@@ -194,7 +194,7 @@ export class MartialTacticsGame extends BaseGame {
     },
   ];
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'martial-tactics', database);
   }
 
@@ -462,3 +462,4 @@ export function createMartialTacticsGame(
 ): MartialTacticsGame {
   return new MartialTacticsGame(gameId, database);
 }
+

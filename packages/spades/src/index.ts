@@ -14,7 +14,7 @@ import { createShuffledDeck, type CardWithValue } from '@versus/game-core';
 type Player = 'north' | 'south' | 'east' | 'west';
 type Partnership = 'north-south' | 'east-west';
 
-interface SpadesState extends GameState {
+export interface SpadesState extends GameState {
   hands: { [player in Player]: CardWithValue[] };
   bids: { [player in Player]: number | null };
   tricks: { [player in Player]: number };
@@ -84,7 +84,7 @@ export class SpadesGame extends BaseGame {
   private readonly BAG_PENALTY = 100;
   private readonly BAGS_PER_PENALTY = 10;
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'spades', database);
   }
 
@@ -704,3 +704,4 @@ export function createSpadesGame(
 ): SpadesGame {
   return new SpadesGame(gameId, database);
 }
+

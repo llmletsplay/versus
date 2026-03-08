@@ -1,4 +1,4 @@
-import { AbstractGame } from '../types/game.js';
+﻿import { AbstractGame } from '../types/game.js';
 import type {
   GameMove,
   GameState,
@@ -72,6 +72,25 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
    */
   abstract getMetadata(): GameMetadata;
 
+  async restoreFromDatabase(gameStateData: GameStateData): Promise<void> {
+    if (gameStateData.gameId !== this.gameId || gameStateData.gameType !== this.gameType) {
+      throw new Error('Game data mismatch');
+    }
+
+    this.history = structuredClone(gameStateData.moveHistory || []);
+    this.currentState = structuredClone((gameStateData.gameState || {}) as TState);
+    this.stateHistory = [];
+    this.currentStateIndex = -1;
+
+    if (Object.keys(this.currentState).length > 0) {
+      await this.saveStateSnapshot();
+    }
+
+    const playerState = (this.currentState as Record<string, any>).playerState;
+    if (playerState) {
+      this.restorePlayerState(playerState);
+    }
+  }
   /**
    * CRITICAL: Core move execution logic - handles all game moves
    * SECURITY: Validates moves before application to prevent cheating
@@ -134,6 +153,10 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
    */
   protected async persistState(): Promise<void> {
     try {
+      if (this.stateHistory.length === 0 && Object.keys(this.currentState).length > 0) {
+        await this.saveStateSnapshot();
+      }
+
       const isGameOver = await this.isGameOver();
       const gameStateData: GameStateData = {
         gameId: this.gameId,
@@ -597,3 +620,5 @@ export abstract class BaseGame<TState extends GameState = GameState> extends Abs
     }
   }
 }
+
+

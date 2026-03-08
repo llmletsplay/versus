@@ -13,7 +13,7 @@ type Player = 'black' | 'white';
 type Cell = Player | null;
 type Board = Cell[][];
 
-interface GoState extends GameState {
+export interface GoState extends GameState {
   board: Board;
   currentPlayer: Player;
   gameOver: boolean;
@@ -52,7 +52,7 @@ export class GoGame extends BaseGame {
   private readonly BOARD_SIZE = 19; // Standard Go board
   private readonly KOMI = 6.5; // Standard compensation for white
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'go', database);
   }
 
@@ -578,3 +578,4 @@ export function createGoGame(
 ): GoGame {
   return new GoGame(gameId, database);
 }
+

@@ -17,7 +17,7 @@ interface Card {
   rank: Rank;
 }
 
-interface GoFishState extends GameState {
+export interface GoFishState extends GameState {
   deck: Card[];
   players: {
     [playerId: string]: {
@@ -47,7 +47,7 @@ interface GoFishMove {
 }
 
 export class GoFishGame extends BaseGame {
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'go-fish', database);
   }
 
@@ -370,3 +370,4 @@ export function createGoFishGame(
 ): GoFishGame {
   return new GoFishGame(gameId, database);
 }
+

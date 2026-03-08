@@ -1,5 +1,6 @@
-import { describe, test, expect, beforeEach } from '@jest/globals';
+﻿import { describe, test, expect, beforeEach } from '@jest/globals';
 import { OmokGame } from '../src/games/omok.js';
+import { restoreGameState } from './helpers/restore-game-state.js';
 
 describe('OmokGame', () => {
   let game: OmokGame;
@@ -218,12 +219,6 @@ describe('OmokGame', () => {
       expect(state.winner).toBe('white');
     });
 
-    test('should detect draw when board is full', async () => {
-      // This would require filling the entire board without five in a row
-      // For now, test that the game can handle this scenario
-      const gameOver = await game.isGameOver();
-      expect(typeof gameOver).toBe('boolean');
-    });
 
     test('should not end game with only four in a row', async () => {
       // Create four in a row for black
@@ -253,8 +248,7 @@ describe('OmokGame', () => {
     });
 
     test('should reject moves after game over', async () => {
-      // Force game over
-      (game as any).currentState.gameOver = true;
+      await restoreGameState(game, { gameOver: true, winner: 'black' });
 
       const result = await game.validateMove({
         row: 7,
@@ -285,3 +279,5 @@ describe('OmokGame', () => {
     });
   });
 });
+
+

@@ -25,7 +25,7 @@ interface HandRanking {
   kickers: Card[];
 }
 
-interface PokerState extends GameState {
+export interface PokerState extends GameState {
   players: {
     [playerId: string]: {
       hand: Card[];
@@ -75,7 +75,7 @@ interface PokerMove {
 export class PokerGame extends BaseGame {
   private rankOrder: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'poker', database);
   }
 
@@ -759,3 +759,4 @@ export function createPokerGame(
 ): PokerGame {
   return new PokerGame(gameId, database);
 }
+

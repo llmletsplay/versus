@@ -17,7 +17,7 @@ interface Card {
   rank: Rank;
 }
 
-interface BullshitState extends GameState {
+export interface BullshitState extends GameState {
   players: {
     [playerId: string]: {
       hand: Card[];
@@ -59,7 +59,7 @@ interface BullshitMove {
 export class BullshitGame extends BaseGame {
   private rankOrder: Rank[] = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'bullshit', database);
   }
 
@@ -421,3 +421,4 @@ export function createBullshitGame(
 ): BullshitGame {
   return new BullshitGame(gameId, database);
 }
+

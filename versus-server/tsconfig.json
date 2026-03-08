@@ -23,7 +23,8 @@
     "rootDir": "./src",
     "baseUrl": "./",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@versus/*": ["../packages/*/src/index.ts"]
     },
     "types": ["bun-types", "jest"]
   },

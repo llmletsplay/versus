@@ -27,7 +27,7 @@ interface Hand {
   isStand: boolean;
 }
 
-interface BlackjackState extends GameState {
+export interface BlackjackState extends GameState {
   deck: Card[];
   playerHands: Hand[];
   dealerHand: Hand;
@@ -61,7 +61,7 @@ const SUITS: Suit[] = ['♠', '♥', '♦', '♣'];
 const RANKS: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
 export class BlackjackGame extends BaseGame {
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'blackjack', database);
   }
 
@@ -211,6 +211,10 @@ export class BlackjackGame extends BaseGame {
   }
 
   private finishGame(state: BlackjackState): void {
+    for (const card of state.dealerHand.cards) {
+      card.faceUp = true;
+    }
+
     state.phase = 'finished';
     state.gameOver = true;
 
@@ -452,3 +456,5 @@ export function createBlackjackGame(
 ): BlackjackGame {
   return new BlackjackGame(gameId, database);
 }
+
+

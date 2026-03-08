@@ -104,11 +104,6 @@ describe('BattleshipGame', () => {
       expect(['Position already shot', "It's player2's turn"]).toContain(result.error);
     });
 
-    test('should reject moves when game is over', async () => {
-      // This is hard to test without knowing ship positions, so let's just verify the validation exists
-      const result = await game.validateMove({ row: 0, col: 0, player: 'player1' });
-      expect(result.valid).toBe(true); // Game should not be over initially
-    });
   });
 
   describe('Game Flow', () => {
@@ -232,17 +227,6 @@ describe('BattleshipGame', () => {
     });
   });
 
-  describe('Win Conditions', () => {
-    beforeEach(async () => {
-      await game.initializeGame();
-    });
-
-    test('should detect game over when all ships sunk', async () => {
-      // This is a complex test that would require knowing exact ship positions
-      // For now, just verify the game state structure
-      const state = await game.getGameState();
-      expect(state.gameOver).toBe(false);
-      expect(state.winner).toBeNull();
-    });
-  });
 });
+
+

@@ -1,5 +1,6 @@
-import { describe, test, expect, beforeEach } from '@jest/globals';
+﻿import { describe, test, expect, beforeEach } from '@jest/globals';
 import { CheckersGame } from '../src/games/checkers.js';
+import { restoreGameState } from './helpers/restore-game-state.js';
 
 describe('CheckersGame', () => {
   let game: CheckersGame;
@@ -199,41 +200,9 @@ describe('CheckersGame', () => {
       expect(result.valid).toBe(true);
     });
 
-    test('should require jumps when available', async () => {
-      // Set up a scenario where a jump is available
-      await game.makeMove({
-        from: { row: 5, col: 0 },
-        to: { row: 4, col: 1 },
-        player: 'red',
-      });
-
-      await game.makeMove({
-        from: { row: 2, col: 3 },
-        to: { row: 3, col: 2 },
-        player: 'black',
-      });
-
-      // If a jump is available, regular moves should be rejected
-      const regularMove = await game.validateMove({
-        from: { row: 5, col: 2 },
-        to: { row: 4, col: 3 },
-        player: 'red',
-      });
-
-      // This test depends on the implementation - some checkers variants require jumps
-      expect(typeof regularMove.valid).toBe('boolean');
-    });
   });
 
   describe('King Promotion', () => {
-    test('should promote pieces that reach the opposite end', async () => {
-      await game.initializeGame();
-
-      // This would require a complex setup to get a piece to the end
-      // For now, we'll test the concept exists
-      const state = await game.getGameState();
-      expect(state).toBeDefined();
-    });
   });
 
   describe('Game Flow', () => {
@@ -305,25 +274,6 @@ describe('CheckersGame', () => {
     });
   });
 
-  describe('Win Conditions', () => {
-    beforeEach(async () => {
-      await game.initializeGame();
-    });
-
-    test('should detect when a player has no pieces left', async () => {
-      // This would require removing all pieces of one color
-      // For now, test that the game can detect game over
-      const gameOver = await game.isGameOver();
-      expect(gameOver).toBe(false);
-    });
-
-    test('should detect when a player has no legal moves', async () => {
-      // This would require a complex setup
-      // For now, test that the function exists
-      const gameOver = await game.isGameOver();
-      expect(typeof gameOver).toBe('boolean');
-    });
-  });
 
   describe('Error Handling', () => {
     beforeEach(async () => {
@@ -337,8 +287,7 @@ describe('CheckersGame', () => {
     });
 
     test('should reject moves after game over', async () => {
-      // Force game over
-      (game as any).currentState.gameOver = true;
+      await restoreGameState(game, { gameOver: true, winner: 'red' });
 
       const result = await game.validateMove({
         from: { row: 2, col: 1 },
@@ -360,3 +309,6 @@ describe('CheckersGame', () => {
     });
   });
 });
+
+
+

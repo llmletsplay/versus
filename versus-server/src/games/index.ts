@@ -19,7 +19,6 @@ import { CrazyCardsGame } from '@versus/crazy-cards';
 import { CatanGame } from '@versus/catan';
 // New games
 import { GoGame } from '@versus/go';
-import { AgainstCardsGame } from '@versus/against-cards';
 import { BingoGame } from '@versus/bingo';
 import { HeartsGame } from '@versus/hearts';
 import { SpadesGame } from '@versus/spades';
@@ -50,9 +49,7 @@ export function registerGames(gameManager: GameManager): void {
   gameManager.registerGame('catan', CatanGame);
 
   // New games
-  gameManager.registerGame('go', GoGame);
-  gameManager.registerGame('against-cards', AgainstCardsGame);
-  gameManager.registerGame('bingo', BingoGame);
+  gameManager.registerGame('go', GoGame);  gameManager.registerGame('bingo', BingoGame);
   gameManager.registerGame('hearts', HeartsGame);
   gameManager.registerGame('spades', SpadesGame);
   gameManager.registerGame('mahjong', MahjongGame);
@@ -82,9 +79,7 @@ export {
   CrazyCardsGame,
   CatanGame,
   // New games
-  GoGame,
-  AgainstCardsGame,
-  BingoGame,
+  GoGame,  BingoGame,
   HeartsGame,
   SpadesGame,
   MahjongGame,

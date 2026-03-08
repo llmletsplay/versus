@@ -1,5 +1,6 @@
-import { describe, test, expect, beforeEach } from '@jest/globals';
+﻿import { describe, test, expect, beforeEach } from '@jest/globals';
 import { CuttleGame } from '../src/games/cuttle.js';
+import { restoreGameState } from './helpers/restore-game-state.js';
 
 describe('CuttleGame', () => {
   let game: CuttleGame;
@@ -94,8 +95,7 @@ describe('CuttleGame', () => {
     });
 
     test('should reject moves after game over', async () => {
-      // Force game over
-      (game as any).currentState.gameOver = true;
+      await restoreGameState(game, { gameOver: true, winner: 'player1' });
 
       const result = await game.validateMove({
         player: 'player1',
@@ -463,3 +463,5 @@ describe('CuttleGame', () => {
     });
   });
 });
+
+

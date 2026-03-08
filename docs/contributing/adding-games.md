@@ -1,255 +1,200 @@
-# Adding New Games
+﻿# Adding New Games
 
-Guide to implementing a new reusable game package for Versus.
+New game logic should be added as a reusable package in `packages/<game>`.
 
-## Overview
+The server should consume that package instead of owning a separate copy of the rules.
 
-New game logic should live in `packages/<game>`, not directly in the server.
+## 1. Create The Package
 
-The server should consume the package after the package exists.
+Create this structure:
 
-## Step 1: Define State
+```text
+packages/my-game/
+|-- package.json
+|-- README.md
+|-- tsconfig.json
+`-- src/index.ts
+```
 
-```typescript
-// packages/my-game/src/index.ts
-import { BaseGame } from '@versus/game-core';
-import type { DatabaseProvider, GameState, GameMove, GameMetadata } from '@versus/game-core';
+Your `package.json` should publish built artifacts, not raw source:
 
-interface MyGameState extends GameState {
-  board: number[];
-  currentPlayer: string;
-  scores: Record<string, number>;
+```json
+{
+  "name": "@versus/my-game",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@versus/game-core": "^0.1.0"
+  }
 }
 ```
 
-## Step 2: Implement Game Class
+## 2. Implement The Game Class
 
-```typescript
+```ts
+import { BaseGame, InMemoryDatabaseProvider } from '@versus/game-core';
+import type {
+  DatabaseProvider,
+  GameConfig,
+  GameMetadata,
+  GameMove,
+  GameState,
+  MoveValidationResult,
+} from '@versus/game-core';
+
+interface MyGameState extends GameState {
+  board: number[];
+  currentPlayer: 'player1' | 'player2';
+  players: ['player1', 'player2'];
+}
+
 export class MyGame extends BaseGame<MyGameState> {
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'my-game', database);
   }
-  
-  async initializeGame(config?: GameConfig): Promise<void> {
+
+  async initializeGame(_config?: GameConfig): Promise<MyGameState> {
     this.currentState = {
       gameId: this.gameId,
-      gameType: 'my-game',
-      players: ['player1', 'player2'],
-      board: Array(10).fill(0),
+      gameType: this.gameType,
+      board: Array(9).fill(0),
       currentPlayer: 'player1',
-      scores: { player1: 0, player2: 0 },
-      isGameOver: false,
+      players: ['player1', 'player2'],
+      gameOver: false,
       winner: null,
-      createdAt: Date.now(),
-      updatedAt: Date.now()
+      status: 'active',
     };
-    
+
     await this.persistState();
+    return this.getGameState();
   }
-  
-  async validateMove(moveData: { player: string; position: number }): Promise<MoveValidationResult> {
+
+  async validateMove(moveData: Record<string, any>): Promise<MoveValidationResult> {
     if (moveData.player !== this.currentState.currentPlayer) {
       return { valid: false, error: 'Not your turn' };
     }
-    
-    if (moveData.position < 0 || moveData.position >= 10) {
-      return { valid: false, error: 'Invalid position' };
-    }
-    
-    if (this.currentState.board[moveData.position] !== 0) {
-      return { valid: false, error: 'Position taken' };
-    }
-    
+
     return { valid: true };
   }
-  
-  async applyMove(move: GameMove): Promise<void> {
+
+  protected async applyMove(move: GameMove): Promise<void> {
     const { player, moveData } = move;
-    
+
     this.currentState.board[moveData.position] = player === 'player1' ? 1 : 2;
     this.currentState.currentPlayer = player === 'player1' ? 'player2' : 'player1';
-    this.currentState.updatedAt = Date.now();
-    
-    this.checkWin();
-    
-    this.history.push({ player, moveData, timestamp: Date.now() });
-    await this.persistState();
   }
-  
+
   async getGameState(): Promise<MyGameState> {
     return this.currentState;
   }
-  
-  isGameOver(): boolean {
-    return this.currentState.isGameOver;
+
+  async isGameOver(): Promise<boolean> {
+    return this.currentState.gameOver;
   }
-  
-  getWinner(): string | null {
+
+  async getWinner(): Promise<string | null> {
     return this.currentState.winner;
   }
-  
+
   getMetadata(): GameMetadata {
     return {
       name: 'My Game',
       description: 'A custom game',
       minPlayers: 2,
       maxPlayers: 2,
-      estimatedDuration: 10,
-      difficulty: 'beginner',
-      categories: ['custom']
+      estimatedDuration: '10-15 minutes',
+      complexity: 'beginner',
+      categories: ['custom'],
     };
-  }
-  
-  protected getPlayerIds(): string[] {
-    return this.currentState.players;
-  }
-  
-  private checkWin(): void {
-    // Implement win condition
-    // Set this.currentState.isGameOver and this.currentState.winner
   }
 }
 ```
 
-## Step 3: Add Package Metadata
+`applyMove()` should only mutate state. `BaseGame.makeMove()` handles validation flow, move history, undo snapshots, and persistence.
 
-Create `packages/my-game/package.json`:
+## 3. Add A Package README And tsconfig
+
+`tsconfig.json` should emit package-local build output:
 
 ```json
 {
-  "name": "@versus/my-game",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
   },
-  "dependencies": {
-    "@versus/game-core": "workspace:*"
-  }
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "node_modules"]
 }
 ```
 
-## Step 4: Register Game In The Server
+## 4. Register The Package In The Server
 
-```typescript
-// versus-server/src/games/index.ts
+Add the package class to [`versus-server/src/games/index.ts`](../../versus-server/src/games/index.ts):
+
+```ts
 import { MyGame } from '@versus/my-game';
 
-export function registerGames(gameManager: GameManager): void {
-  // ... existing games
-  gameManager.registerGame('my-game', MyGame);
-}
+gameManager.registerGame('my-game', MyGame);
 ```
 
-Create a compatibility shim:
+Then add a compatibility shim at [`versus-server/src/games/my-game.ts`](../../versus-server/src/games):
 
-```typescript
-// versus-server/src/games/my-game.ts
+```ts
 export * from '@versus/my-game';
 ```
 
-## Step 5: Add Rules
+## 5. Document The Rules
 
-Create `versus-server/docs/rules/my-game.md` for now.
+Add concise rules documentation in [`versus-server/docs/rules/`](../../versus-server/docs/rules) until package-local rules docs are introduced.
 
-During the package migration, rules docs can stay there. Longer-term they should move next to the game package or into a package README.
+## 6. Write Real Tests
 
-## Step 6: Write Tests
+Write tests against the public package-backed API, not private fields. Prefer:
 
-```markdown
-# My Game Rules
+- real move sequences
+- `restoreFromDatabase()` for custom board-state setup
+- assertions about rule outcomes, not placeholder "validation exists" checks
 
-## Objective
-Describe the goal of the game.
+Example:
 
-## Setup
-Describe initial state.
-
-## Gameplay
-1. Player 1 moves first
-2. Alternate turns
-3. Win condition
-
-## Winning
-Describe how to win.
-```
-
-## Step 5: Write Tests
-
-```typescript
-// versus-server/tests/my-game.test.ts
+```ts
 import { MyGame } from '../src/games/my-game.js';
-import { InMemoryDatabaseProvider } from '@versus/game-core';
 
 describe('MyGame', () => {
-  let game: MyGame;
-  beforeEach(async () => {
-    const database = new InMemoryDatabaseProvider();
-    game = new MyGame('test-id', database);
+  test('rejects the wrong player turn', async () => {
+    const game = new MyGame('test-id');
     await game.initializeGame();
-  });
-  
-  test('initializes correctly', async () => {
-    const state = await game.getGameState();
-    expect(state.isGameOver).toBe(false);
-    expect(state.players).toHaveLength(2);
-  });
-  
-  test('validates moves', async () => {
-    const result = await game.validateMove({
-      player: 'player1',
-      position: 0
-    });
-    expect(result.valid).toBe(true);
-  });
-  
-  test('rejects wrong turn', async () => {
+
     const result = await game.validateMove({
       player: 'player2',
-      position: 0
+      position: 0,
     });
+
     expect(result.valid).toBe(false);
-  });
-  
-  test('applies moves', async () => {
-    await game.applyMove({
-      player: 'player1',
-      moveData: { position: 0 }
-    });
-    
-    const state = await game.getGameState();
-    expect(state.currentPlayer).toBe('player2');
   });
 });
 ```
 
-## Best Practices
-
-1. **Put canonical game logic in `packages/<game>`**
-2. **Keep server files as shims or registration points**
-3. **Use `InMemoryDatabaseProvider` for standalone tests**
-4. **Validate thoroughly** and return precise errors
-5. **Document rules clearly**
-
-## Example Games
-
-Reference existing implementations:
-
-| Game | Complexity | Good For |
-|------|------------|----------|
-| Tic-Tac-Toe | Simple | Learning basics |
-| Connect Four | Medium | State management |
-| Chess | Complex | Full featured game |
-
 ## Checklist
 
-- [ ] State interface defined
-- [ ] Package created in `packages/<game>`
-- [ ] Game class implemented
-- [ ] All required methods implemented
-- [ ] Server registry updated
-- [ ] Compatibility shim added
-- [ ] Rules documented
-- [ ] Tests written
-- [ ] Tests passing
+- [ ] package created in `packages/<game>`
+- [ ] build outputs configured for `dist/`
+- [ ] game class extends `BaseGame`
+- [ ] server registry updated
+- [ ] compatibility shim added
+- [ ] rules documented
+- [ ] public-API tests added

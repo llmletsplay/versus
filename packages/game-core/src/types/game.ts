@@ -1,3 +1,5 @@
+import type { GameStateData } from '../core/database.js';
+
 export interface GameMove {
   player: string;
   moveData: Record<string, any>;
@@ -29,6 +31,7 @@ export interface GameConfig {
   playerCount?: number;
   timeLimit?: number;
   customRules?: Record<string, any>;
+  [key: string]: any;
 }
 
 export interface GameMetadata {
@@ -60,6 +63,7 @@ export abstract class AbstractGame<TState extends GameState = GameState> {
   abstract isGameOver(): Promise<boolean>;
   abstract getWinner(): Promise<string | null>;
   abstract getMetadata(): GameMetadata;
+  abstract restoreFromDatabase(_gameStateData: GameStateData): Promise<void>;
 
   // Note: makeMove is implemented in BaseGame - games should only implement applyMove
   // For backward compatibility, makeMove can still be overridden
@@ -173,7 +177,9 @@ export abstract class AbstractGame<TState extends GameState = GameState> {
     this.currentState = {} as TState;
     const initialState = await this.initializeGame();
     this.currentState = initialState;
-    await this.saveStateSnapshot();
+    if (this.stateHistory.length === 0) {
+      await this.saveStateSnapshot();
+    }
 
     for (const move of this.history) {
       await this.applyMove(move);
@@ -181,3 +187,7 @@ export abstract class AbstractGame<TState extends GameState = GameState> {
     }
   }
 }
+
+
+
+

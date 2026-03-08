@@ -20,7 +20,7 @@ interface Card {
   value: number; // For comparison (3=0, 4=1, ..., A=11, 2=12)
 }
 
-interface ThirteenState extends GameState {
+export interface ThirteenState extends GameState {
   deck: Card[];
   players: {
     [playerId: string]: {
@@ -88,7 +88,7 @@ const GAME_CONSTANTS = {
 } as const;
 
 export class ThirteenGame extends BaseGame<ThirteenState> {
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'thirteen', database);
 
     // Validate gameId to prevent injection attacks
@@ -714,7 +714,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
   getMetadata(): GameMetadata {
     return {
-      name: 'Thirteen (Tiến Lên)',
+      name: 'Thirteen (Ti\u1EBFn L\u00EAn)',
       description:
         'Vietnamese climbing card game where players try to be first to play all their cards',
       minPlayers: 2,
@@ -732,3 +732,5 @@ export function createThirteenGame(
 ): ThirteenGame {
   return new ThirteenGame(gameId, database);
 }
+
+

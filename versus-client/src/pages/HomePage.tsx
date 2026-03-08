@@ -32,7 +32,7 @@ POST ${API_CONFIG.BASE_URL}/api/v1/rooms/matchmaking
 ws://${window.location.host}/ws
 { "type": "move", "roomId": "...", "move": "e2e4" }`;
 
-// All 26 registered game types with icons
+// All supported game types with icons
 const GAMES: { id: string; icon: string }[] = [
   { id: "chess", icon: "♟" },
   { id: "poker", icon: "🃏" },
@@ -53,7 +53,6 @@ const GAMES: { id: string; icon: string }[] = [
   { id: "crazy-cards", icon: "🎴" },
   { id: "catan", icon: "🏝" },
   { id: "omok", icon: "⊕" },
-  { id: "against-cards", icon: "🂠" },
   { id: "bingo", icon: "🎱" },
   { id: "hearts", icon: "♥" },
   { id: "spades", icon: "♠" },

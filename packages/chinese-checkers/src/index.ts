@@ -1,5 +1,4 @@
 import { InMemoryDatabaseProvider } from '@versus/game-core';
-/* eslint-disable no-unused-vars */
 import type { DatabaseProvider } from '@versus/game-core';
 import { BaseGame } from '@versus/game-core';
 import type {
@@ -17,7 +16,7 @@ interface Position {
   col: number;
 }
 
-interface ChineseCheckersState extends GameState {
+export interface ChineseCheckersState extends GameState {
   board: (Player | null)[][];
   players: Player[];
   currentPlayer: Player;
@@ -42,21 +41,25 @@ interface ChineseCheckersMove {
 }
 
 export class ChineseCheckersGame extends BaseGame {
-  private readonly BOARD_SIZE = 17; // Star-shaped board fits in 17x17 grid
-
-  // Define the star-shaped board layout
+  private readonly BOARD_SIZE = 17;
   private readonly VALID_POSITIONS: Set<string> = new Set();
+  private readonly STEP_DIRECTIONS: Position[] = [
+    { row: -1, col: 0 },
+    { row: 1, col: 0 },
+    { row: 0, col: -1 },
+    { row: 0, col: 1 },
+    { row: -1, col: -1 },
+    { row: -1, col: 1 },
+    { row: 1, col: -1 },
+    { row: 1, col: 1 },
+  ];
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'chinese-checkers', database);
     this.initializeValidPositions();
   }
 
   private initializeValidPositions(): void {
-    // Define the star-shaped board positions
-    // This is a simplified representation - real Chinese Checkers has a more complex star shape
-
-    // Center hexagon
     for (let row = 6; row <= 10; row++) {
       for (let col = 6; col <= 10; col++) {
         if (this.isValidCenterPosition(row, col)) {
@@ -65,14 +68,12 @@ export class ChineseCheckersGame extends BaseGame {
       }
     }
 
-    // Top triangle
     for (let row = 0; row < 6; row++) {
       for (let col = 6 + row; col <= 10 - row; col++) {
         this.VALID_POSITIONS.add(`${row},${col}`);
       }
     }
 
-    // Bottom triangle
     for (let row = 11; row < 17; row++) {
       const offset = row - 10;
       for (let col = 6 + offset; col <= 10 - offset; col++) {
@@ -80,7 +81,6 @@ export class ChineseCheckersGame extends BaseGame {
       }
     }
 
-    // Left triangles
     for (let row = 6; row <= 10; row++) {
       for (let col = 0; col < 6; col++) {
         if (this.isValidSidePosition(row, col, 'left')) {
@@ -89,7 +89,6 @@ export class ChineseCheckersGame extends BaseGame {
       }
     }
 
-    // Right triangles
     for (let row = 6; row <= 10; row++) {
       for (let col = 11; col < 17; col++) {
         if (this.isValidSidePosition(row, col, 'right')) {
@@ -100,7 +99,6 @@ export class ChineseCheckersGame extends BaseGame {
   }
 
   private isValidCenterPosition(row: number, col: number): boolean {
-    // Simple diamond shape for center
     const centerRow = 8;
     const centerCol = 8;
     const distance = Math.abs(row - centerRow) + Math.abs(col - centerCol);
@@ -110,9 +108,8 @@ export class ChineseCheckersGame extends BaseGame {
   private isValidSidePosition(row: number, col: number, side: 'left' | 'right'): boolean {
     if (side === 'left') {
       return col <= 5 - Math.abs(row - 8);
-    } else {
-      return col >= 11 + Math.abs(row - 8);
     }
+    return col >= 11 + Math.abs(row - 8);
   }
 
   private isValidPosition(pos: Position): boolean {
@@ -124,12 +121,10 @@ export class ChineseCheckersGame extends BaseGame {
     const availablePlayers: Player[] = ['red', 'blue', 'green', 'yellow', 'orange', 'purple'];
     const players = availablePlayers.slice(0, playerCount);
 
-    // Initialize empty board
     const board: (Player | null)[][] = Array(this.BOARD_SIZE)
       .fill(null)
       .map(() => Array(this.BOARD_SIZE).fill(null));
 
-    // Set up starting positions for each player
     const startingPositions: { [player in Player]?: Position[] } = {};
     const targetPositions: { [player in Player]?: Position[] } = {};
 
@@ -161,7 +156,6 @@ export class ChineseCheckersGame extends BaseGame {
     startingPositions: { [player in Player]?: Position[] },
     targetPositions: { [player in Player]?: Position[] }
   ): void {
-    // Simplified setup - place pieces in triangular formations
     const playerSetups: { [player in Player]?: { start: Position[]; target: Position[] } } = {
       red: {
         start: [
@@ -223,22 +217,20 @@ export class ChineseCheckersGame extends BaseGame {
           { row: 3, col: 9 },
         ],
       },
-      // Add more players as needed
     };
 
-    for (let i = 0; i < players.length; i++) {
-      const player = players[i]!;
+    for (const player of players) {
       const setup = playerSetups[player];
+      if (!setup) {
+        continue;
+      }
 
-      if (setup) {
-        startingPositions[player] = setup.start;
-        targetPositions[player] = setup.target;
+      startingPositions[player] = setup.start;
+      targetPositions[player] = setup.target;
 
-        // Place pieces on board
-        for (const pos of setup.start) {
-          if (this.isValidPosition(pos)) {
-            board[pos.row]![pos.col] = player;
-          }
+      for (const pos of setup.start) {
+        if (this.isValidPosition(pos)) {
+          board[pos.row]![pos.col] = player;
         }
       }
     }
@@ -249,7 +241,6 @@ export class ChineseCheckersGame extends BaseGame {
       const move = moveData as ChineseCheckersMove;
       const state = this.currentState as ChineseCheckersState;
 
-      // Validate required fields
       if (!move.player || !move.from || !move.to) {
         return { valid: false, error: 'Move must include player, from, and to positions' };
       }
@@ -258,38 +249,27 @@ export class ChineseCheckersGame extends BaseGame {
         return { valid: false, error: 'Invalid player' };
       }
 
-      // Check if game is over
       if (state.gameOver) {
         return { valid: false, error: 'Game is already over' };
       }
 
-      // Check if it's the player's turn
       if (move.player !== state.currentPlayer) {
         return { valid: false, error: `It's ${state.currentPlayer}'s turn` };
       }
 
-      // Validate positions are on the board
       if (!this.isValidPosition(move.from) || !this.isValidPosition(move.to)) {
         return { valid: false, error: 'Invalid board positions' };
       }
 
-      // Check if there's a piece at the from position
       if (state.board[move.from.row]![move.from.col] !== move.player) {
         return { valid: false, error: 'No piece of yours at the from position' };
       }
 
-      // Check if the to position is empty
       if (state.board[move.to.row]![move.to.col] !== null) {
         return { valid: false, error: 'Destination position is occupied' };
       }
 
-      // Validate the move (adjacent or jumping)
-      const moveValidation = this.validateMovePattern(move, state);
-      if (!moveValidation.valid) {
-        return moveValidation;
-      }
-
-      return { valid: true };
+      return this.validateMovePattern(move, state);
     } catch {
       return { valid: false, error: 'Invalid move data format' };
     }
@@ -300,33 +280,90 @@ export class ChineseCheckersGame extends BaseGame {
     state: ChineseCheckersState
   ): MoveValidationResult {
     const { from, to } = move;
-    const rowDiff = Math.abs(to.row - from.row);
-    const colDiff = Math.abs(to.col - from.col);
 
-    // Adjacent move (one step)
-    if (
-      (rowDiff === 1 && colDiff === 0) ||
-      (rowDiff === 0 && colDiff === 1) ||
-      (rowDiff === 1 && colDiff === 1)
-    ) {
+    if (this.isAdjacentMove(from, to)) {
       return { valid: true };
     }
 
-    // Jumping move - must jump over exactly one piece
-    if (rowDiff === 2 || colDiff === 2) {
+    if (this.canReachByJumpSequence(from, to, state)) {
+      return { valid: true };
+    }
+
+    const isDirectJumpAttempt = this.STEP_DIRECTIONS.some(
+      (direction) =>
+        from.row + direction.row * 2 === to.row && from.col + direction.col * 2 === to.col
+    );
+
+    if (isDirectJumpAttempt) {
       const midRow = Math.floor((from.row + to.row) / 2);
       const midCol = Math.floor((from.col + to.col) / 2);
-
-      // Check if there's a piece to jump over
       if (state.board[midRow]![midCol] === null) {
         return { valid: false, error: 'No piece to jump over' };
       }
-
-      return { valid: true };
     }
 
-    // Multi-jump validation would be more complex
     return { valid: false, error: 'Invalid move pattern' };
+  }
+
+  private isAdjacentMove(from: Position, to: Position): boolean {
+    return this.STEP_DIRECTIONS.some(
+      (direction) => from.row + direction.row === to.row && from.col + direction.col === to.col
+    );
+  }
+
+  private canReachByJumpSequence(
+    from: Position,
+    to: Position,
+    state: ChineseCheckersState
+  ): boolean {
+    const queue: Position[] = [from];
+    const visited = new Set([`${from.row},${from.col}`]);
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const destinations = this.getJumpDestinations(current, state);
+
+      for (const destination of destinations) {
+        const key = `${destination.row},${destination.col}`;
+        if (visited.has(key)) {
+          continue;
+        }
+
+        if (destination.row === to.row && destination.col === to.col) {
+          return true;
+        }
+
+        visited.add(key);
+        queue.push(destination);
+      }
+    }
+
+    return false;
+  }
+
+  private getJumpDestinations(from: Position, state: ChineseCheckersState): Position[] {
+    const destinations: Position[] = [];
+
+    for (const direction of this.STEP_DIRECTIONS) {
+      const middle = { row: from.row + direction.row, col: from.col + direction.col };
+      const landing = { row: from.row + direction.row * 2, col: from.col + direction.col * 2 };
+
+      if (!this.isValidPosition(middle) || !this.isValidPosition(landing)) {
+        continue;
+      }
+
+      if (state.board[middle.row]![middle.col] === null) {
+        continue;
+      }
+
+      if (state.board[landing.row]![landing.col] !== null) {
+        continue;
+      }
+
+      destinations.push(landing);
+    }
+
+    return destinations;
   }
 
   protected async applyMove(move: GameMove): Promise<void> {
@@ -344,10 +381,8 @@ export class ChineseCheckersGame extends BaseGame {
   private movePiece(move: ChineseCheckersMove, state: ChineseCheckersState): void {
     const { player, from, to } = move;
 
-    // Move the piece
     state.board[from.row]![from.col] = null;
     state.board[to.row]![to.col] = player;
-
     state.moveCount++;
 
     state.lastAction = {
@@ -360,7 +395,6 @@ export class ChineseCheckersGame extends BaseGame {
   }
 
   private checkWinCondition(state: ChineseCheckersState): void {
-    // Check if current player has all pieces in target area
     const targetPositions = state.targetPositions[state.currentPlayer];
     if (!targetPositions) {
       return;
@@ -373,14 +407,12 @@ export class ChineseCheckersGame extends BaseGame {
       }
     }
 
-    // Check if all pieces are in target (simplified - real game has more complex rules)
     const startingPositions = state.startingPositions[state.currentPlayer];
     const totalPieces = startingPositions?.length || 0;
 
     if (piecesInTarget === totalPieces) {
       state.gameOver = true;
       state.winner = state.currentPlayer;
-
       state.lastAction = {
         action: 'win',
         player: state.currentPlayer,
@@ -400,7 +432,7 @@ export class ChineseCheckersGame extends BaseGame {
 
     return {
       gameId: this.gameId,
-      gameType: this.gameType,
+      gameType: state.gameType,
       currentPlayer: state.currentPlayer,
       gameOver: state.gameOver,
       winner: state.winner,

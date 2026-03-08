@@ -26,7 +26,7 @@ interface Board {
   ships: Ship[];
 }
 
-interface BattleshipState extends GameState {
+export interface BattleshipState extends GameState {
   boards: Record<Player, Board>;
   currentPlayer: Player;
   phase: 'setup' | 'play' | 'end';
@@ -46,7 +46,7 @@ const SHIP_CONFIGS: Record<ShipType, number> = {
 export class BattleshipGame extends BaseGame {
   private readonly BOARD_SIZE = 10;
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'battleship', database);
   }
 
@@ -326,3 +326,4 @@ export function createBattleshipGame(
 ): BattleshipGame {
   return new BattleshipGame(gameId, database);
 }
+

@@ -118,7 +118,7 @@ const GAME_CONSTANTS = {
   },
 } as const;
 
-interface CatanState extends GameState {
+export interface CatanState extends GameState {
   board: {
     hexes: HexTile[];
     intersections: Intersection[];
@@ -168,6 +168,11 @@ interface CatanState extends GameState {
     offering: Partial<ResourceCards>;
     requesting: Partial<ResourceCards>;
   };
+  pendingRobberMove?: boolean;
+  playedDevelopmentCardThisTurn?: boolean;
+  newDevelopmentCards?: {
+    [playerId: string]: DevelopmentCard[];
+  };
 }
 
 interface CatanMove {
@@ -190,6 +195,9 @@ interface CatanMove {
     requesting: Partial<ResourceCards>;
   };
   targetPlayer?: string; // For trading/robber effects
+  positions?: number[];
+  resources?: Resource[];
+  resource?: Resource;
 }
 
 // Enhanced type definitions for better type safety
@@ -235,7 +243,7 @@ export class CatanGame extends BaseGame {
     development_card: { wool: 1, grain: 1, ore: 1 },
   } as const;
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'catan', database);
 
     // Validate gameId to prevent injection attacks
@@ -284,6 +292,9 @@ export class CatanGame extends BaseGame {
             playerIds.map((id) => [id, { settlement: false, road: false }])
           ),
         },
+        pendingRobberMove: false,
+        playedDevelopmentCardThisTurn: false,
+        newDevelopmentCards: Object.fromEntries(playerIds.map((id) => [id, []])),
       };
 
       // Set robber on desert with bounds checking
@@ -589,6 +600,31 @@ export class CatanGame extends BaseGame {
         }
       }
 
+      if (Array.isArray(moveData.positions)) {
+        const positions = moveData.positions
+          .map((position: unknown) => this.sanitizeNumber(position, 0, 100))
+          .filter((position: number | null): position is number => position !== null);
+        if (positions.length > 0) {
+          move.positions = positions;
+        }
+      }
+
+      if (Array.isArray(moveData.resources)) {
+        const resources = moveData.resources.filter((resource: unknown): resource is Resource =>
+          ['wood', 'brick', 'wool', 'grain', 'ore'].includes(resource as Resource)
+        );
+        if (resources.length > 0) {
+          move.resources = resources;
+        }
+      }
+
+      if (
+        moveData.resource !== undefined &&
+        ['wood', 'brick', 'wool', 'grain', 'ore'].includes(moveData.resource)
+      ) {
+        move.resource = moveData.resource;
+      }
+
       if (moveData.tradeOffer !== undefined && typeof moveData.tradeOffer === 'object') {
         move.tradeOffer = this.sanitizeTradeOffer(moveData.tradeOffer);
       }
@@ -888,6 +924,14 @@ export class CatanGame extends BaseGame {
   private validatePlayingMove(context: ValidationContext): MoveValidationResult {
     const { state, move, player } = context;
 
+    if (state.pendingRobberMove && move.action !== 'move_robber') {
+      return { valid: false, error: 'Must move robber before continuing turn' };
+    }
+
+    if (state.diceRoll === null && !['roll_dice', 'play_development_card'].includes(move.action)) {
+      return { valid: false, error: CATAN_ERROR_MESSAGES.MUST_ROLL_DICE };
+    }
+
     switch (move.action) {
       case 'roll_dice':
         if (state.diceRoll !== null) {
@@ -896,7 +940,6 @@ export class CatanGame extends BaseGame {
         return { valid: true };
 
       case 'build_settlement':
-        // Check connection rules BEFORE resource requirements
         if (typeof move.position !== 'number') {
           return { valid: false, error: CATAN_ERROR_MESSAGES.MUST_SPECIFY_POSITION };
         }
@@ -910,7 +953,6 @@ export class CatanGame extends BaseGame {
           return { valid: false, error: CATAN_ERROR_MESSAGES.INTERSECTION_OCCUPIED };
         }
 
-        // Check if player has a connected road or settlement
         const hasConnection = this.hasConnectionToIntersection(move.position, move.player, state);
         if (!hasConnection) {
           return { valid: false, error: CATAN_ERROR_MESSAGES.NOT_CONNECTED };
@@ -926,7 +968,6 @@ export class CatanGame extends BaseGame {
         return { valid: true };
 
       case 'build_city':
-        // Check building existence BEFORE resource requirements
         if (typeof move.position !== 'number') {
           return { valid: false, error: CATAN_ERROR_MESSAGES.MUST_SPECIFY_POSITION };
         }
@@ -954,7 +995,6 @@ export class CatanGame extends BaseGame {
         return { valid: true };
 
       case 'build_road':
-        // Check connection rules BEFORE resource requirements
         if (typeof move.position !== 'number') {
           return { valid: false, error: CATAN_ERROR_MESSAGES.MUST_SPECIFY_POSITION };
         }
@@ -968,7 +1008,6 @@ export class CatanGame extends BaseGame {
           return { valid: false, error: CATAN_ERROR_MESSAGES.EDGE_OCCUPIED };
         }
 
-        // Check if road connects to player's existing roads or buildings
         const hasRoadConnection = this.hasConnectionToEdge(move.position, move.player, state);
         if (!hasRoadConnection) {
           return { valid: false, error: CATAN_ERROR_MESSAGES.NOT_CONNECTED };
@@ -1024,23 +1063,45 @@ export class CatanGame extends BaseGame {
       return { valid: false, error: CATAN_ERROR_MESSAGES.INVALID_CARD_TYPE };
     }
 
+    if (state.playedDevelopmentCardThisTurn) {
+      return { valid: false, error: 'Only one development card can be played per turn' };
+    }
+
     if (!player.developmentCards.includes(move.cardType)) {
       return { valid: false, error: CATAN_ERROR_MESSAGES.NO_DEVELOPMENT_CARD };
     }
 
-    // Additional validation based on card type
+    const ownedCopies = player.developmentCards.filter((card) => card === move.cardType).length;
+    const newlyBoughtCopies = (state.newDevelopmentCards?.[move.player] || []).filter(
+      (card) => card === move.cardType
+    ).length;
+    if (ownedCopies <= newlyBoughtCopies) {
+      return { valid: false, error: 'Cannot play a development card the turn you bought it' };
+    }
+
     switch (move.cardType) {
       case 'knight':
-        return { valid: true }; // Knight can always be played
+        return this.validateRobberMove(move, state, { allowWithoutPending: true });
       case 'road_building':
-        if (player.buildings.roads < 2) {
-          return { valid: false, error: 'Need at least 2 roads to use road building card' };
+        if (player.buildings.roads <= 0) {
+          return { valid: false, error: CATAN_ERROR_MESSAGES.NO_BUILDINGS_LEFT };
+        }
+        return this.validateFreeRoadPlacements(
+          move.positions,
+          move.player,
+          state,
+          Math.min(2, player.buildings.roads)
+        );
+      case 'year_of_plenty':
+        if (!move.resources || move.resources.length !== 2) {
+          return { valid: false, error: 'Year of Plenty requires exactly 2 resources' };
         }
         return { valid: true };
-      case 'year_of_plenty':
-        return { valid: true }; // Can always get 2 resources
       case 'monopoly':
-        return { valid: true }; // Can always monopolize a resource
+        if (!move.resource) {
+          return { valid: false, error: 'Monopoly requires a resource to claim' };
+        }
+        return { valid: true };
       case 'victory_point':
         return { valid: false, error: 'Victory point cards are revealed automatically' };
       default:
@@ -1048,7 +1109,82 @@ export class CatanGame extends BaseGame {
     }
   }
 
-  private validateRobberMove(move: CatanMove, state: CatanState): MoveValidationResult {
+  private validateFreeRoadPlacements(
+    positions: number[] | undefined,
+    playerId: string,
+    state: CatanState,
+    maxRoads: number
+  ): MoveValidationResult {
+    if (!positions || positions.length === 0 || positions.length > maxRoads) {
+      return { valid: false, error: 'Road Building requires 1 or 2 legal road positions' };
+    }
+
+    if (new Set(positions).size !== positions.length) {
+      return { valid: false, error: 'Road Building positions must be unique' };
+    }
+
+    const simulatedEdges = state.board.edges.map((edge) => ({
+      ...edge,
+      adjacentIntersections: [...edge.adjacentIntersections],
+      road: edge.road ? { ...edge.road } : undefined,
+    }));
+    const simulatedState = {
+      ...state,
+      board: {
+        ...state.board,
+        edges: simulatedEdges,
+      },
+    };
+
+    for (const position of positions) {
+      const edge = simulatedState.board.edges[position];
+      if (!edge) {
+        return { valid: false, error: CATAN_ERROR_MESSAGES.INVALID_EDGE };
+      }
+
+      if (edge.road) {
+        return { valid: false, error: CATAN_ERROR_MESSAGES.EDGE_OCCUPIED };
+      }
+
+      if (!this.hasConnectionToEdge(position, playerId, simulatedState)) {
+        return { valid: false, error: CATAN_ERROR_MESSAGES.NOT_CONNECTED };
+      }
+
+      edge.road = { player: playerId };
+    }
+
+    return { valid: true };
+  }
+
+  private getEligibleRobberVictims(thief: string, hexId: number, state: CatanState): string[] {
+    const adjacentPlayers = new Set<string>();
+
+    for (const intersection of state.board.intersections) {
+      if (intersection.adjacentHexes.includes(hexId) && intersection.building) {
+        const buildingOwner = intersection.building.player;
+        const victim = state.players[buildingOwner];
+        const totalResources = victim
+          ? Object.values(victim.resources).reduce((sum, count) => sum + count, 0)
+          : 0;
+
+        if (buildingOwner !== thief && totalResources > 0) {
+          adjacentPlayers.add(buildingOwner);
+        }
+      }
+    }
+
+    return Array.from(adjacentPlayers);
+  }
+
+  private validateRobberMove(
+    move: CatanMove,
+    state: CatanState,
+    options: { allowWithoutPending?: boolean } = {}
+  ): MoveValidationResult {
+    if (!options.allowWithoutPending && !state.pendingRobberMove) {
+      return { valid: false, error: 'Robber can only be moved after a 7 is rolled' };
+    }
+
     if (typeof move.position !== 'number') {
       return { valid: false, error: CATAN_ERROR_MESSAGES.MUST_SPECIFY_POSITION };
     }
@@ -1059,6 +1195,15 @@ export class CatanGame extends BaseGame {
 
     if (move.position === state.robberPosition) {
       return { valid: false, error: CATAN_ERROR_MESSAGES.ROBBER_SAME_POSITION };
+    }
+
+    const eligibleVictims = this.getEligibleRobberVictims(move.player, move.position, state);
+    if (move.targetPlayer && !eligibleVictims.includes(move.targetPlayer)) {
+      return { valid: false, error: 'Invalid target player for robber steal' };
+    }
+
+    if (!move.targetPlayer && eligibleVictims.length > 1) {
+      return { valid: false, error: 'Must specify which adjacent player to steal from' };
     }
 
     return { valid: true };
@@ -1164,34 +1309,16 @@ export class CatanGame extends BaseGame {
     }
   }
 
-  private autoMoveRobber(state: CatanState): void {
-    const currentPos = state.robberPosition;
-    let newPos;
-    do {
-      newPos = Math.floor(Math.random() * state.board.hexes.length);
-    } while (newPos === currentPos);
+  private buildFreeRoads(state: CatanState, playerId: string, positions: number[]): void {
+    const player = state.players[playerId]!;
 
-    state.board.hexes[currentPos]!.hasRobber = false;
-    state.board.hexes[newPos]!.hasRobber = true;
-    state.robberPosition = newPos;
-  }
-
-  private buildFreeRoads(
-    state: CatanState,
-    player: CatanState['players'][string],
-    count: number
-  ): void {
-    // Simplified: find available road positions and place them
-    let roadsBuilt = 0;
-    for (const edge of state.board.edges) {
-      if (!edge.road && roadsBuilt < count && player.buildings.roads > 0) {
-        if (this.hasConnectionToEdge(edge.id, player as any, state)) {
-          edge.road = { player: player as any };
-          player.buildings.roads--;
-          roadsBuilt++;
-        }
-      }
+    for (const position of positions) {
+      const edge = state.board.edges[position]!;
+      edge.road = { player: playerId };
+      player.buildings.roads--;
     }
+
+    this.updateLongestRoad(state);
   }
 
   private moveRobber(move: CatanMove, state: CatanState): void {
@@ -1201,34 +1328,19 @@ export class CatanGame extends BaseGame {
     state.board.hexes[oldPos]!.hasRobber = false;
     state.board.hexes[newPos]!.hasRobber = true;
     state.robberPosition = newPos;
+    state.pendingRobberMove = false;
 
-    // Steal a card from a player with a building adjacent to the new hex (simplified)
-    this.stealRandomCard(move.player, newPos, state);
+    const eligibleVictims = this.getEligibleRobberVictims(move.player, newPos, state);
+    const victim = move.targetPlayer ?? (eligibleVictims.length === 1 ? eligibleVictims[0]! : null);
+
+    if (victim) {
+      this.stealRandomResource(move.player, victim, state);
+    }
   }
 
-  private stealRandomCard(thief: string, hexId: number, state: CatanState): void {
-    const adjacentPlayers = new Set<string>();
-
-    // Find players with buildings adjacent to the hex
-    for (const intersection of state.board.intersections) {
-      if (intersection.adjacentHexes.includes(hexId) && intersection.building) {
-        const buildingOwner = intersection.building.player;
-        if (buildingOwner !== thief) {
-          adjacentPlayers.add(buildingOwner);
-        }
-      }
-    }
-
-    if (adjacentPlayers.size === 0) {
-      return;
-    }
-
-    // Pick a random player to steal from
-    const playersArray = Array.from(adjacentPlayers);
-    const victim = playersArray[Math.floor(Math.random() * playersArray.length)]!;
+  private stealRandomResource(thief: string, victim: string, state: CatanState): void {
     const victimPlayer = state.players[victim]!;
 
-    // Find resources to steal
     const resources: Resource[] = [];
     for (const [resource, count] of Object.entries(victimPlayer.resources)) {
       for (let i = 0; i < count; i++) {
@@ -1242,7 +1354,6 @@ export class CatanGame extends BaseGame {
       state.players[thief]!.resources[stolenResource]++;
     }
   }
-
   private executeBankTrade(
     move: CatanMove,
     state: CatanState,
@@ -1381,16 +1492,18 @@ export class CatanGame extends BaseGame {
     const player = state.players[move.player]!;
 
     switch (move.action) {
-      case 'roll_dice':
-        const roll = Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1;
+      case 'roll_dice': {
+        const roll = this.rollDice();
         state.diceRoll = roll;
 
         if (roll === 7) {
           this.handleRobber(state);
+          state.pendingRobberMove = true;
         } else {
           this.distributeResources(roll, state);
         }
         break;
+      }
 
       case 'build_settlement':
         this.buildSettlement(move, state, player);
@@ -1405,11 +1518,12 @@ export class CatanGame extends BaseGame {
         break;
 
       case 'buy_development_card':
-        this.buyDevelopmentCard(state, player);
+        this.buyDevelopmentCard(state, move.player, player);
         break;
 
       case 'play_development_card':
         this.playDevelopmentCard(move, state, player);
+        state.playedDevelopmentCardThisTurn = true;
         break;
 
       case 'move_robber':
@@ -1435,7 +1549,6 @@ export class CatanGame extends BaseGame {
       details: `${move.player} performed ${move.action.replace('_', ' ')}`,
     };
   }
-
   private advanceSetupPhase(state: CatanState): void {
     const playerCount = state.playerOrder.length;
     const currentIndex = state.playerOrder.indexOf(state.currentPlayer);
@@ -1473,27 +1586,13 @@ export class CatanGame extends BaseGame {
   }
 
   private handleRobber(state: CatanState): void {
-    // Force players with 8+ cards to discard half
     for (const player of Object.values(state.players)) {
       const totalCards = Object.values(player.resources).reduce((sum, count) => sum + count, 0);
       if (totalCards >= 8) {
         const toDiscard = Math.floor(totalCards / 2);
-        // In a real implementation, this would require player input
-        // For simplicity, randomly discard resources
         this.randomlyDiscardResources(player.resources, toDiscard);
       }
     }
-
-    // Current player must move robber (simplified - auto-move for now)
-    const currentRobberPos = state.robberPosition;
-    let newPosition;
-    do {
-      newPosition = Math.floor(Math.random() * state.board.hexes.length);
-    } while (newPosition === currentRobberPos);
-
-    state.board.hexes[currentRobberPos]!.hasRobber = false;
-    state.board.hexes[newPosition]!.hasRobber = true;
-    state.robberPosition = newPosition;
   }
 
   private randomlyDiscardResources(resources: ResourceCards, count: number): void {
@@ -1562,13 +1661,18 @@ export class CatanGame extends BaseGame {
     this.updateLongestRoad(state);
   }
 
-  private buyDevelopmentCard(state: CatanState, player: CatanState['players'][string]): void {
-    // Deduct resources
+  private buyDevelopmentCard(
+    state: CatanState,
+    playerId: string,
+    player: CatanState['players'][string]
+  ): void {
     this.deductResources(player.resources, this.BUILDING_COSTS.development_card);
 
-    // Draw card
     const card = state.developmentCardDeck.pop()!;
     player.developmentCards.push(card);
+    state.newDevelopmentCards ??= {};
+    state.newDevelopmentCards[playerId] ??= [];
+    state.newDevelopmentCards[playerId]!.push(card);
 
     if (card === 'victory_point') {
       player.victoryPoints++;
@@ -1611,10 +1715,15 @@ export class CatanGame extends BaseGame {
   }
 
   private endTurn(state: CatanState): void {
-    // Reset turn state
+    const endingPlayer = state.currentPlayer;
     state.diceRoll = null;
+    state.pendingRobberMove = false;
+    state.playedDevelopmentCardThisTurn = false;
 
-    // Advance to next player
+    if (state.newDevelopmentCards?.[endingPlayer]) {
+      state.newDevelopmentCards[endingPlayer] = [];
+    }
+
     const currentIndex = state.playerOrder.indexOf(state.currentPlayer);
     state.currentPlayer = state.playerOrder[(currentIndex + 1) % state.playerOrder.length]!;
   }
@@ -1671,6 +1780,7 @@ export class CatanGame extends BaseGame {
       setupRound: state.setupRound,
       diceRoll: state.diceRoll,
       robberPosition: state.robberPosition,
+      pendingRobberMove: state.pendingRobberMove ?? false,
       lastAction: state.lastAction,
       developmentCardsLeft: state.developmentCardDeck.length,
     };
@@ -1706,7 +1816,6 @@ export class CatanGame extends BaseGame {
   ): void {
     const cardType = move.cardType!;
 
-    // Remove card from player's hand
     const cardIndex = player.developmentCards.indexOf(cardType);
     player.developmentCards.splice(cardIndex, 1);
 
@@ -1714,41 +1823,33 @@ export class CatanGame extends BaseGame {
       case 'knight':
         player.largestArmy++;
         this.updateLargestArmy(state);
-        // Player can move robber (simplified - auto-move)
-        this.autoMoveRobber(state);
+        this.moveRobber(move, state);
         break;
 
       case 'road_building':
-        // Player can build 2 roads for free (simplified - auto-place)
-        this.buildFreeRoads(state, player, 2);
+        this.buildFreeRoads(state, move.player, move.positions ?? []);
         break;
 
       case 'year_of_plenty':
-        // Player gets 2 resources of their choice (simplified - random)
-        const resources: Resource[] = ['wood', 'brick', 'wool', 'grain', 'ore'];
-        for (let i = 0; i < 2; i++) {
-          const randomResource = resources[Math.floor(Math.random() * resources.length)]!;
-          player.resources[randomResource]++;
+        for (const resource of move.resources ?? []) {
+          player.resources[resource]++;
         }
         break;
 
-      case 'monopoly':
-        // Player takes all cards of one type from all other players (simplified - random resource)
-        const monopolyResource = (['wood', 'brick', 'wool', 'grain', 'ore'] as Resource[])[
-          Math.floor(Math.random() * 5)
-        ]!;
+      case 'monopoly': {
+        const monopolyResource = move.resource!;
         let totalTaken = 0;
-        for (const otherPlayer of Object.values(state.players)) {
-          if (otherPlayer !== player) {
+        for (const [playerId, otherPlayer] of Object.entries(state.players)) {
+          if (playerId !== move.player) {
             totalTaken += otherPlayer.resources[monopolyResource];
             otherPlayer.resources[monopolyResource] = 0;
           }
         }
         player.resources[monopolyResource] += totalTaken;
         break;
+      }
     }
   }
-
   // Add back the missing method with bounds checking
   private hasConnectionToIntersection(
     intersectionId: number,
@@ -1765,3 +1866,15 @@ export function createCatanGame(
 ): CatanGame {
   return new CatanGame(gameId, database);
 }
+
+
+
+
+
+
+
+
+
+
+
+

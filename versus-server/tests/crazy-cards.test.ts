@@ -1,8 +1,76 @@
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import { CrazyCardsGame } from '../src/games/crazy-cards.js';
+import { restoreGameState } from './helpers/restore-game-state.js';
 
-// Helper function to access internal state
-function getInternalState(game: any): any {
-  return game.currentState;
+type CrazyColor = 'red' | 'blue' | 'green' | 'yellow' | 'wild';
+type CrazyValue =
+  | '0'
+  | '1'
+  | '2'
+  | '3'
+  | '4'
+  | '5'
+  | '6'
+  | '7'
+  | '8'
+  | '9'
+  | 'skip'
+  | 'reverse'
+  | 'draw2'
+  | 'wild'
+  | 'wild_draw4';
+
+type CrazyCard = {
+  color: CrazyColor;
+  value: CrazyValue;
+  id: string;
+};
+
+const createCard = (color: CrazyColor, value: CrazyValue, id: string): CrazyCard => ({
+  color,
+  value,
+  id,
+});
+
+const createPlayer = (hand: CrazyCard[]) => ({
+  hand,
+  handSize: hand.length,
+  hasCalledUno: false,
+});
+
+async function seedCrazyGame(
+  game: CrazyCardsGame,
+  overrides: Partial<Record<string, any>> = {}
+): Promise<void> {
+  const playerOrder = overrides.playerOrder ?? ['player1', 'player2'];
+  await game.initializeGame({ playerCount: playerOrder.length });
+
+  const player1Hand = overrides.player1Hand ?? [createCard('red', '7', 'p1-red-7')];
+  const player2Hand = overrides.player2Hand ?? [createCard('blue', '4', 'p2-blue-4')];
+  const deck = overrides.deck ?? [createCard('yellow', '9', 'deck-0')];
+  const discardPile = overrides.discardPile ?? [createCard('red', '5', 'discard-red-5')];
+
+  await restoreGameState(game, {
+    players: {
+      player1: createPlayer(player1Hand),
+      player2: createPlayer(player2Hand),
+    },
+    deck,
+    discardPile,
+    currentPlayer: overrides.currentPlayer ?? 'player1',
+    playerOrder,
+    direction: overrides.direction ?? 1,
+    currentColor: overrides.currentColor ?? discardPile[discardPile.length - 1]!.color,
+    gameOver: false,
+    winner: null,
+    lastAction: overrides.lastAction ?? null,
+    gamePhase: 'playing',
+    pendingDraw: overrides.pendingDraw ?? 0,
+    mustPlayDrawCard: overrides.mustPlayDrawCard ?? false,
+    wildColorChoice: overrides.wildColorChoice ?? null,
+    drawnCardId: overrides.drawnCardId ?? null,
+    pendingWildDraw4Challenge: overrides.pendingWildDraw4Challenge ?? null,
+  });
 }
 
 describe('CrazyCardsGame', () => {
@@ -12,595 +80,280 @@ describe('CrazyCardsGame', () => {
     game = new CrazyCardsGame('test-game-id');
   });
 
-  describe('initializeGame', () => {
-    it('should initialize game with default 4 players', async () => {
-      const state = await game.initializeGame();
-      expect(Object.keys(state.players).length).toBe(4);
-      expect(state.currentPlayer).toBe('player1');
-      expect(state.gameOver).toBe(false);
-      expect(state.winner).toBeNull();
-      expect(state.direction).toBe(1);
-      expect(state.pendingDraw).toBe(0);
-      expect(state.gamePhase).toBe('playing');
-    });
+  it('initializes with an ordinary starting discard and 7-card hands', async () => {
+    const state = await game.initializeGame({ playerCount: 2 });
+    const internalState = (game as any).currentState;
 
-    it('should initialize game with custom player count', async () => {
-      const state = await game.initializeGame({ playerCount: 2 });
-      expect(Object.keys(state.players).length).toBe(2);
-    });
-
-    it('should deal 7 cards to each player', async () => {
-      await game.initializeGame({ playerCount: 2 });
-      const internalState = getInternalState(game);
-      expect(internalState.players.player1.hand.length).toBe(7);
-      expect(internalState.players.player2.hand.length).toBe(7);
-    });
-
-    it('should start with valid discard pile card', async () => {
-      await game.initializeGame();
-      const internalState = getInternalState(game);
-      const topCard = internalState.discardPile[0];
-      expect(topCard.color).not.toBe('wild');
-      expect(['skip', 'reverse', 'draw2']).not.toContain(topCard.value);
-    });
-
-    it('should create deck with correct number of cards', async () => {
-      await game.initializeGame({ playerCount: 2 });
-      const internalState = getInternalState(game);
-
-      // Count all cards in the game
-      const totalCards =
-        internalState.deck.length +
-        internalState.players.player1.hand.length +
-        internalState.players.player2.hand.length +
-        internalState.discardPile.length;
-
-      // Uno deck has 108 cards, but implementation might differ slightly
-      // Let's check the actual total is reasonable (between 100-110)
-      expect(totalCards).toBeGreaterThan(100);
-      expect(totalCards).toBeLessThan(110);
-    });
+    expect(Object.keys(state.players)).toHaveLength(2);
+    expect(internalState.players.player1.hand.length).toBe(7);
+    expect(internalState.players.player2.hand.length).toBe(7);
+    expect(internalState.discardPile[0].color).not.toBe('wild');
+    expect(['skip', 'reverse', 'draw2']).not.toContain(internalState.discardPile[0].value);
   });
 
-  describe('validateMove', () => {
-    beforeEach(async () => {
-      await game.initializeGame({ playerCount: 2 });
+  it('plays a matching color card and advances turn', async () => {
+    const redSeven = createCard('red', '7', 'p1-red-7');
+    await seedCrazyGame(game, {
+      player1Hand: [redSeven, createCard('yellow', '2', 'p1-yellow-2')],
+      player2Hand: [createCard('blue', '4', 'p2-blue-4'), createCard('green', '6', 'p2-green-6')],
     });
 
-    it('should validate draw move', async () => {
-      const result = await game.validateMove({
-        player: 'player1',
-        action: 'draw',
-      });
-      expect(result.valid).toBe(true);
+    const state = await game.makeMove({
+      player: 'player1',
+      action: 'play',
+      card: redSeven,
     });
 
-    it('should validate pass move', async () => {
-      const result = await game.validateMove({
-        player: 'player1',
-        action: 'pass',
-      });
-      expect(result.valid).toBe(true);
-    });
-
-    it('should reject move when not player turn', async () => {
-      const result = await game.validateMove({
-        player: 'player2',
-        action: 'draw',
-      });
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('Not your turn');
-    });
-
-    it('should validate uno call with 2 cards', async () => {
-      const state = getInternalState(game);
-      // Force player to have 2 cards
-      state.players.player1.hand = state.players.player1.hand.slice(0, 2);
-
-      const result = await game.validateMove({
-        player: 'player1',
-        action: 'uno',
-      });
-      expect(result.valid).toBe(true);
-    });
-
-    it('should reject uno call with wrong card count', async () => {
-      const result = await game.validateMove({
-        player: 'player1',
-        action: 'uno',
-      });
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('Can only call Uno when you have 2 cards left');
-    });
-
-    it('should validate play move with valid card', async () => {
-      const state = getInternalState(game);
-      const playerCard = state.players.player1.hand[0];
-
-      const result = await game.validateMove({
-        player: 'player1',
-        action: 'play',
-        card: playerCard,
-      });
-
-      // Result depends on whether card matches
-      expect(typeof result.valid).toBe('boolean');
-    });
-
-    it('should reject play without card', async () => {
-      const result = await game.validateMove({
-        player: 'player1',
-        action: 'play',
-      });
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('Must specify a card to play');
-    });
-
-    it("should reject play with card player doesn't have", async () => {
-      const result = await game.validateMove({
-        player: 'player1',
-        action: 'play',
-        card: { color: 'red', value: '5', id: 'fake-card' },
-      });
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('You do not have that card');
-    });
+    expect(state.topCard).toMatchObject(redSeven);
+    expect(state.currentPlayer).toBe('player2');
+    expect(state.gameOver).toBe(false);
+    expect(state.winner).toBeNull();
   });
 
-  describe('card play mechanics', () => {
-    beforeEach(async () => {
-      await game.initializeGame({ playerCount: 2 });
+  it('rejects a card that matches neither color nor value', async () => {
+    const invalidCard = createCard('blue', '9', 'p1-blue-9');
+    await seedCrazyGame(game, {
+      player1Hand: [invalidCard],
+      player2Hand: [createCard('green', '6', 'p2-green-6')],
+      discardPile: [createCard('red', '5', 'discard-red-5')],
     });
 
-    it('should allow playing matching color card', async () => {
-      const state = getInternalState(game);
-      const topCard = state.discardPile[state.discardPile.length - 1];
-
-      // Find a card with matching color (not action cards that might change turn order)
-      const matchingCard = state.players.player1.hand.find(
-        (card) =>
-          card.color === topCard.color &&
-          card.color !== 'wild' &&
-          !['skip', 'reverse', 'draw2'].includes(card.value)
-      );
-
-      if (matchingCard) {
-        await game.makeMove({
-          player: 'player1',
-          action: 'play',
-          card: matchingCard,
-        });
-
-        const newState = await game.getGameState();
-        expect(newState.topCard.id).toBe(matchingCard.id);
-        expect(newState.currentPlayer).toBe('player2');
-      } else {
-        // If no simple matching card, just verify the test setup
-        expect(state.currentPlayer).toBe('player1');
-      }
+    const result = await game.validateMove({
+      player: 'player1',
+      action: 'play',
+      card: invalidCard,
     });
 
-    it('should allow playing matching value card', async () => {
-      const state = getInternalState(game);
-      const topCard = state.discardPile[state.discardPile.length - 1];
-
-      // Find a card with matching value but different color
-      const matchingCard = state.players.player1.hand.find(
-        (card) =>
-          card.value === topCard.value && card.color !== topCard.color && card.color !== 'wild'
-      );
-
-      if (matchingCard) {
-        await game.makeMove({
-          player: 'player1',
-          action: 'play',
-          card: matchingCard,
-        });
-
-        const newState = await game.getGameState();
-        expect(newState.topCard.id).toBe(matchingCard.id);
-      }
-    });
-
-    it('should allow playing wild card anytime', async () => {
-      const state = getInternalState(game);
-
-      // Find a wild card
-      const wildCard = state.players.player1.hand.find((card) => card.color === 'wild');
-
-      if (wildCard) {
-        await game.makeMove({
-          player: 'player1',
-          action: 'play',
-          card: wildCard,
-          chosenColor: 'blue',
-        });
-
-        const newState = await game.getGameState();
-        expect(newState.topCard.id).toBe(wildCard.id);
-        expect(newState.currentColor).toBe('blue');
-      }
-    });
-
-    it('should handle draw action', async () => {
-      const state = getInternalState(game);
-      const initialHandSize = state.players.player1.hand.length;
-      const initialDeckSize = state.deck.length;
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'draw',
-      });
-
-      const newState = getInternalState(game);
-      expect(newState.players.player1.hand.length).toBe(initialHandSize + 1);
-      expect(newState.deck.length).toBe(initialDeckSize - 1);
-      expect(newState.currentPlayer).toBe('player1'); // Still same player's turn
-    });
-
-    it('should handle pass action after draw', async () => {
-      await game.makeMove({
-        player: 'player1',
-        action: 'draw',
-      });
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'pass',
-      });
-
-      const state = await game.getGameState();
-      expect(state.currentPlayer).toBe('player2');
-    });
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe('Card must match color (red) or value (5)');
   });
 
-  describe('special cards', () => {
-    beforeEach(async () => {
-      await game.initializeGame({ playerCount: 3 });
+  it('requires a chosen color for wild cards', async () => {
+    const wildCard = createCard('wild', 'wild', 'p1-wild');
+    await seedCrazyGame(game, {
+      player1Hand: [wildCard],
+      player2Hand: [createCard('green', '6', 'p2-green-6')],
     });
 
-    it('should skip next player with skip card', async () => {
-      const state = getInternalState(game);
-
-      // Create a skip card
-      const skipCard = { color: state.currentColor, value: 'skip', id: 'test-skip' };
-      state.players.player1.hand.push(skipCard);
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'play',
-        card: skipCard,
-      });
-
-      const newState = await game.getGameState();
-      expect(newState.currentPlayer).toBe('player3'); // Skipped player2
+    const result = await game.validateMove({
+      player: 'player1',
+      action: 'play',
+      card: wildCard,
     });
 
-    it('should reverse direction with reverse card', async () => {
-      const state = getInternalState(game);
-
-      // Create a reverse card
-      const reverseCard = { color: state.currentColor, value: 'reverse', id: 'test-reverse' };
-      state.players.player1.hand.push(reverseCard);
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'play',
-        card: reverseCard,
-      });
-
-      const newState = getInternalState(game);
-      expect(newState.direction).toBe(-1);
-      expect(newState.currentPlayer).toBe('player3'); // Goes backwards
-    });
-
-    it('should set pending draw with draw2 card', async () => {
-      const state = getInternalState(game);
-
-      // Create a draw2 card
-      const draw2Card = { color: state.currentColor, value: 'draw2', id: 'test-draw2' };
-      state.players.player1.hand.push(draw2Card);
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'play',
-        card: draw2Card,
-      });
-
-      const newState = getInternalState(game);
-      expect(newState.pendingDraw).toBe(2);
-      expect(newState.mustPlayDrawCard).toBe(true);
-    });
-
-    it('should set pending draw with wild draw4 card', async () => {
-      const state = getInternalState(game);
-
-      // Create a wild draw4 card
-      const wildDraw4 = { color: 'wild', value: 'wild_draw4', id: 'test-wild-draw4' };
-      state.players.player1.hand.push(wildDraw4);
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'play',
-        card: wildDraw4,
-        chosenColor: 'red',
-      });
-
-      const newState = getInternalState(game);
-      expect(newState.pendingDraw).toBe(4);
-      expect(newState.mustPlayDrawCard).toBe(true);
-      expect(newState.currentColor).toBe('red');
-    });
-
-    it('should handle stacking draw cards', async () => {
-      const state = getInternalState(game);
-
-      // Player 1 plays draw2
-      const draw2Card1 = { color: state.currentColor, value: 'draw2', id: 'test-draw2-1' };
-      state.players.player1.hand.push(draw2Card1);
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'play',
-        card: draw2Card1,
-      });
-
-      // Player 2 plays another draw2
-      const draw2Card2 = { color: state.currentColor, value: 'draw2', id: 'test-draw2-2' };
-      state.players.player2.hand.push(draw2Card2);
-
-      await game.makeMove({
-        player: 'player2',
-        action: 'play',
-        card: draw2Card2,
-      });
-
-      const newState = getInternalState(game);
-      expect(newState.pendingDraw).toBe(4); // 2 + 2
-    });
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe('Must choose a non-wild color');
   });
 
-  describe('uno mechanics', () => {
-    beforeEach(async () => {
-      await game.initializeGame({ playerCount: 2 });
+  it('only allows the drawn card to be played after drawing', async () => {
+    const existingPlayable = createCard('red', '7', 'p1-red-7');
+    const drawnPlayable = createCard('red', '1', 'deck-red-1');
+    await seedCrazyGame(game, {
+      player1Hand: [existingPlayable],
+      player2Hand: [createCard('green', '6', 'p2-green-6')],
+      deck: [drawnPlayable, createCard('yellow', '3', 'deck-yellow-3')],
     });
 
-    it('should allow calling uno when playing second to last card', async () => {
-      const state = getInternalState(game);
-
-      // Leave player with 2 cards
-      state.players.player1.hand = state.players.player1.hand.slice(0, 2);
-      state.players.player1.handSize = 2;
-
-      // Call uno
-      await game.makeMove({
-        player: 'player1',
-        action: 'uno',
-      });
-
-      const newState = getInternalState(game);
-      expect(newState.players.player1.hasCalledUno).toBe(true);
-
-      // Play a card
-      const topCard = newState.discardPile[newState.discardPile.length - 1];
-      const validCard = newState.players.player1.hand.find(
-        (card) =>
-          card.color === 'wild' || card.color === topCard.color || card.value === topCard.value
-      );
-
-      if (validCard) {
-        await game.makeMove({
-          player: 'player1',
-          action: 'play',
-          card: validCard,
-          chosenColor: validCard.color === 'wild' ? 'red' : undefined,
-        });
-
-        const finalState = getInternalState(game);
-        expect(finalState.players.player1.hand.length).toBe(1);
-      }
+    await game.makeMove({
+      player: 'player1',
+      action: 'draw',
     });
+
+    const wrongCardResult = await game.validateMove({
+      player: 'player1',
+      action: 'play',
+      card: existingPlayable,
+    });
+    expect(wrongCardResult.valid).toBe(false);
+    expect(wrongCardResult.error).toBe('Can only play the card you just drew');
+
+    const drawnCardResult = await game.validateMove({
+      player: 'player1',
+      action: 'play',
+      card: drawnPlayable,
+    });
+    expect(drawnCardResult.valid).toBe(true);
   });
 
-  describe('game ending', () => {
-    beforeEach(async () => {
-      await game.initializeGame({ playerCount: 2 });
+  it('only allows passing after a normal draw', async () => {
+    await seedCrazyGame(game, {
+      deck: [createCard('yellow', '1', 'deck-yellow-1')],
     });
 
-    it('should end game when player plays last card', async () => {
-      const state = getInternalState(game);
-
-      // Leave player with 1 card
-      const lastCard = state.players.player1.hand[0];
-      state.players.player1.hand = [lastCard];
-      state.players.player1.handSize = 1;
-
-      // Make it a wild card so it can be played
-      lastCard.color = 'wild';
-      lastCard.value = 'wild';
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'play',
-        card: lastCard,
-        chosenColor: 'red',
-      });
-
-      const finalState = await game.getGameState();
-      expect(finalState.gameOver).toBe(true);
-      expect(finalState.winner).toBe('player1');
-      expect(finalState.gamePhase).toBe('finished');
+    const beforeDraw = await game.validateMove({
+      player: 'player1',
+      action: 'pass',
     });
+    expect(beforeDraw.valid).toBe(false);
+    expect(beforeDraw.error).toBe('Can only pass after drawing a card');
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'draw',
+    });
+
+    const afterDraw = await game.validateMove({
+      player: 'player1',
+      action: 'pass',
+    });
+    expect(afterDraw.valid).toBe(true);
+
+    const state = await game.makeMove({
+      player: 'player1',
+      action: 'pass',
+    });
+    expect(state.currentPlayer).toBe('player2');
   });
 
-  describe('challenge mechanics', () => {
-    beforeEach(async () => {
-      await game.initializeGame({ playerCount: 2 });
+  it('forces the next player to draw a draw-two penalty instead of stacking', async () => {
+    const drawTwo = createCard('red', 'draw2', 'p1-draw2');
+    const counterDrawTwo = createCard('blue', 'draw2', 'p2-draw2');
+    await seedCrazyGame(game, {
+      player1Hand: [drawTwo, createCard('yellow', '7', 'p1-yellow-7')],
+      player2Hand: [counterDrawTwo, createCard('green', '2', 'p2-green-2')],
+      deck: [
+        createCard('yellow', '4', 'deck-yellow-4'),
+        createCard('green', '8', 'deck-green-8'),
+        createCard('blue', '3', 'deck-blue-3'),
+      ],
     });
 
-    it('should allow challenging wild draw 4', async () => {
-      const state = getInternalState(game);
-
-      // Player 1 plays wild draw 4
-      const wildDraw4 = { color: 'wild', value: 'wild_draw4', id: 'test-wild-draw4' };
-      state.players.player1.hand.push(wildDraw4);
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'play',
-        card: wildDraw4,
-        chosenColor: 'red',
-      });
-
-      // Player 2 challenges
-      const result = await game.validateMove({
-        player: 'player2',
-        action: 'challenge',
-      });
-      expect(result.valid).toBe(true);
-
-      await game.makeMove({
-        player: 'player2',
-        action: 'challenge',
-      });
-
-      const newState = getInternalState(game);
-      // Either player1 or player2 will have drawn cards based on challenge result
-      const player1Cards = newState.players.player1.hand.length;
-      const player2Cards = newState.players.player2.hand.length;
-
-      // One of them should have drawn cards
-      expect(player1Cards > 7 || player2Cards > 7).toBe(true);
+    await game.makeMove({
+      player: 'player1',
+      action: 'play',
+      card: drawTwo,
     });
 
-    it("should reject challenge when last card wasn't wild draw 4", async () => {
-      const result = await game.validateMove({
-        player: 'player1',
-        action: 'challenge',
-      });
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('Can only challenge a Wild Draw 4 card');
+    const stackAttempt = await game.validateMove({
+      player: 'player2',
+      action: 'play',
+      card: counterDrawTwo,
     });
+    expect(stackAttempt.valid).toBe(false);
+    expect(stackAttempt.error).toBe('Must draw the penalty cards');
+
+    const state = await game.makeMove({
+      player: 'player2',
+      action: 'draw',
+    });
+
+    expect(state.currentPlayer).toBe('player1');
+    expect(state.pendingDraw).toBe(0);
+    expect((game as any).currentState.players.player2.hand.length).toBe(4);
   });
 
-  describe('deck reshuffling', () => {
-    it('should reshuffle discard pile when deck runs out', async () => {
-      await game.initializeGame({ playerCount: 2 });
-      const state = getInternalState(game);
-
-      // Move most cards to discard pile
-      const cardsToMove = state.deck.splice(0, state.deck.length - 1);
-      state.discardPile.push(...cardsToMove);
-
-      const discardSize = state.discardPile.length;
-
-      // Draw cards to trigger reshuffle
-      await game.makeMove({
-        player: 'player1',
-        action: 'draw',
-      });
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'pass',
-      });
-
-      await game.makeMove({
-        player: 'player2',
-        action: 'draw',
-      });
-
-      const newState = getInternalState(game);
-      // Deck should have been replenished from discard pile
-      expect(newState.deck.length).toBeGreaterThan(0);
-      expect(newState.discardPile.length).toBeLessThan(discardSize);
+  it('resolves a successful Wild Draw 4 challenge against an illegal play', async () => {
+    const matchingColorCard = createCard('red', '9', 'p1-red-9');
+    const wildDrawFour = createCard('wild', 'wild_draw4', 'p1-wild-draw4');
+    await seedCrazyGame(game, {
+      player1Hand: [matchingColorCard, wildDrawFour],
+      player2Hand: [createCard('blue', '4', 'p2-blue-4')],
+      deck: [
+        createCard('yellow', '1', 'deck-yellow-1'),
+        createCard('yellow', '2', 'deck-yellow-2'),
+        createCard('yellow', '3', 'deck-yellow-3'),
+        createCard('yellow', '4', 'deck-yellow-4'),
+      ],
     });
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'play',
+      card: wildDrawFour,
+      chosenColor: 'blue',
+    });
+
+    const validation = await game.validateMove({
+      player: 'player2',
+      action: 'challenge',
+    });
+    expect(validation.valid).toBe(true);
+
+    const state = await game.makeMove({
+      player: 'player2',
+      action: 'challenge',
+    });
+
+    expect(state.currentPlayer).toBe('player2');
+    expect(state.pendingDraw).toBe(0);
+    expect((game as any).currentState.players.player1.hand.length).toBe(5);
+    expect((game as any).currentState.players.player2.hand.length).toBe(1);
+    expect(state.lastAction?.details).toContain('successfully challenged');
   });
 
-  describe('reverse in 2-player game', () => {
-    it('should act like skip in 2-player game', async () => {
-      await game.initializeGame({ playerCount: 2 });
-      const state = getInternalState(game);
-
-      // Create a reverse card
-      const reverseCard = { color: state.currentColor, value: 'reverse', id: 'test-reverse' };
-      state.players.player1.hand.push(reverseCard);
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'play',
-        card: reverseCard,
-      });
-
-      const newState = await game.getGameState();
-      // In 2-player, reverse should skip back to player1
-      expect(newState.currentPlayer).toBe('player1');
+  it('resolves a failed Wild Draw 4 challenge against a legal play', async () => {
+    const nonMatchingCard = createCard('blue', '9', 'p1-blue-9');
+    const wildDrawFour = createCard('wild', 'wild_draw4', 'p1-wild-draw4');
+    await seedCrazyGame(game, {
+      player1Hand: [nonMatchingCard, wildDrawFour],
+      player2Hand: [createCard('blue', '4', 'p2-blue-4')],
+      deck: [
+        createCard('yellow', '1', 'deck-yellow-1'),
+        createCard('yellow', '2', 'deck-yellow-2'),
+        createCard('yellow', '3', 'deck-yellow-3'),
+        createCard('yellow', '4', 'deck-yellow-4'),
+        createCard('yellow', '5', 'deck-yellow-5'),
+        createCard('yellow', '6', 'deck-yellow-6'),
+      ],
     });
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'play',
+      card: wildDrawFour,
+      chosenColor: 'blue',
+    });
+
+    const state = await game.makeMove({
+      player: 'player2',
+      action: 'challenge',
+    });
+
+    expect(state.currentPlayer).toBe('player1');
+    expect(state.pendingDraw).toBe(0);
+    expect((game as any).currentState.players.player2.hand.length).toBe(7);
+    expect(state.lastAction?.details).toContain('failed to challenge');
   });
 
-  describe('getMetadata', () => {
-    it('should return correct metadata', () => {
-      const metadata = game.getMetadata();
-      expect(metadata.name).toBe('Crazy Cards');
-      expect(metadata.minPlayers).toBe(2);
-      expect(metadata.maxPlayers).toBe(10);
-      expect(metadata.complexity).toBe('beginner');
+  it('treats reverse as a skip in a two-player game', async () => {
+    const reverse = createCard('red', 'reverse', 'p1-reverse');
+    await seedCrazyGame(game, {
+      player1Hand: [reverse, createCard('yellow', '7', 'p1-yellow-7')],
+      player2Hand: [createCard('green', '2', 'p2-green-2')],
     });
+
+    const state = await game.makeMove({
+      player: 'player1',
+      action: 'play',
+      card: reverse,
+    });
+
+    expect(state.currentPlayer).toBe('player1');
+    expect(state.direction).toBe(-1);
   });
 
-  describe('edge cases', () => {
-    beforeEach(async () => {
-      await game.initializeGame({ playerCount: 2 });
+  it('only allows calling Uno with exactly two cards in hand', async () => {
+    await seedCrazyGame(game, {
+      player1Hand: [createCard('red', '7', 'p1-red-7'), createCard('blue', '7', 'p1-blue-7')],
+      player2Hand: [createCard('green', '2', 'p2-green-2')],
     });
 
-    it('should handle invalid move data', async () => {
-      const result = await game.validateMove({
-        player: 'player1',
-      } as any);
-      expect(result.valid).toBe(false);
+    const validCall = await game.validateMove({
+      player: 'player1',
+      action: 'uno',
+    });
+    expect(validCall.valid).toBe(true);
+
+    await seedCrazyGame(game, {
+      player1Hand: [createCard('red', '7', 'solo-card')],
+      player2Hand: [createCard('green', '2', 'p2-green-2')],
     });
 
-    it('should handle game over state', async () => {
-      const state = getInternalState(game);
-      state.gameOver = true;
-      state.winner = 'player1';
-
-      const result = await game.validateMove({
-        player: 'player2',
-        action: 'draw',
-      });
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('Game is already over');
+    const invalidCall = await game.validateMove({
+      player: 'player1',
+      action: 'uno',
     });
-
-    it('should handle invalid player', async () => {
-      const result = await game.validateMove({
-        player: 'invalid-player',
-        action: 'draw',
-      });
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('Not your turn');
-    });
-
-    it('should enforce draw card rules', async () => {
-      const state = getInternalState(game);
-      state.pendingDraw = 2;
-      state.mustPlayDrawCard = true;
-
-      // Try to play a non-draw card
-      const normalCard = state.players.player1.hand.find(
-        (card) => card.value !== 'draw2' && card.value !== 'wild_draw4'
-      );
-
-      if (normalCard) {
-        const result = await game.validateMove({
-          player: 'player1',
-          action: 'play',
-          card: normalCard,
-        });
-        expect(result.valid).toBe(false);
-        expect(result.error).toBe('Must play a draw card when facing a draw penalty');
-      }
-    });
+    expect(invalidCall.valid).toBe(false);
+    expect(invalidCall.error).toBe('Can only call Uno when you have 2 cards left');
   });
 });

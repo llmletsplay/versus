@@ -1,10 +1,33 @@
 {
-  "name": "@versus/game-core",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "description": "Shared core types and helpers for standalone Versus game packages",
-  "exports": {
-    ".": "./src/index.ts"
-  }
+    "name":  "@versus/game-core",
+    "version":  "0.1.0",
+    "description":  "Shared core types and helpers for standalone Versus game packages",
+    "license":  "MIT",
+    "type":  "module",
+    "sideEffects":  false,
+    "publishConfig":  {
+                          "access":  "public"
+                      },
+    "main":  "./dist/index.js",
+    "types":  "./dist/index.d.ts",
+    "exports":  {
+                    ".":  {
+                              "types":  "./dist/index.d.ts",
+                              "import":  "./dist/index.js"
+                          }
+                },
+    "files":  [
+                  "dist",
+                  "README.md"
+              ],
+    "scripts":  {
+                    "build":  "tsc -p tsconfig.json",
+                    "prepack":  "npm run build"
+                },
+    "repository":  {
+                       "type":  "git",
+                       "url":  "https://github.com/lightnolimit/versus.git",
+                       "directory":  "packages/game-core"
+                   }
 }
+

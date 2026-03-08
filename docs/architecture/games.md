@@ -361,7 +361,6 @@ describe('MyGame', () => {
 | Thirteen | `thirteen.ts` | 4 | Intermediate |
 | Bullshit | `bullshit.ts` | 3-10 | Beginner |
 | Crazy Cards | `crazy-cards.ts` | 2-4 | Intermediate |
-| Against Cards | `against-cards.ts` | 2-4 | Intermediate |
 | Martial Tactics | `martial-tactics.ts` | 2 | Intermediate |
 
 ## Next Steps

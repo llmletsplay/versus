@@ -1,5 +1,6 @@
-import { PokerGame } from '../src/games/poker.js';
+﻿import { PokerGame } from '../src/games/poker.js';
 import { SQLiteProvider } from '../src/core/database.js';
+import { restoreGameState } from './helpers/restore-game-state.js';
 
 describe('PokerGame', () => {
   let game: PokerGame;
@@ -501,9 +502,7 @@ describe('PokerGame', () => {
     });
 
     test('should prevent moves after game over', async () => {
-      // Force game over state
-      const gameState = game['currentState'] as any;
-      gameState.gameOver = true;
+      await restoreGameState(game, { gameOver: true, winner: 'player1' });
 
       const result = await game.validateMove({
         player: 'player1',
@@ -603,3 +602,5 @@ describe('PokerGame', () => {
     });
   });
 });
+
+

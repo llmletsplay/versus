@@ -1,4 +1,4 @@
-import { SpadesGame } from '../src/games/spades.js';
+﻿import { SpadesGame } from '../src/games/spades.js';
 import { SQLiteProvider } from '../src/core/database.js';
 import { describe, test, expect, beforeEach } from '@jest/globals';
 
@@ -736,36 +736,6 @@ describe('SpadesGame', () => {
       await game.makeMove({ player: 'south', action: 'bid', bid: 3 });
     });
 
-    test('should complete round after 13 tricks', async () => {
-      // This is a complex test that requires careful card play to avoid validation errors
-      // We'll test the scoring system more directly by checking internal state
-      const internalState = getInternalState(game);
-
-      // Force completion of round by setting completed tricks count
-      internalState.completedTricks = new Array(13).fill({
-        cards: {
-          north: { suit: 'hearts', rank: 'A', value: 14 },
-          south: { suit: 'hearts', rank: 'K', value: 13 },
-          east: { suit: 'hearts', rank: 'Q', value: 12 },
-          west: { suit: 'hearts', rank: 'J', value: 11 },
-        },
-        winner: 'north',
-      });
-
-      // Set trick counts to match bids roughly
-      internalState.tricks = { north: 4, south: 3, east: 2, west: 4 };
-
-      // Trigger round end by checking if we can detect when round should end
-      expect(internalState.completedTricks).toHaveLength(13);
-
-      // The actual round ending logic would be triggered by the game engine
-      // when the 13th trick is completed, but we can test that the setup is correct
-      const totalTricks = Object.values(internalState.tricks).reduce(
-        (sum: number, tricks: any) => sum + tricks,
-        0
-      );
-      expect(totalTricks).toBe(13);
-    });
 
     test('should calculate basic bid scoring correctly', async () => {
       // Set up controlled trick results for north-south partnership
@@ -1042,3 +1012,4 @@ describe('SpadesGame', () => {
     });
   });
 });
+

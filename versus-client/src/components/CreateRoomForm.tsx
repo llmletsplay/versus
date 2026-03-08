@@ -10,7 +10,7 @@ const GAME_TYPES = [
   "chess", "poker", "tic-tac-toe", "connect-four", "checkers", "go",
   "battleship", "blackjack", "othello", "mancala", "thirteen", "go-fish",
   "cuttle", "war", "bullshit", "word-tiles", "crazy-cards", "catan",
-  "omok", "against-cards", "bingo", "hearts", "spades", "mahjong",
+  "omok", "bingo", "hearts", "spades", "mahjong",
   "chinese-checkers", "martial-tactics", "shogi",
 ];
 

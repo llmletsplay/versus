@@ -18,7 +18,7 @@ interface Card {
   value: number; // For comparison (A=1, 2=2, ..., K=13)
 }
 
-interface WarState extends GameState {
+export interface WarState extends GameState {
   players: {
     [playerId: string]: {
       deck: Card[];
@@ -49,7 +49,7 @@ interface WarMove {
 }
 
 export class WarGame extends BaseGame {
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'war', database);
   }
 
@@ -226,7 +226,7 @@ export class WarGame extends BaseGame {
     if (player.deck.length > 0) {
       const battleCard = player.deck.shift()!;
       battle.cardsPlayed[playerId] = [battleCard];
-      battle.warCards[playerId] = warCards;
+      battle.warCards[playerId] = [...(battle.warCards[playerId] || []), ...warCards];
     }
 
     state.lastAction = {
@@ -304,9 +304,11 @@ export class WarGame extends BaseGame {
           battleResult: 'Cards split due to insufficient cards for war',
         };
       } else {
-        // Reset for war round
+        // Carry the tied reveal cards into the war pot before the next reveal.
+        for (const [playerId, cards] of Object.entries(battle.cardsPlayed)) {
+          battle.warCards[playerId] = [...(battle.warCards[playerId] || []), ...cards];
+        }
         battle.cardsPlayed = {};
-
         state.lastAction = {
           action: 'war',
           battleResult: `War! ${eligiblePlayers.length} players tied with ${this.getCardRankName(highestValue)}`,
@@ -339,7 +341,6 @@ export class WarGame extends BaseGame {
     const battle = state.currentBattle!;
     const allCards: Card[] = [];
 
-    // Collect all cards
     for (const cards of Object.values(battle.cardsPlayed)) {
       allCards.push(...cards);
     }
@@ -347,18 +348,14 @@ export class WarGame extends BaseGame {
       allCards.push(...cards);
     }
 
-    // Split evenly among active players
     const activePlayers = state.playerOrder.filter((p) => state.players[p]!.deck.length > 0);
-    const cardsPerPlayer = Math.floor(allCards.length / activePlayers.length);
 
     this.shuffleDeck(allCards);
 
-    for (let i = 0; i < activePlayers.length; i++) {
-      const playerId = activePlayers[i]!;
-      const startIndex = i * cardsPerPlayer;
-      const endIndex = startIndex + cardsPerPlayer;
-      state.players[playerId]!.cardsWon.push(...allCards.slice(startIndex, endIndex));
-    }
+    allCards.forEach((card, index) => {
+      const playerId = activePlayers[index % activePlayers.length]!;
+      state.players[playerId]!.cardsWon.push(card);
+    });
   }
 
   private countBattleCards(battle: WarState['currentBattle']): number {
@@ -478,3 +475,6 @@ export function createWarGame(
 ): WarGame {
   return new WarGame(gameId, database);
 }
+
+
+

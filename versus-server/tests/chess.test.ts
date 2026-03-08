@@ -1,5 +1,36 @@
-import { describe, test, expect, beforeEach } from '@jest/globals';
+﻿import { describe, test, expect, beforeEach } from '@jest/globals';
 import { ChessGame } from '../src/games/chess.js';
+
+const createEmptyChessBoard = () => Array.from({ length: 8 }, () => Array(8).fill(null));
+
+async function restoreChessState(game: ChessGame, state: Record<string, any>): Promise<void> {
+  await game.restoreFromDatabase({
+    gameId: 'test-chess-game',
+    gameType: 'chess',
+    moveHistory: state.moveHistory ?? [],
+    players: ['white', 'black'],
+    status: state.gameOver ? 'completed' : 'active',
+    gameState: {
+      gameId: 'test-chess-game',
+      gameType: 'chess',
+      board: createEmptyChessBoard(),
+      currentPlayer: 'white',
+      gameOver: false,
+      winner: null,
+      inCheck: false,
+      castlingRights: {
+        white: { kingside: false, queenside: false },
+        black: { kingside: false, queenside: false },
+      },
+      enPassantTarget: null,
+      halfmoveClock: 0,
+      fullmoveNumber: 1,
+      players: ['white', 'black'],
+      status: 'active',
+      ...state,
+    },
+  } as any);
+}
 
 describe('ChessGame', () => {
   let game: ChessGame;
@@ -270,29 +301,68 @@ describe('ChessGame', () => {
       await game.initializeGame();
     });
 
-    test('should detect when king is in check', async () => {
-      // Create a simple check scenario
-      // This is a complex scenario to set up, so we'll test the basic functionality
+    test('should detect scholar\'s mate as checkmate', async () => {
       await game.makeMove({
         from: { row: 6, col: 4 },
         to: { row: 4, col: 4 },
         player: 'white',
       });
+      await game.makeMove({
+        from: { row: 1, col: 4 },
+        to: { row: 3, col: 4 },
+        player: 'black',
+      });
+      await game.makeMove({
+        from: { row: 7, col: 3 },
+        to: { row: 3, col: 7 },
+        player: 'white',
+      });
+      await game.makeMove({
+        from: { row: 0, col: 1 },
+        to: { row: 2, col: 2 },
+        player: 'black',
+      });
+      await game.makeMove({
+        from: { row: 7, col: 5 },
+        to: { row: 4, col: 2 },
+        player: 'white',
+      });
+      await game.makeMove({
+        from: { row: 0, col: 6 },
+        to: { row: 2, col: 5 },
+        player: 'black',
+      });
+      const state = await game.makeMove({
+        from: { row: 3, col: 7 },
+        to: { row: 1, col: 5 },
+        player: 'white',
+      });
 
-      const state = await game.getGameState();
-      // In initial position, king should not be in check
-      expect(state.inCheck).toBe(false);
+      expect(state.inCheck).toBe(true);
+      expect(state.gameOver).toBe(true);
+      expect(state.winner).toBe('white');
     });
 
     test('should prevent moves that leave king in check', async () => {
-      // This would require a complex setup to test properly
-      // For now, we'll test that the validation exists
+      const board = createEmptyChessBoard();
+      board[0][7] = { type: 'king', color: 'black' };
+      board[0][4] = { type: 'rook', color: 'black' };
+      board[6][4] = { type: 'rook', color: 'white' };
+      board[7][4] = { type: 'king', color: 'white' };
+
+      await restoreChessState(game, {
+        board,
+        currentPlayer: 'white',
+      });
+
       const result = await game.validateMove({
         from: { row: 6, col: 4 },
-        to: { row: 4, col: 4 },
+        to: { row: 6, col: 3 },
         player: 'white',
       });
-      expect(result.valid).toBe(true);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('leave king in check');
     });
   });
 
@@ -301,17 +371,39 @@ describe('ChessGame', () => {
       await game.initializeGame();
     });
 
-    test('should allow castling when conditions are met', async () => {
-      // Test that castling validation exists by checking a simple king move
-      const result = await game.validateMove({
-        from: { row: 7, col: 4 },
-        to: { row: 7, col: 5 },
-        player: 'white',
+    test('should allow kingside castling when conditions are met', async () => {
+      const board = createEmptyChessBoard();
+      board[0][4] = { type: 'king', color: 'black' };
+      board[7][4] = { type: 'king', color: 'white' };
+      board[7][7] = { type: 'rook', color: 'white' };
+
+      await restoreChessState(game, {
+        board,
+        currentPlayer: 'white',
+        castlingRights: {
+          white: { kingside: true, queenside: false },
+          black: { kingside: false, queenside: false },
+        },
       });
 
-      // This should fail because the bishop is in the way
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('Cannot capture your own piece');
+      const validation = await game.validateMove({
+        from: { row: 7, col: 4 },
+        to: { row: 7, col: 6 },
+        player: 'white',
+      });
+      expect(validation.valid).toBe(true);
+
+      const state = await game.makeMove({
+        from: { row: 7, col: 4 },
+        to: { row: 7, col: 6 },
+        player: 'white',
+      });
+      const boardAfterCastle = state.board as any[][];
+
+      expect(boardAfterCastle[7][6]).toEqual({ type: 'king', color: 'white', hasMoved: true });
+      expect(boardAfterCastle[7][5]).toEqual({ type: 'rook', color: 'white', hasMoved: true });
+      expect(boardAfterCastle[7][4]).toBeNull();
+      expect(boardAfterCastle[7][7]).toBeNull();
     });
   });
 
@@ -394,8 +486,26 @@ describe('ChessGame', () => {
     });
 
     test('should reject moves after game over', async () => {
-      // Force game over (this is a simplified test)
-      (game as any).currentState.gameOver = true;
+      await game.makeMove({
+        from: { row: 6, col: 5 },
+        to: { row: 5, col: 5 },
+        player: 'white',
+      });
+      await game.makeMove({
+        from: { row: 1, col: 4 },
+        to: { row: 3, col: 4 },
+        player: 'black',
+      });
+      await game.makeMove({
+        from: { row: 6, col: 6 },
+        to: { row: 4, col: 6 },
+        player: 'white',
+      });
+      await game.makeMove({
+        from: { row: 0, col: 3 },
+        to: { row: 4, col: 7 },
+        player: 'black',
+      });
 
       const result = await game.validateMove({
         from: { row: 6, col: 4 },
@@ -417,3 +527,4 @@ describe('ChessGame', () => {
     });
   });
 });
+

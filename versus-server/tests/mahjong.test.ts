@@ -56,7 +56,7 @@ describe('MahjongGame', () => {
         internalState.wall.length +
         Object.values(internalState.hands).reduce((sum: number, hand: any) => sum + hand.length, 0);
 
-      // Standard Mahjong has 144 tiles (136 in simplified version)
+      // This engine uses the common 136-tile set without flower or season tiles
       expect(totalTiles).toBe(136); // 4 of each: 9 bamboo + 9 character + 9 dot + 7 honors = 34 * 4
     });
 
@@ -343,6 +343,64 @@ describe('MahjongGame', () => {
       expect(state.gamePhase).toBe('finished');
     });
 
+    it('should detect a winning hand with sequences', async () => {
+      const internalState = getInternalState(game);
+
+      const winningHand = [
+        { type: 'suit', suit: 'bamboo', value: 1, id: 'b1-1' },
+        { type: 'suit', suit: 'bamboo', value: 2, id: 'b2-1' },
+        { type: 'suit', suit: 'bamboo', value: 3, id: 'b3-1' },
+        { type: 'suit', suit: 'character', value: 2, id: 'c2-1' },
+        { type: 'suit', suit: 'character', value: 3, id: 'c3-1' },
+        { type: 'suit', suit: 'character', value: 4, id: 'c4-1' },
+        { type: 'suit', suit: 'dot', value: 4, id: 'd4-1' },
+        { type: 'suit', suit: 'dot', value: 5, id: 'd5-1' },
+        { type: 'suit', suit: 'dot', value: 6, id: 'd6-1' },
+        { type: 'suit', suit: 'dot', value: 7, id: 'd7-1' },
+        { type: 'suit', suit: 'dot', value: 8, id: 'd8-1' },
+        { type: 'suit', suit: 'dot', value: 9, id: 'd9-1' },
+        { type: 'honor', honor: 'red', id: 'red-1' },
+        { type: 'honor', honor: 'red', id: 'red-2' },
+      ];
+
+      internalState.hands.player1 = winningHand;
+
+      const result = await game.validateMove({
+        player: 'player1',
+        action: 'declare_win',
+      });
+      expect(result.valid).toBe(true);
+    });
+
+    it('should detect a seven-pairs winning hand', async () => {
+      const internalState = getInternalState(game);
+
+      const winningHand = [
+        { type: 'suit', suit: 'bamboo', value: 1, id: 'b1-1' },
+        { type: 'suit', suit: 'bamboo', value: 1, id: 'b1-2' },
+        { type: 'suit', suit: 'bamboo', value: 3, id: 'b3-1' },
+        { type: 'suit', suit: 'bamboo', value: 3, id: 'b3-2' },
+        { type: 'suit', suit: 'character', value: 5, id: 'c5-1' },
+        { type: 'suit', suit: 'character', value: 5, id: 'c5-2' },
+        { type: 'suit', suit: 'character', value: 7, id: 'c7-1' },
+        { type: 'suit', suit: 'character', value: 7, id: 'c7-2' },
+        { type: 'suit', suit: 'dot', value: 2, id: 'd2-1' },
+        { type: 'suit', suit: 'dot', value: 2, id: 'd2-2' },
+        { type: 'honor', honor: 'east', id: 'east-1' },
+        { type: 'honor', honor: 'east', id: 'east-2' },
+        { type: 'honor', honor: 'white', id: 'white-1' },
+        { type: 'honor', honor: 'white', id: 'white-2' },
+      ];
+
+      internalState.hands.player1 = winningHand;
+
+      const result = await game.validateMove({
+        player: 'player1',
+        action: 'declare_win',
+      });
+      expect(result.valid).toBe(true);
+    });
+
     it('should reject invalid winning declaration', async () => {
       // Player1 has default hand which is not winning
       const result = await game.validateMove({
@@ -512,3 +570,4 @@ describe('MahjongGame', () => {
     });
   });
 });
+

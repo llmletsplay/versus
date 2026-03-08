@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach } from '@jest/globals';
 import { ThirteenGame } from '../src/games/thirteen.js';
+import { restoreGameState } from './helpers/restore-game-state.js';
 
 describe('ThirteenGame', () => {
   let game: ThirteenGame;
@@ -32,7 +33,7 @@ describe('ThirteenGame', () => {
     test('should return correct metadata', () => {
       const metadata = game.getMetadata();
 
-      expect(metadata.name).toBe('Thirteen (Tiến Lên)');
+      expect(metadata.name).toBe('Thirteen (Ti\u1EBFn L\u00EAn)');
       expect(metadata.minPlayers).toBe(2);
       expect(metadata.maxPlayers).toBe(4);
       expect(metadata.complexity).toBe('intermediate');
@@ -100,8 +101,7 @@ describe('ThirteenGame', () => {
     });
 
     test('should reject moves after game over', async () => {
-      // Force game over
-      (game as any).currentState.gameOver = true;
+      await restoreGameState(game, { gameOver: true, winner: 'player1' });
 
       const result = await game.validateMove({
         player: 'player1',
@@ -622,3 +622,7 @@ describe('ThirteenGame', () => {
     });
   });
 });
+
+
+
+

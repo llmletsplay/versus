@@ -1,11 +1,13 @@
 import { InMemoryDatabaseProvider } from '@versus/game-core';
 import { BaseGame } from '@versus/game-core';
 import type {
-  GameState,
-  GameMove,
-  MoveValidationResult,
+  DatabaseProvider,
   GameConfig,
   GameMetadata,
+  GameMove,
+  GameState,
+  GameStateData,
+  MoveValidationResult,
 } from '@versus/game-core';
 
 interface Position {
@@ -27,7 +29,7 @@ interface ShogiPiece {
   promoted?: boolean;
 }
 
-interface ShogiGameState extends GameState {
+export interface ShogiGameState extends GameState {
   board: (ShogiPiece | null)[][];
   currentPlayer: 'sente' | 'gote';
   gameOver: boolean;
@@ -40,7 +42,7 @@ interface ShogiGameState extends GameState {
   inCheck: boolean;
 }
 
-export class ShogiGame extends BaseGame {
+export class ShogiGame extends BaseGame<ShogiGameState> {
   private board: (ShogiPiece | null)[][];
   private currentPlayer: 'sente' | 'gote';
   private capturedPieces: { sente: string[]; gote: string[] };
@@ -146,12 +148,13 @@ export class ShogiGame extends BaseGame {
     ],
   };
 
-  constructor(gameId: string, database: any) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'shogi', database);
     this.board = this.initializeBoard();
     this.currentPlayer = 'sente';
     this.capturedPieces = { sente: [], gote: [] };
     this.moveHistory = [];
+    this.syncCurrentState();
   }
 
   private getPieceAt(row: number, col: number): ShogiPiece | null {
@@ -162,6 +165,72 @@ export class ShogiGame extends BaseGame {
   private setPieceAt(row: number, col: number, piece: ShogiPiece | null): void {
     // Board is always properly initialized, safe to use non-null assertion
     this.board[row]![col] = piece;
+  }
+
+  private createStateSnapshot(): ShogiGameState {
+    const inCheck = this.isInCheck(this.currentPlayer);
+    const isCheckmate = inCheck && this.isCheckmate(this.currentPlayer);
+
+    return {
+      gameId: this.gameId,
+      gameType: this.gameType,
+      board: this.board.map((row) => row.map((piece) => (piece ? { ...piece } : null))),
+      currentPlayer: this.currentPlayer,
+      gameOver: isCheckmate,
+      winner: isCheckmate ? (this.currentPlayer === 'sente' ? 'gote' : 'sente') : null,
+      capturedPieces: {
+        sente: [...this.capturedPieces.sente],
+        gote: [...this.capturedPieces.gote],
+      },
+      moveHistory: structuredClone(this.moveHistory),
+      inCheck,
+      players: ['sente', 'gote'],
+      status: isCheckmate ? 'completed' : 'active',
+    };
+  }
+
+  private syncCurrentState(): ShogiGameState {
+    const state = this.createStateSnapshot();
+    this.currentState = state;
+    return state;
+  }
+
+  private hydrateFromState(state: ShogiGameState): void {
+    this.board = state.board.map((row) => row.map((piece) => (piece ? { ...piece } : null)));
+    this.currentPlayer = state.currentPlayer;
+    this.capturedPieces = {
+      sente: [...state.capturedPieces.sente],
+      gote: [...state.capturedPieces.gote],
+    };
+    this.moveHistory = structuredClone(state.moveHistory);
+    this.currentState = structuredClone(state);
+  }
+
+  private withSimulation<T>(callback: () => T): T {
+    const snapshot = {
+      board: this.board.map((row) => row.map((piece) => (piece ? { ...piece } : null))),
+      currentPlayer: this.currentPlayer,
+      capturedPieces: {
+        sente: [...this.capturedPieces.sente],
+        gote: [...this.capturedPieces.gote],
+      },
+      moveHistory: structuredClone(this.moveHistory),
+      currentState: structuredClone(this.currentState),
+    };
+
+    try {
+      return callback();
+    } finally {
+      this.board = snapshot.board;
+      this.currentPlayer = snapshot.currentPlayer;
+      this.capturedPieces = snapshot.capturedPieces;
+      this.moveHistory = snapshot.moveHistory;
+      this.currentState = snapshot.currentState;
+    }
+  }
+
+  private wouldLeaveOwnKingInCheck(move: ShogiMove): boolean {
+    return this.withSimulation(() => !this.makeShogiMove(structuredClone(move)));
   }
 
   private initializeBoard(): (ShogiPiece | null)[][] {
@@ -438,7 +507,10 @@ export class ShogiGame extends BaseGame {
     return false;
   }
 
-  private getDropMoves(player: 'sente' | 'gote'): Array<{ position: Position; piece: string }> {
+  private getDropMoves(
+    player: 'sente' | 'gote',
+    options: { enforcePawnDropMate?: boolean } = {}
+  ): Array<{ position: Position; piece: string }> {
     const drops: Array<{ position: Position; piece: string }> = [];
     const capturedByPlayer = this.capturedPieces[player];
 
@@ -446,8 +518,7 @@ export class ShogiGame extends BaseGame {
       for (let row = 0; row < 9; row++) {
         for (let col = 0; col < 9; col++) {
           if (this.board[row]![col] === null) {
-            // Check if drop is legal
-            if (this.isLegalDrop(pieceType, { row, col }, player)) {
+            if (this.isLegalDrop(pieceType, { row, col }, player, options)) {
               drops.push({ position: { row, col }, piece: pieceType });
             }
           }
@@ -458,7 +529,21 @@ export class ShogiGame extends BaseGame {
     return drops;
   }
 
-  private isLegalDrop(pieceType: string, position: Position, player: 'sente' | 'gote'): boolean {
+  private isIllegalPawnDropMate(position: Position, player: 'sente' | 'gote'): boolean {
+    const opponent = player === 'sente' ? 'gote' : 'sente';
+
+    return this.withSimulation(() => {
+      this.board[position.row]![position.col] = { type: 'pawn', player };
+      return this.isInCheck(opponent) && this.isCheckmate(opponent);
+    });
+  }
+
+  private isLegalDrop(
+    pieceType: string,
+    position: Position,
+    player: 'sente' | 'gote',
+    options: { enforcePawnDropMate?: boolean } = {}
+  ): boolean {
     // Pawns cannot be dropped in certain situations
     if (pieceType === 'pawn') {
       // Cannot drop pawn on last rank
@@ -474,8 +559,9 @@ export class ShogiGame extends BaseGame {
         }
       }
 
-      // Cannot drop pawn for immediate checkmate (simplified check)
-      // This is a complex rule that would need more sophisticated implementation
+      if (options.enforcePawnDropMate !== false && this.isIllegalPawnDropMate(position, player)) {
+        return false;
+      }
     }
 
     // Lances and knights cannot be dropped on last rank(s) where they cannot move
@@ -494,17 +580,6 @@ export class ShogiGame extends BaseGame {
     return true;
   }
 
-  async makeMove(moveData: Record<string, any>): Promise<GameState> {
-    const move = moveData as ShogiMove;
-    const success = this.makeShogiMove(move);
-
-    if (!success) {
-      throw new Error('Invalid move');
-    }
-
-    return this.getGameState();
-  }
-
   private makeShogiMove(move: ShogiMove): boolean {
     if (move.player !== this.currentPlayer) {
       return false;
@@ -512,14 +587,17 @@ export class ShogiGame extends BaseGame {
 
     // Handle piece drops
     if (move.drop) {
-      const capturedByPlayer = this.capturedPieces[move.player];
-      const pieceIndex = capturedByPlayer.indexOf(move.drop);
-
-      if (pieceIndex === -1 || this.board[move.to.row]![move.to.col] !== null) {
+      if (this.board[move.to.row]![move.to.col] !== null) {
         return false;
       }
 
       if (!this.isLegalDrop(move.drop, move.to, move.player)) {
+        return false;
+      }
+
+      const capturedByPlayer = this.capturedPieces[move.player];
+      const pieceIndex = capturedByPlayer.indexOf(move.drop);
+      if (pieceIndex === -1) {
         return false;
       }
 
@@ -622,7 +700,7 @@ export class ShogiGame extends BaseGame {
     }
 
     // Check drop moves
-    const dropMoves = this.getDropMoves(player);
+    const dropMoves = this.getDropMoves(player, { enforcePawnDropMate: false });
     for (const drop of dropMoves) {
       // Simulate the drop
       this.board[drop.position.row]![drop.position.col] = { type: drop.piece, player };
@@ -641,25 +719,7 @@ export class ShogiGame extends BaseGame {
   }
 
   private getShogiGameState(): ShogiGameState {
-    const inCheck = this.isInCheck(this.currentPlayer);
-    const isCheckmate = inCheck && this.isCheckmate(this.currentPlayer);
-
-    return {
-      gameId: this.gameId,
-      gameType: this.gameType,
-      board: this.board.map((row) => row.slice()),
-      currentPlayer: this.currentPlayer,
-      gameOver: isCheckmate,
-      winner: isCheckmate ? (this.currentPlayer === 'sente' ? 'gote' : 'sente') : null,
-      capturedPieces: {
-        sente: [...this.capturedPieces.sente],
-        gote: [...this.capturedPieces.gote],
-      },
-      moveHistory: [...this.moveHistory],
-      inCheck,
-      players: ['sente', 'gote'],
-      status: isCheckmate ? 'completed' : 'active',
-    };
+    return this.syncCurrentState();
   }
 
   getValidMoves(): Array<ShogiMove> {
@@ -715,14 +775,19 @@ export class ShogiGame extends BaseGame {
     this.currentPlayer = 'sente';
     this.capturedPieces = { sente: [], gote: [] };
     this.moveHistory = [];
+    this.history = [];
+    this.stateHistory = [];
+    this.currentStateIndex = -1;
+    this.syncCurrentState();
   }
 
   getPlayerList(): string[] {
     return ['sente', 'gote'];
   }
 
-  async initializeGame(_config?: GameConfig): Promise<GameState> {
+  async initializeGame(_config?: GameConfig): Promise<ShogiGameState> {
     this.reset();
+    await this.persistState();
     return this.getGameState();
   }
 
@@ -742,10 +807,15 @@ export class ShogiGame extends BaseGame {
         return { valid: false, error: 'Game is over' };
       }
 
-      // Validate the move format
       if (move.drop) {
+        if (!this.isValidPosition(move.to.row, move.to.col)) {
+          return { valid: false, error: 'Invalid position' };
+        }
         if (!this.capturedPieces[move.player].includes(move.drop)) {
           return { valid: false, error: 'Piece not in hand' };
+        }
+        if (this.board[move.to.row]![move.to.col] !== null) {
+          return { valid: false, error: 'Target square is occupied' };
         }
         if (!this.isLegalDrop(move.drop, move.to, move.player)) {
           return { valid: false, error: 'Illegal drop' };
@@ -769,10 +839,26 @@ export class ShogiGame extends BaseGame {
         }
       }
 
+      if (this.wouldLeaveOwnKingInCheck(move)) {
+        return { valid: false, error: 'Move would leave king in check' };
+      }
+
       return { valid: true };
     } catch {
       return { valid: false, error: 'Move validation failed' };
     }
+  }
+
+  async restoreFromDatabase(gameStateData: GameStateData): Promise<void> {
+    if (gameStateData.gameId !== this.gameId || gameStateData.gameType !== this.gameType) {
+      throw new Error('Game data mismatch');
+    }
+
+    this.history = structuredClone(gameStateData.moveHistory || []);
+    this.stateHistory = [];
+    this.currentStateIndex = -1;
+    this.hydrateFromState(structuredClone(gameStateData.gameState as ShogiGameState));
+    await this.saveStateSnapshot();
   }
 
   async isGameOver(): Promise<boolean> {
@@ -804,23 +890,12 @@ export class ShogiGame extends BaseGame {
     if (!success) {
       throw new Error('Failed to apply move');
     }
+
+    this.syncCurrentState();
   }
 
-  async getGameState(): Promise<GameState> {
-    const shogiState = this.getShogiGameState();
-
-    return {
-      gameId: this.gameId,
-      gameType: this.gameType,
-      board: shogiState.board,
-      currentPlayer: shogiState.currentPlayer,
-      gameOver: shogiState.gameOver,
-      winner: shogiState.winner,
-      capturedPieces: shogiState.capturedPieces,
-      moveHistory: shogiState.moveHistory,
-      inCheck: shogiState.inCheck,
-      players: shogiState.players,
-    };
+  async getGameState(): Promise<ShogiGameState> {
+    return this.syncCurrentState();
   }
 }
 
@@ -830,3 +905,7 @@ export function createShogiGame(
 ): ShogiGame {
   return new ShogiGame(gameId, database);
 }
+
+
+
+

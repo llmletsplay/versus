@@ -30,14 +30,14 @@ type CrazyValue =
 interface CrazyCard {
   color: CrazyColor;
   value: CrazyValue;
-  id: string; // Unique identifier for each card
+  id: string;
 }
 
-interface CrazyState extends GameState {
+export interface CrazyState extends GameState {
   players: {
     [playerId: string]: {
       hand: CrazyCard[];
-      handSize: number; // For public display
+      handSize: number;
       hasCalledUno: boolean;
     };
   };
@@ -45,8 +45,8 @@ interface CrazyState extends GameState {
   discardPile: CrazyCard[];
   currentPlayer: string;
   playerOrder: string[];
-  direction: 1 | -1; // 1 for clockwise, -1 for counter-clockwise
-  currentColor: CrazyColor; // Current valid color (excluding wild)
+  direction: 1 | -1;
+  currentColor: CrazyColor;
   gameOver: boolean;
   winner: string | null;
   lastAction: {
@@ -56,37 +56,39 @@ interface CrazyState extends GameState {
     details?: string;
   } | null;
   gamePhase: 'playing' | 'finished';
-  pendingDraw: number; // Number of cards to draw (from draw2/draw4 effects)
-  mustPlayDrawCard: boolean; // Must play a draw card if possible
-  wildColorChoice: CrazyColor | null; // Color chosen after playing wild card
+  pendingDraw: number;
+  mustPlayDrawCard: boolean;
+  wildColorChoice: CrazyColor | null;
+  drawnCardId: string | null;
+  pendingWildDraw4Challenge: {
+    sourcePlayer: string;
+    priorColor: CrazyColor;
+    legalPlay: boolean;
+  } | null;
 }
 
 interface CrazyMove {
   player: string;
   action: 'play' | 'draw' | 'pass' | 'uno' | 'challenge';
   card?: CrazyCard;
-  chosenColor?: CrazyColor; // For wild cards
+  chosenColor?: CrazyColor;
 }
 
 export class CrazyCardsGame extends BaseGame {
   private cardIdCounter = 0;
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'crazy-cards', database);
   }
 
   async initializeGame(config?: GameConfig): Promise<GameState> {
-    // Create and shuffle deck
     const deck = this.createDeck();
     this.shuffleDeck(deck);
 
-    // Initialize players (2-10 players)
     const playerCount = Math.min(Math.max((config as any)?.playerCount || 4, 2), 10);
     const playerIds = Array.from({ length: playerCount }, (_, i) => `player${i + 1}`);
 
     const players: CrazyState['players'] = {};
-
-    // Deal 7 cards to each player
     for (const playerId of playerIds) {
       players[playerId] = {
         hand: this.drawCards(deck, 7),
@@ -95,7 +97,6 @@ export class CrazyCardsGame extends BaseGame {
       };
     }
 
-    // Start discard pile with first card (not a wild or action card)
     let startCard: CrazyCard;
     do {
       startCard = this.drawCards(deck, 1)[0]!;
@@ -118,6 +119,8 @@ export class CrazyCardsGame extends BaseGame {
       pendingDraw: 0,
       mustPlayDrawCard: false,
       wildColorChoice: null,
+      drawnCardId: null,
+      pendingWildDraw4Challenge: null,
     };
 
     this.currentState = initialState;
@@ -132,25 +135,20 @@ export class CrazyCardsGame extends BaseGame {
     const numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'] as CrazyValue[];
     const actionCards = ['skip', 'reverse', 'draw2'] as CrazyValue[];
 
-    // Number cards (0 appears once per color, 1-9 appear twice per color)
     for (const color of colors) {
-      // One 0 per color
       deck.push(this.createCard(color, '0'));
 
-      // Two of each 1-9 per color
       for (const number of numbers.slice(1)) {
         deck.push(this.createCard(color, number));
         deck.push(this.createCard(color, number));
       }
 
-      // Two of each action card per color
       for (const action of actionCards) {
         deck.push(this.createCard(color, action));
         deck.push(this.createCard(color, action));
       }
     }
 
-    // Wild cards (4 of each)
     for (let i = 0; i < 4; i++) {
       deck.push(this.createCard('wild', 'wild'));
       deck.push(this.createCard('wild', 'wild_draw4'));
@@ -203,22 +201,28 @@ export class CrazyCardsGame extends BaseGame {
       const player = state.players[move.player]!;
 
       if (move.action === 'draw') {
-        // Can always draw if no pending draw effects
-        if (state.pendingDraw === 0) {
+        if (state.pendingDraw > 0) {
           return { valid: true };
         }
 
-        // If there are pending draws, must draw that many
+        if (state.drawnCardId) {
+          return { valid: false, error: 'Already drew a card this turn' };
+        }
+
         return { valid: true };
       }
 
       if (move.action === 'pass') {
-        // Can only pass after drawing a card
+        if (state.pendingDraw > 0) {
+          return { valid: false, error: 'Must draw the penalty cards' };
+        }
+        if (state.drawnCardId === null || state.lastAction?.action !== 'draw') {
+          return { valid: false, error: 'Can only pass after drawing a card' };
+        }
         return { valid: true };
       }
 
       if (move.action === 'uno') {
-        // Can call uno when playing second-to-last card
         if (player.hand.length !== 2) {
           return { valid: false, error: 'Can only call Uno when you have 2 cards left' };
         }
@@ -226,8 +230,10 @@ export class CrazyCardsGame extends BaseGame {
       }
 
       if (move.action === 'challenge') {
-        // Can challenge a wild draw 4 if the previous player could have played another card
         if (!state.lastAction || state.lastAction.card?.value !== 'wild_draw4') {
+          return { valid: false, error: 'Can only challenge a Wild Draw 4 card' };
+        }
+        if (!state.pendingWildDraw4Challenge) {
           return { valid: false, error: 'Can only challenge a Wild Draw 4 card' };
         }
         return { valid: true };
@@ -238,20 +244,23 @@ export class CrazyCardsGame extends BaseGame {
           return { valid: false, error: 'Must specify a card to play' };
         }
 
-        // Verify player has the card
-        const hasCard = player.hand.some((c) => c.id === move.card!.id);
+        const hasCard = player.hand.some((card) => card.id === move.card!.id);
         if (!hasCard) {
           return { valid: false, error: 'You do not have that card' };
         }
 
-        // If there are pending draws, can only play draw cards or wild draw 4
-        if (state.pendingDraw > 0 && state.mustPlayDrawCard) {
-          if (move.card.value !== 'draw2' && move.card.value !== 'wild_draw4') {
-            return { valid: false, error: 'Must play a draw card when facing a draw penalty' };
-          }
+        if (state.pendingDraw > 0) {
+          return { valid: false, error: 'Must draw the penalty cards' };
         }
 
-        // Validate card can be played
+        if (state.drawnCardId && move.card.id !== state.drawnCardId) {
+          return { valid: false, error: 'Can only play the card you just drew' };
+        }
+
+        if (move.card.color === 'wild' && (!move.chosenColor || move.chosenColor === 'wild')) {
+          return { valid: false, error: 'Must choose a non-wild color' };
+        }
+
         return this.validateCardPlay(move.card, state);
       }
 
@@ -263,14 +272,12 @@ export class CrazyCardsGame extends BaseGame {
 
   private validateCardPlay(card: CrazyCard, state: CrazyState): MoveValidationResult {
     const topCard = state.discardPile[state.discardPile.length - 1]!;
-    const currentColor = state.wildColorChoice || state.currentColor;
+    const currentColor = this.getActiveColor(state);
 
-    // Wild cards can always be played
     if (card.color === 'wild') {
       return { valid: true };
     }
 
-    // Card must match color or value
     if (card.color === currentColor || card.value === topCard.value) {
       return { valid: true };
     }
@@ -279,6 +286,24 @@ export class CrazyCardsGame extends BaseGame {
       valid: false,
       error: `Card must match color (${currentColor}) or value (${topCard.value})`,
     };
+  }
+
+  private getActiveColor(state: CrazyState): CrazyColor {
+    return state.wildColorChoice || state.currentColor;
+  }
+
+  private clearTurnContext(state: CrazyState): void {
+    state.drawnCardId = null;
+  }
+
+  private clearPenaltyState(state: CrazyState): void {
+    state.pendingDraw = 0;
+    state.mustPlayDrawCard = false;
+    state.pendingWildDraw4Challenge = null;
+  }
+
+  private canPlayAnyNonWildCardOfColor(cards: CrazyCard[], color: CrazyColor): boolean {
+    return cards.some((card) => card.color !== 'wild' && card.color === color);
   }
 
   protected async applyMove(move: GameMove): Promise<void> {
@@ -291,6 +316,7 @@ export class CrazyCardsGame extends BaseGame {
     }
 
     if (crazyMove.action === 'pass') {
+      this.clearTurnContext(state);
       this.advanceToNextCrazyPlayer(state);
       return;
     }
@@ -319,7 +345,6 @@ export class CrazyCardsGame extends BaseGame {
     const player = state.players[move.player]!;
     const drawCount = state.pendingDraw > 0 ? state.pendingDraw : 1;
 
-    // Reshuffle discard pile if deck is empty
     if (state.deck.length < drawCount) {
       this.reshuffleDiscardPile(state);
     }
@@ -327,10 +352,7 @@ export class CrazyCardsGame extends BaseGame {
     const drawnCards = this.drawCards(state.deck, drawCount);
     player.hand.push(...drawnCards);
     player.handSize = player.hand.length;
-
-    // Reset pending draw
-    state.pendingDraw = 0;
-    state.mustPlayDrawCard = false;
+    this.clearTurnContext(state);
 
     state.lastAction = {
       action: 'draw',
@@ -338,29 +360,34 @@ export class CrazyCardsGame extends BaseGame {
       details: `${move.player} drew ${drawCount} card(s)`,
     };
 
-    // Don't advance turn automatically - player can choose to play or pass
+    if (drawCount > 1) {
+      this.clearPenaltyState(state);
+      this.advanceToNextCrazyPlayer(state);
+      return;
+    }
+
+    state.drawnCardId = drawnCards[0]?.id ?? null;
   }
 
   private handleCardPlay(move: CrazyMove, state: CrazyState): void {
     const player = state.players[move.player]!;
     const card = move.card!;
+    const priorColor = this.getActiveColor(state);
 
-    // Remove card from player's hand
-    const cardIndex = player.hand.findIndex((c) => c.id === card.id);
+    const cardIndex = player.hand.findIndex((handCard) => handCard.id === card.id);
     if (cardIndex !== -1) {
       player.hand.splice(cardIndex, 1);
       player.handSize = player.hand.length;
     }
 
-    // Add card to discard pile
     state.discardPile.push(card);
-    state.currentColor = card.color === 'wild' ? move.chosenColor || 'red' : card.color;
-    state.wildColorChoice = card.color === 'wild' ? move.chosenColor || 'red' : null;
+    state.currentColor = card.color === 'wild' ? move.chosenColor ?? 'red' : card.color;
+    state.wildColorChoice = card.color === 'wild' ? move.chosenColor ?? 'red' : null;
+    this.clearTurnContext(state);
+    state.pendingWildDraw4Challenge = null;
 
-    // Handle special cards
-    this.handleSpecialCard(card, move, state);
+    this.handleSpecialCard(card, move, state, priorColor, player.hand);
 
-    // Check for win condition
     if (player.hand.length === 0) {
       state.gameOver = true;
       state.winner = move.player;
@@ -368,13 +395,6 @@ export class CrazyCardsGame extends BaseGame {
       return;
     }
 
-    // Check if player forgot to call Uno
-    if (player.hand.length === 1 && !player.hasCalledUno) {
-      // In a real game, other players could challenge this
-      // For simplicity, we'll just note it
-    }
-
-    // Reset Uno call status
     player.hasCalledUno = false;
 
     state.lastAction = {
@@ -384,90 +404,96 @@ export class CrazyCardsGame extends BaseGame {
       details: `${move.player} played ${card.color} ${card.value}`,
     };
 
-    // Advance to next player (unless skipped by special card)
     if (card.value !== 'skip') {
       this.advanceToNextCrazyPlayer(state);
     } else {
-      // Skip next player
       this.advanceToNextCrazyPlayer(state);
       this.advanceToNextCrazyPlayer(state);
     }
   }
 
-  private handleSpecialCard(card: CrazyCard, move: CrazyMove, state: CrazyState): void {
+  private handleSpecialCard(
+    card: CrazyCard,
+    move: CrazyMove,
+    state: CrazyState,
+    priorColor: CrazyColor,
+    remainingHand: CrazyCard[]
+  ): void {
     switch (card.value) {
       case 'reverse':
         state.direction *= -1;
-        // In 2-player game, reverse acts like skip
         if (state.playerOrder.length === 2) {
           this.advanceToNextCrazyPlayer(state);
         }
         break;
 
       case 'skip':
-        // Handled in handleCardPlay
         break;
 
       case 'draw2':
-        state.pendingDraw += 2;
+        state.pendingDraw = 2;
         state.mustPlayDrawCard = true;
         break;
 
       case 'wild':
-        // Color choice handled in handleCardPlay
         break;
 
       case 'wild_draw4':
-        state.pendingDraw += 4;
+        state.pendingDraw = 4;
         state.mustPlayDrawCard = true;
+        state.pendingWildDraw4Challenge = {
+          sourcePlayer: move.player,
+          priorColor,
+          legalPlay: !this.canPlayAnyNonWildCardOfColor(remainingHand, priorColor),
+        };
         break;
     }
   }
 
   private handleChallenge(move: CrazyMove, state: CrazyState): void {
-    // Simplified challenge logic
-    // In a real game, you'd check if the previous player had other valid cards
-    const challengeSuccessful = Math.random() > 0.5; // 50% chance for simplicity
+    const challenge = state.pendingWildDraw4Challenge;
+    if (!challenge) {
+      return;
+    }
 
-    if (challengeSuccessful) {
-      // Challenge successful - previous player draws 4 cards instead
-      const previousPlayer = this.getPreviousPlayer(state);
-      const player = state.players[previousPlayer]!;
+    if (!challenge.legalPlay) {
+      const sourcePlayer = state.players[challenge.sourcePlayer]!;
 
       if (state.deck.length < 4) {
         this.reshuffleDiscardPile(state);
       }
 
       const drawnCards = this.drawCards(state.deck, 4);
-      player.hand.push(...drawnCards);
-      player.handSize = player.hand.length;
-
-      state.pendingDraw = 0;
-      state.mustPlayDrawCard = false;
+      sourcePlayer.hand.push(...drawnCards);
+      sourcePlayer.handSize = sourcePlayer.hand.length;
+      this.clearPenaltyState(state);
 
       state.lastAction = {
         action: 'challenge',
         player: move.player,
-        details: `${move.player} successfully challenged ${previousPlayer}`,
+        details: `${move.player} successfully challenged ${challenge.sourcePlayer}`,
       };
-    } else {
-      // Challenge failed - challenger draws 6 cards
-      const player = state.players[move.player]!;
-
-      if (state.deck.length < 6) {
-        this.reshuffleDiscardPile(state);
-      }
-
-      const drawnCards = this.drawCards(state.deck, 6);
-      player.hand.push(...drawnCards);
-      player.handSize = player.hand.length;
-
-      state.lastAction = {
-        action: 'challenge',
-        player: move.player,
-        details: `${move.player} failed to challenge - drew 6 cards`,
-      };
+      return;
     }
+
+    const challenger = state.players[move.player]!;
+
+    if (state.deck.length < 6) {
+      this.reshuffleDiscardPile(state);
+    }
+
+    const drawnCards = this.drawCards(state.deck, 6);
+    challenger.hand.push(...drawnCards);
+    challenger.handSize = challenger.hand.length;
+    this.clearPenaltyState(state);
+
+    state.lastAction = {
+      action: 'challenge',
+      player: move.player,
+      details: `${move.player} failed to challenge - drew 6 cards`,
+    };
+
+    this.advanceToNextCrazyPlayer(state);
   }
 
   private reshuffleDiscardPile(state: CrazyState): void {
@@ -475,7 +501,6 @@ export class CrazyCardsGame extends BaseGame {
       return;
     }
 
-    // Keep top card, shuffle the rest back into deck
     const topCard = state.discardPile.pop()!;
     state.deck.push(...state.discardPile);
     state.discardPile = [topCard];
@@ -487,13 +512,6 @@ export class CrazyCardsGame extends BaseGame {
     const nextIndex =
       (currentIndex + state.direction + state.playerOrder.length) % state.playerOrder.length;
     state.currentPlayer = state.playerOrder[nextIndex]!;
-  }
-
-  private getPreviousPlayer(state: CrazyState): string {
-    const currentIndex = state.playerOrder.indexOf(state.currentPlayer);
-    const prevIndex =
-      (currentIndex - state.direction + state.playerOrder.length) % state.playerOrder.length;
-    return state.playerOrder[prevIndex]!;
   }
 
   async getGameState(): Promise<GameState> {
@@ -508,14 +526,14 @@ export class CrazyCardsGame extends BaseGame {
           id,
           {
             handSize: player.handSize,
-            hand: player.hand, // In real game, this would be hidden from other players
+            hand: player.hand,
             hasCalledUno: player.hasCalledUno,
             isCurrentPlayer: state.currentPlayer === id,
           },
         ])
       ),
       currentPlayer: state.currentPlayer,
-      currentColor: state.wildColorChoice || state.currentColor,
+      currentColor: this.getActiveColor(state),
       topCard,
       direction: state.direction,
       deckSize: state.deck.length,
@@ -542,7 +560,7 @@ export class CrazyCardsGame extends BaseGame {
     return {
       name: 'Crazy Cards',
       description:
-        'Fast-paced card game where players match colors and numbers while using action cards to hinder opponents',
+        'UNO-style shedding game where players match colors and values while resolving standard draw and challenge rules',
       minPlayers: 2,
       maxPlayers: 10,
       estimatedDuration: '15-30 minutes',

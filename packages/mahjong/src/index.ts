@@ -17,11 +17,11 @@ interface MahjongTile {
   type: TileType;
   suit?: Suit;
   honor?: Honor;
-  value?: number; // 1-9 for suit tiles
+  value?: number;
   id: string;
 }
 
-interface MahjongState extends GameState {
+export interface MahjongState extends GameState {
   hands: { [playerId: string]: MahjongTile[] };
   wall: MahjongTile[];
   discardPile: MahjongTile[];
@@ -39,7 +39,7 @@ interface MahjongState extends GameState {
     tile?: MahjongTile;
     details?: string;
   } | null;
-  melds: { [playerId: string]: MahjongTile[][] }; // Sets and runs
+  melds: { [playerId: string]: MahjongTile[][] };
 }
 
 interface MahjongMove {
@@ -52,7 +52,7 @@ export class MahjongGame extends BaseGame {
   private readonly HAND_SIZE = 13;
   private readonly WINNING_HAND_SIZE = 14;
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'mahjong', database);
   }
 
@@ -60,11 +60,9 @@ export class MahjongGame extends BaseGame {
     const playerCount = Math.min(Math.max((config as any)?.playerCount || 4, 2), 4);
     const playerIds = Array.from({ length: playerCount }, (_, i) => `player${i + 1}`);
 
-    // Create tile set
     const wall = this.createTileSet();
     this.shuffleTiles(wall);
 
-    // Deal hands
     const hands: { [playerId: string]: MahjongTile[] } = {};
     const melds: { [playerId: string]: MahjongTile[][] } = {};
 
@@ -73,7 +71,6 @@ export class MahjongGame extends BaseGame {
       melds[playerId] = [];
     }
 
-    // Dealer gets extra tile
     const dealer = playerIds[0]!;
     if (wall.length > 0) {
       hands[dealer]!.push(wall.shift()!);
@@ -106,7 +103,6 @@ export class MahjongGame extends BaseGame {
   private createTileSet(): MahjongTile[] {
     const tiles: MahjongTile[] = [];
 
-    // Suit tiles (4 of each, 1-9 in each suit)
     const suits: Suit[] = ['bamboo', 'character', 'dot'];
     for (const suit of suits) {
       for (let value = 1; value <= 9; value++) {
@@ -121,7 +117,6 @@ export class MahjongGame extends BaseGame {
       }
     }
 
-    // Honor tiles (4 of each)
     const honors: Honor[] = ['east', 'south', 'west', 'north', 'red', 'green', 'white'];
     for (const honor of honors) {
       for (let copy = 0; copy < 4; copy++) {
@@ -148,7 +143,6 @@ export class MahjongGame extends BaseGame {
       const move = moveData as MahjongMove;
       const state = this.currentState as MahjongState;
 
-      // Validate required fields
       if (!move.player || !move.action) {
         return { valid: false, error: 'Move must include player and action' };
       }
@@ -161,12 +155,10 @@ export class MahjongGame extends BaseGame {
         return { valid: false, error: 'Action must be draw, discard, or declare_win' };
       }
 
-      // Check if game is over
       if (state.gameOver) {
         return { valid: false, error: 'Game is already over' };
       }
 
-      // Validate specific actions
       if (move.action === 'draw') {
         if (move.player !== state.currentPlayer) {
           return { valid: false, error: `It's ${state.currentPlayer}'s turn` };
@@ -194,7 +186,6 @@ export class MahjongGame extends BaseGame {
           return { valid: false, error: 'Must specify tile to discard' };
         }
 
-        // Check if player has this tile
         const playerHand = state.hands[move.player];
         if (!playerHand?.some((tile) => tile.id === move.tile!.id)) {
           return { valid: false, error: 'Player does not have this tile' };
@@ -206,9 +197,7 @@ export class MahjongGame extends BaseGame {
           return { valid: false, error: `It's ${state.currentPlayer}'s turn` };
         }
 
-        // Check if player has winning hand
-        const hasWinningHand = this.checkWinningHand(move.player, state);
-        if (!hasWinningHand) {
+        if (!this.checkWinningHand(move.player, state)) {
           return { valid: false, error: 'Player does not have a winning hand' };
         }
       }
@@ -222,50 +211,133 @@ export class MahjongGame extends BaseGame {
   private checkWinningHand(playerId: string, state: MahjongState): boolean {
     const hand = [...(state.hands[playerId] || [])];
 
-    // Simple winning condition: 4 sets + 1 pair
-    // A set is either 3 identical tiles or 3 consecutive tiles of same suit
-
     if (hand.length !== this.WINNING_HAND_SIZE) {
       return false;
     }
 
-    // Try to find a pair and 4 sets
-    return this.canFormWinningHand(hand);
+    return this.isSevenPairs(hand) || this.canFormWinningHand(hand);
   }
 
-  private canFormWinningHand(tiles: MahjongTile[]): boolean {
-    // This is a simplified version - real Mahjong has more complex rules
+  private isSevenPairs(tiles: MahjongTile[]): boolean {
     const tileCounts = new Map<string, number>();
 
-    // Count tiles
     for (const tile of tiles) {
       const key = this.getTileKey(tile);
       tileCounts.set(key, (tileCounts.get(key) || 0) + 1);
     }
 
-    let pairs = 0;
-    let sets = 0;
+    return tileCounts.size === 7 && Array.from(tileCounts.values()).every((count) => count === 2);
+  }
 
-    // Count pairs and triplets
-    for (const count of tileCounts.values()) {
-      if (count >= 2) {
-        pairs += Math.floor(count / 2);
-        if (count >= 3) {
-          sets += Math.floor(count / 3);
+  private canFormWinningHand(tiles: MahjongTile[]): boolean {
+    const sortedTiles = this.sortTiles(tiles);
+    const uniqueKeys = [...new Set(sortedTiles.map((tile) => this.getTileKey(tile)))];
+
+    for (const key of uniqueKeys) {
+      const pairCount = sortedTiles.filter((tile) => this.getTileKey(tile) === key).length;
+      if (pairCount < 2) {
+        continue;
+      }
+
+      const remainingTiles = this.removeTilesByKey(sortedTiles, key, 2);
+      if (this.canFormMelds(remainingTiles)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private canFormMelds(tiles: MahjongTile[]): boolean {
+    if (tiles.length === 0) {
+      return true;
+    }
+
+    const sortedTiles = this.sortTiles(tiles);
+    const firstTile = sortedTiles[0]!;
+    const firstKey = this.getTileKey(firstTile);
+    const matchingCount = sortedTiles.filter((tile) => this.getTileKey(tile) === firstKey).length;
+
+    if (matchingCount >= 3) {
+      const withoutTriplet = this.removeTilesByKey(sortedTiles, firstKey, 3);
+      if (this.canFormMelds(withoutTriplet)) {
+        return true;
+      }
+    }
+
+    if (firstTile.type === 'suit' && firstTile.value !== undefined && firstTile.value <= 7) {
+      const nextKey = `${firstTile.suit}-${firstTile.value + 1}`;
+      const thirdKey = `${firstTile.suit}-${firstTile.value + 2}`;
+
+      if (
+        sortedTiles.some((tile) => this.getTileKey(tile) === nextKey) &&
+        sortedTiles.some((tile) => this.getTileKey(tile) === thirdKey)
+      ) {
+        const withoutSequence = this.removeTilesByKeys(sortedTiles, [firstKey, nextKey, thirdKey]);
+        if (this.canFormMelds(withoutSequence)) {
+          return true;
         }
       }
     }
 
-    // Simple winning condition: at least 1 pair and 4 sets (very simplified)
-    return pairs >= 1 && sets >= 4;
+    return false;
+  }
+
+  private removeTilesByKey(tiles: MahjongTile[], key: string, count: number): MahjongTile[] {
+    let remaining = count;
+    return tiles.filter((tile) => {
+      if (remaining > 0 && this.getTileKey(tile) === key) {
+        remaining--;
+        return false;
+      }
+      return true;
+    });
+  }
+
+  private removeTilesByKeys(tiles: MahjongTile[], keys: string[]): MahjongTile[] {
+    const remainingCounts = new Map<string, number>();
+
+    for (const key of keys) {
+      remainingCounts.set(key, (remainingCounts.get(key) || 0) + 1);
+    }
+
+    return tiles.filter((tile) => {
+      const key = this.getTileKey(tile);
+      const remaining = remainingCounts.get(key) || 0;
+      if (remaining > 0) {
+        remainingCounts.set(key, remaining - 1);
+        return false;
+      }
+      return true;
+    });
+  }
+
+  private sortTiles(tiles: MahjongTile[]): MahjongTile[] {
+    const suitOrder: Suit[] = ['bamboo', 'character', 'dot'];
+    const honorOrder: Honor[] = ['east', 'south', 'west', 'north', 'red', 'green', 'white'];
+
+    return [...tiles].sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === 'suit' ? -1 : 1;
+      }
+
+      if (a.type === 'suit' && b.type === 'suit') {
+        const suitDiff = suitOrder.indexOf(a.suit!) - suitOrder.indexOf(b.suit!);
+        if (suitDiff !== 0) {
+          return suitDiff;
+        }
+        return (a.value || 0) - (b.value || 0);
+      }
+
+      return honorOrder.indexOf(a.honor!) - honorOrder.indexOf(b.honor!);
+    });
   }
 
   private getTileKey(tile: MahjongTile): string {
     if (tile.type === 'suit') {
       return `${tile.suit}-${tile.value}`;
-    } else {
-      return `honor-${tile.honor}`;
     }
+    return `honor-${tile.honor}`;
   }
 
   protected async applyMove(move: GameMove): Promise<void> {
@@ -299,13 +371,11 @@ export class MahjongGame extends BaseGame {
 
     if (!playerHand) return;
 
-    // Remove tile from hand
     const tileIndex = playerHand.findIndex((handTile) => handTile.id === tile.id);
     if (tileIndex !== -1) {
       playerHand.splice(tileIndex, 1);
     }
 
-    // Add to discard pile
     state.discardPile.push(tile);
     state.lastDiscard = tile;
 
@@ -316,7 +386,6 @@ export class MahjongGame extends BaseGame {
       details: `${move.player} discarded ${this.getTileDescription(tile)}`,
     };
 
-    // Move to next player
     this.moveToNextPlayer(state);
   }
 
@@ -341,19 +410,17 @@ export class MahjongGame extends BaseGame {
   private getTileDescription(tile: MahjongTile): string {
     if (tile.type === 'suit') {
       return `${tile.value} of ${tile.suit}`;
-    } else {
-      return `${tile.honor} dragon/wind`;
     }
+    return `${tile.honor} dragon/wind`;
   }
 
   async getGameState(): Promise<GameState> {
     const state = this.currentState as MahjongState;
 
-    // Hide other players' hands
     const sanitizedHands: any = {};
     for (const [playerId, hand] of Object.entries(state.hands)) {
       sanitizedHands[playerId] = {
-        tiles: hand, // In a real game, you'd hide other players' tiles
+        tiles: hand,
         tileCount: hand.length,
       };
     }

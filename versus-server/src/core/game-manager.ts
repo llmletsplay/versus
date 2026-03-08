@@ -200,9 +200,7 @@ export class GameManager {
       }
 
       // CRITICAL: Restore the game state from database
-      // DEBT: Type casting to 'any' bypasses type safety
-      // TODO: Add restoreFromDatabase to AbstractGame interface
-      await (game as any).restoreFromDatabase(savedState);
+      await game.restoreFromDatabase(savedState);
 
       // PERF: Store references
       this.activeGames.set(gameId, game);
@@ -227,8 +225,7 @@ export class GameManager {
     // CRITICAL: Get game instance (may trigger database load)
     const game = await this.getGame(gameType, gameId);
     // CRITICAL: Execute move and update game state
-    // DEBT: Type casting bypasses type safety - should use proper interface
-    const gameState = await (game as any).makeMove(moveData);
+    const gameState = await game.makeMove(moveData);
 
     // Track the move for stats
     const move: GameMove = {
@@ -296,12 +293,12 @@ export class GameManager {
         if (state.status === 'active' || state.status === 'waiting') {
           // CRITICAL: Persist game state to database
           const gameStateData = {
-            gameId: gameId,
-            gameType: (game as any).gameType,
+            gameId,
+            gameType: game.getGameType(),
             gameState: state,
-            moveHistory: (game as any).getHistory ? (game as any).getHistory() : [],
-            players: (game as any).getPlayerIds ? (game as any).getPlayerIds() : [],
-            status: state.status,
+            moveHistory: game.getHistory(),
+            players: this.extractPlayersFromGameState(state),
+            status: state.gameOver ? 'completed' : state.status === 'waiting' ? 'waiting' : 'active',
           };
           await this.database.saveGameState(gameStateData);
         }
@@ -445,3 +442,5 @@ export class GameManager {
     }
   }
 }
+
+

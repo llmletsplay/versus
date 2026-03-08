@@ -31,6 +31,7 @@ export default {
 
   // Module name mapping for ES modules (correct property name)
   moduleNameMapper: {
+    '^@versus/(.*)$': '<rootDir>/../packages/$1/src/index.ts',
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
 

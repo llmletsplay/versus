@@ -12,7 +12,7 @@ import type {
 type Player = 'black' | 'white';
 type Cell = Player | null;
 
-interface OthelloState extends GameState {
+export interface OthelloState extends GameState {
   board: Cell[][];
   currentPlayer: Player;
   gameOver: boolean;
@@ -40,7 +40,7 @@ const DIRECTIONS: [number, number][] = [
 ];
 
 export class OthelloGame extends BaseGame {
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'othello', database);
   }
 
@@ -326,3 +326,4 @@ export function createOthelloGame(
 ): OthelloGame {
   return new OthelloGame(gameId, database);
 }
+

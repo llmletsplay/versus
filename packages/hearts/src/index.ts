@@ -13,7 +13,7 @@ import { createShuffledDeck, type CardWithValue } from '@versus/game-core';
 
 type Player = 'north' | 'south' | 'east' | 'west';
 
-interface HeartsState extends GameState {
+export interface HeartsState extends GameState {
   hands: { [player in Player]: CardWithValue[] };
   currentTrick: {
     cards: { [player in Player]?: CardWithValue };
@@ -62,7 +62,7 @@ export class HeartsGame extends BaseGame {
     'none',
   ];
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'hearts', database);
   }
 
@@ -650,3 +650,4 @@ export function createHeartsGame(
 ): HeartsGame {
   return new HeartsGame(gameId, database);
 }
+

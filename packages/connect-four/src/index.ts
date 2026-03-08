@@ -13,7 +13,7 @@ type Player = 'R' | 'Y'; // Red and Yellow
 type Cell = Player | null;
 type Board = Cell[][];
 
-interface ConnectFourState extends GameState {
+export interface ConnectFourState extends GameState {
   board: Board;
   currentPlayer: Player;
   gameOver: boolean;
@@ -25,7 +25,7 @@ export class ConnectFourGame extends BaseGame {
   private readonly ROWS = 6;
   private readonly COLS = 7;
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'connect-four', database);
   }
 
@@ -213,3 +213,4 @@ export function createConnectFourGame(
 ): ConnectFourGame {
   return new ConnectFourGame(gameId, database);
 }
+

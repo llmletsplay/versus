@@ -18,7 +18,7 @@ interface Card {
   value: number; // Point value for scoring
 }
 
-interface CuttleState extends GameState {
+export interface CuttleState extends GameState {
   deck: Card[];
   players: {
     [playerId: string]: {
@@ -50,7 +50,7 @@ interface CuttleMove {
 }
 
 export class CuttleGame extends BaseGame {
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'cuttle', database);
   }
 
@@ -526,3 +526,4 @@ export function createCuttleGame(
 ): CuttleGame {
   return new CuttleGame(gameId, database);
 }
+

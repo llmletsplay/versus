@@ -13,7 +13,7 @@ type Player = 'black' | 'white';
 type Cell = Player | null;
 type Board = Cell[][];
 
-interface OmokState extends GameState {
+export interface OmokState extends GameState {
   board: Board;
   currentPlayer: Player;
   gameOver: boolean;
@@ -31,7 +31,7 @@ export class OmokGame extends BaseGame {
   private readonly BOARD_SIZE = 15;
   private readonly WIN_LENGTH = 5;
 
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'omok', database);
   }
 
@@ -231,3 +231,4 @@ export function createOmokGame(
 ): OmokGame {
   return new OmokGame(gameId, database);
 }
+

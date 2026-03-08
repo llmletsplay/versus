@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from '@jest/globals';
+﻿import { describe, test, expect, beforeEach } from '@jest/globals';
 import { BlackjackGame } from '../src/games/blackjack.js';
 
 describe('BlackjackGame', () => {
@@ -12,8 +12,8 @@ describe('BlackjackGame', () => {
     controlledState.playerHands = [
       {
         cards: [
-          { rank: '10', suit: '♠', faceUp: true },
-          { rank: '7', suit: '♥', faceUp: true },
+          { rank: '10', suit: 'â™ ', faceUp: true },
+          { rank: '7', suit: 'â™¥', faceUp: true },
         ],
         bet: 10,
         isDouble: false,
@@ -23,8 +23,8 @@ describe('BlackjackGame', () => {
     ];
     controlledState.dealerHand = {
       cards: [
-        { rank: '10', suit: '♦', faceUp: false },
-        { rank: '6', suit: '♣', faceUp: true },
+        { rank: '10', suit: 'â™¦', faceUp: false },
+        { rank: '6', suit: 'â™£', faceUp: true },
       ],
       bet: 0,
       isDouble: false,
@@ -32,8 +32,8 @@ describe('BlackjackGame', () => {
       isStand: false,
     };
     controlledState.deck = [
-      { rank: '9', suit: '♣', faceUp: true },
-      { rank: 'A', suit: '♦', faceUp: true },
+      { rank: '9', suit: 'â™£', faceUp: true },
+      { rank: 'A', suit: 'â™¦', faceUp: true },
     ];
   };
 
@@ -168,7 +168,6 @@ describe('BlackjackGame', () => {
 
       // Only test if game is not already over (no blackjack dealt)
       if (!state.gameOver) {
-        // Force game over by standing
         await game.makeMove({ action: 'stand', player: 'player' });
 
         const result = await game.validateMove({ action: 'hit', player: 'player' });
@@ -190,8 +189,8 @@ describe('BlackjackGame', () => {
       controlledState.playerHands = [
         {
           cards: [
-            { rank: '2', suit: '♠', faceUp: true },
-            { rank: '3', suit: '♥', faceUp: true },
+            { rank: '2', suit: 'â™ ', faceUp: true },
+            { rank: '3', suit: 'â™¥', faceUp: true },
           ],
           bet: 10,
           isDouble: false,
@@ -201,8 +200,8 @@ describe('BlackjackGame', () => {
       ];
       controlledState.dealerHand = {
         cards: [
-          { rank: '10', suit: '♦', faceUp: false },
-          { rank: '7', suit: '♣', faceUp: true },
+          { rank: '10', suit: 'â™¦', faceUp: false },
+          { rank: '7', suit: 'â™£', faceUp: true },
         ],
         bet: 0,
         isDouble: false,
@@ -210,8 +209,8 @@ describe('BlackjackGame', () => {
         isStand: false,
       };
       controlledState.deck = [
-        { rank: '9', suit: '♣', faceUp: true },
-        { rank: '4', suit: '♦', faceUp: true },
+        { rank: '9', suit: 'â™£', faceUp: true },
+        { rank: '4', suit: 'â™¦', faceUp: true },
       ];
 
       // Hit first to make hand ineligible for double
@@ -507,3 +506,4 @@ describe('BlackjackGame', () => {
     });
   });
 });
+

@@ -7,13 +7,7 @@
       "devDependencies": {
         "concurrently": "^9.1.0",
       },
-    },
-    "packages/against-cards": {
-      "name": "@versus/against-cards",
-      "version": "0.1.0",
-      "dependencies": {
-        "@versus/game-core": "workspace:*",
-      },
+    },
     },
     "packages/battleship": {
       "name": "@versus/battleship",
@@ -223,8 +217,7 @@
       "version": "1.0.0",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.15.0",
-        "@types/uuid": "^10.0.0",
-        "@versus/against-cards": "workspace:*",
+        "@types/uuid": "^10.0.0",
         "@versus/battleship": "workspace:*",
         "@versus/bingo": "workspace:*",
         "@versus/blackjack": "workspace:*",
@@ -796,8 +789,6 @@
     "@unrs/resolver-binding-win32-ia32-msvc": ["@unrs/resolver-binding-win32-ia32-msvc@1.11.1", "", { "os": "win32", "cpu": "ia32" }, "sha512-DCEI6t5i1NmAZp6pFonpD5m7i6aFrpofcp4LA2i8IIq60Jyo28hamKBxNrZcyOwVOZkgsRp9O2sXWBWP8MnvIQ=="],
 
     "@unrs/resolver-binding-win32-x64-msvc": ["@unrs/resolver-binding-win32-x64-msvc@1.11.1", "", { "os": "win32", "cpu": "x64" }, "sha512-lrW200hZdbfRtztbygyaq/6jP6AKE8qQN2KvPcJ+x7wiD038YtnYtZ82IMNJ69GJibV7bwL3y9FgK+5w/pYt6g=="],
-
-    "@versus/against-cards": ["@versus/against-cards@workspace:packages/against-cards"],
 
     "@versus/battleship": ["@versus/battleship@workspace:packages/battleship"],
 

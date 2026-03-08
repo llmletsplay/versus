@@ -20,7 +20,7 @@ interface CheckersPiece {
 type Cell = CheckersPiece | null;
 type Board = Cell[][];
 
-interface CheckersState extends GameState {
+export interface CheckersState extends GameState {
   board: Board;
   currentPlayer: Player;
   gameOver: boolean;
@@ -37,7 +37,7 @@ interface CheckersMove {
 }
 
 export class CheckersGame extends BaseGame {
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'checkers', database);
   }
 
@@ -492,3 +492,4 @@ export function createCheckersGame(
 ): CheckersGame {
   return new CheckersGame(gameId, database);
 }
+

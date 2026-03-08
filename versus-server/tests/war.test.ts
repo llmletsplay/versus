@@ -1,4 +1,5 @@
 import { WarGame } from '../src/games/war.js';
+import { restoreGameState } from './helpers/restore-game-state.js';
 
 describe('WarGame', () => {
   let game: WarGame;
@@ -155,26 +156,22 @@ describe('WarGame', () => {
     });
 
     test('should handle multiple rounds of play', async () => {
-      let gameOver = false;
       let rounds = 0;
-      const maxRounds = 500; // War games can take many rounds, increase limit
+      const targetRounds = 25;
 
-      while (!gameOver && rounds < maxRounds) {
+      while (rounds < targetRounds) {
         const state = await game.getGameState();
-
         if (state.gameOver) {
-          gameOver = true;
           break;
         }
 
-        // Play cards for all active players
         const activePlayers = Object.entries(state.players)
           .filter(([_, player]) => player.isActive)
           .map(([id, _]) => id);
 
         for (const playerId of activePlayers) {
           if (state.currentBattle && state.currentBattle.playersInBattle.includes(playerId)) {
-            continue; // Player already played this round
+            continue;
           }
 
           const validation = await game.validateMove({
@@ -190,11 +187,18 @@ describe('WarGame', () => {
           }
         }
 
+        const nextState = await game.getGameState();
+        const playerTotalCards = Object.values(nextState.players).reduce(
+          (sum, player) => sum + player.totalCards,
+          0
+        );
+        const cardsInPlay = nextState.currentBattle?.cardsInPlay ?? 0;
+
+        expect(playerTotalCards + cardsInPlay).toBe(52);
         rounds++;
       }
 
-      // Test should either complete within reasonable rounds or detect game over
-      expect(gameOver || rounds < maxRounds).toBe(true);
+      expect(rounds).toBeGreaterThan(0);
     });
 
     test('should track card counts correctly', async () => {
@@ -314,9 +318,7 @@ describe('WarGame', () => {
     });
 
     test('should prevent moves after game over', async () => {
-      // Force game over state
-      const gameState = game['currentState'] as any;
-      gameState.gameOver = true;
+      await restoreGameState(game, { gameOver: true, winner: 'player1' });
 
       const result = await game.validateMove({
         player: 'player1',
@@ -365,3 +367,6 @@ describe('WarGame', () => {
     });
   });
 });
+
+
+

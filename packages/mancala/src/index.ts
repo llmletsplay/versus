@@ -11,7 +11,7 @@ import type {
 
 type Player = 'player1' | 'player2';
 
-interface MancalaState extends GameState {
+export interface MancalaState extends GameState {
   board: number[]; // 14 positions: [player1 pits (0-5), player1 store (6), player2 pits (7-12), player2 store (13)]
   currentPlayer: Player;
   gameOver: boolean;
@@ -29,7 +29,7 @@ const PLAYER1_STORE = 6;
 const PLAYER2_STORE = 13;
 
 export class MancalaGame extends BaseGame {
-  constructor(gameId: string, database: DatabaseProvider) {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'mancala', database);
   }
 
@@ -297,3 +297,4 @@ export function createMancalaGame(
 ): MancalaGame {
   return new MancalaGame(gameId, database);
 }
+

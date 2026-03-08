@@ -21,7 +21,7 @@ interface ChessPiece {
 type Cell = ChessPiece | null;
 type Board = Cell[][];
 
-interface ChessState extends GameState {
+export interface ChessState extends GameState {
   board: Board;
   currentPlayer: Player;
   gameOver: boolean;
@@ -44,12 +44,12 @@ interface ChessMove {
   castling?: 'kingside' | 'queenside';
 }
 
-export class ChessGame extends BaseGame {
-  constructor(gameId: string, database: DatabaseProvider) {
+export class ChessGame extends BaseGame<ChessState> {
+  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'chess', database);
   }
 
-  async initializeGame(_config?: GameConfig): Promise<GameState> {
+  async initializeGame(_config?: GameConfig): Promise<ChessState> {
     const initialBoard = this.createInitialBoard();
 
     const initialState: ChessState = {
@@ -236,6 +236,10 @@ export class ChessGame extends BaseGame {
 
       // Double step from starting position
       if (from.row === startRow && rowDiff === 2 * direction) {
+        const intermediateRow = from.row + direction;
+        if (state.board[intermediateRow]?.[from.col] !== null) {
+          return { valid: false, error: 'Path is blocked' };
+        }
         return { valid: true };
       }
 
@@ -349,8 +353,9 @@ export class ChessGame extends BaseGame {
       return { valid: false, error: 'King has already moved' };
     }
 
-    // King must not be in check
-    if (state.inCheck) {
+    // King must not currently be in check
+    const kingPos = this.findKing(piece.color, state.board);
+    if (kingPos && this.isSquareUnderAttack(kingPos, piece.color, state.board)) {
       return { valid: false, error: 'Cannot castle while in check' };
     }
 
@@ -423,22 +428,44 @@ export class ChessGame extends BaseGame {
     return true;
   }
 
+  private applyMoveToBoard(
+    move: ChessMove,
+    board: Board,
+    enPassantTarget: { row: number; col: number } | null
+  ): void {
+    const piece = board[move.from.row]![move.from.col]!;
+    board[move.to.row]![move.to.col] = piece;
+    board[move.from.row]![move.from.col] = null;
+
+    if (piece.type === 'king' && Math.abs(move.to.col - move.from.col) === 2) {
+      const isKingside = move.to.col > move.from.col;
+      const rookFromCol = isKingside ? 7 : 0;
+      const rookToCol = isKingside ? 5 : 3;
+      const rook = board[move.from.row]![rookFromCol]!;
+      board[move.from.row]![rookToCol] = rook;
+      board[move.from.row]![rookFromCol] = null;
+    }
+
+    if (
+      piece.type === 'pawn' &&
+      enPassantTarget &&
+      move.to.row === enPassantTarget.row &&
+      move.to.col === enPassantTarget.col
+    ) {
+      const capturedPawnRow = piece.color === 'white' ? move.to.row + 1 : move.to.row - 1;
+      board[capturedPawnRow]![move.to.col] = null;
+    }
+  }
+
   private wouldLeaveKingInCheck(move: ChessMove, state: ChessState): boolean {
-    // Create a copy of the board with the move applied
-    const testBoard = state.board.map((row) => [...row]);
-    const piece = testBoard[move.from.row]![move.from.col]!;
+    const testBoard = state.board.map((row) => row.map((cell) => (cell ? { ...cell } : null)));
+    this.applyMoveToBoard(move, testBoard, state.enPassantTarget);
 
-    // Apply the move
-    testBoard[move.to.row]![move.to.col] = piece;
-    testBoard[move.from.row]![move.from.col] = null;
-
-    // Find the king
     const kingPos = this.findKing(move.player, testBoard);
     if (!kingPos) {
       return true;
-    } // King not found, something's wrong
+    }
 
-    // Check if king is under attack
     return this.isSquareUnderAttack(kingPos, move.player, testBoard);
   }
 
@@ -532,7 +559,7 @@ export class ChessGame extends BaseGame {
     this.handleSpecialMoves(chessMove, state);
 
     // Update castling rights
-    this.updateCastlingRights(chessMove, state);
+    this.updateCastlingRights(chessMove, state, capturedPiece ?? null);
 
     // Update en passant target
     state.enPassantTarget = this.getEnPassantTarget(chessMove, piece);
@@ -590,7 +617,11 @@ export class ChessGame extends BaseGame {
     }
   }
 
-  private updateCastlingRights(move: ChessMove, state: ChessState): void {
+  private updateCastlingRights(
+    move: ChessMove,
+    state: ChessState,
+    capturedPiece: ChessPiece | null
+  ): void {
     const piece = state.board[move.to.row]![move.to.col]!;
 
     // If king moves, lose all castling rights
@@ -599,24 +630,35 @@ export class ChessGame extends BaseGame {
       state.castlingRights[piece.color].queenside = false;
     }
 
-    // If rook moves or is captured, lose corresponding castling rights
-    if (piece.type === 'rook' || move.from.col === 0 || move.from.col === 7) {
-      if (move.from.row === 0) {
-        // Black rooks
-        if (move.from.col === 0) {
-          state.castlingRights.black.queenside = false;
-        }
-        if (move.from.col === 7) {
-          state.castlingRights.black.kingside = false;
-        }
-      } else if (move.from.row === 7) {
-        // White rooks
-        if (move.from.col === 0) {
-          state.castlingRights.white.queenside = false;
-        }
-        if (move.from.col === 7) {
-          state.castlingRights.white.kingside = false;
-        }
+    // If rook moves from its starting square, lose the matching side.
+    if (piece.type === 'rook') {
+      if (move.from.row === 0 && move.from.col === 0) {
+        state.castlingRights.black.queenside = false;
+      }
+      if (move.from.row === 0 && move.from.col === 7) {
+        state.castlingRights.black.kingside = false;
+      }
+      if (move.from.row === 7 && move.from.col === 0) {
+        state.castlingRights.white.queenside = false;
+      }
+      if (move.from.row === 7 && move.from.col === 7) {
+        state.castlingRights.white.kingside = false;
+      }
+    }
+
+    // If a rook is captured on its starting square, the defending side loses that right too.
+    if (capturedPiece?.type === 'rook') {
+      if (move.to.row === 0 && move.to.col === 0) {
+        state.castlingRights.black.queenside = false;
+      }
+      if (move.to.row === 0 && move.to.col === 7) {
+        state.castlingRights.black.kingside = false;
+      }
+      if (move.to.row === 7 && move.to.col === 0) {
+        state.castlingRights.white.queenside = false;
+      }
+      if (move.to.row === 7 && move.to.col === 7) {
+        state.castlingRights.white.kingside = false;
       }
     }
   }
@@ -655,7 +697,7 @@ export class ChessGame extends BaseGame {
     }
 
     // Check for 50-move rule
-    if (state.halfmoveClock >= 50) {
+    if (state.halfmoveClock >= 100) {
       state.gameOver = true;
       state.winner = 'draw';
     }
@@ -686,7 +728,7 @@ export class ChessGame extends BaseGame {
     return false;
   }
 
-  async getGameState(): Promise<GameState> {
+  async getGameState(): Promise<ChessState> {
     const state = this.currentState as ChessState;
 
     return {
@@ -734,3 +776,5 @@ export function createChessGame(
 ): ChessGame {
   return new ChessGame(gameId, database);
 }
+
+

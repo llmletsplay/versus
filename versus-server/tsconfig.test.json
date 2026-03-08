@@ -13,7 +13,8 @@
     "noImplicitAny": false,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@versus/*": ["../packages/*/src/index.ts"]
     }
   },
   "include": ["tests/**/*", "src/**/*"],
@@ -22,3 +23,5 @@
     "experimentalSpecifierResolution": "node"
   }
 }
+
+
