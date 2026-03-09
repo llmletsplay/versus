@@ -12,6 +12,7 @@ import type {
 
 // Strict type definitions for better type safety
 type Resource = 'wood' | 'brick' | 'wool' | 'grain' | 'ore';
+type PortType = Resource | 'three_for_one';
 type BuildingType = 'settlement' | 'city' | 'road';
 type DevelopmentCard = 'knight' | 'victory_point' | 'road_building' | 'year_of_plenty' | 'monopoly';
 
@@ -56,6 +57,26 @@ interface Edge {
     readonly player: string;
   };
   readonly adjacentIntersections: readonly number[]; // Two intersection IDs
+  readonly port?: PortType;
+}
+
+interface AxialHexCoordinate {
+  q: number;
+  r: number;
+}
+
+interface GeneratedIntersectionTopology {
+  x: number;
+  y: number;
+  adjacentHexes: number[];
+  adjacentIntersections: number[];
+}
+
+interface GeneratedEdgeTopology {
+  x: number;
+  y: number;
+  adjacentIntersections: [number, number];
+  adjacentHexes: number[];
 }
 
 // Enhanced error handling constants with context
@@ -118,6 +139,202 @@ const GAME_CONSTANTS = {
   },
 } as const;
 
+const HEX_COORDINATES: ReadonlyArray<AxialHexCoordinate> = [
+  { q: 0, r: -2 },
+  { q: 1, r: -2 },
+  { q: 2, r: -2 },
+  { q: -1, r: -1 },
+  { q: 0, r: -1 },
+  { q: 1, r: -1 },
+  { q: 2, r: -1 },
+  { q: -2, r: 0 },
+  { q: -1, r: 0 },
+  { q: 0, r: 0 },
+  { q: 1, r: 0 },
+  { q: 2, r: 0 },
+  { q: -2, r: 1 },
+  { q: -1, r: 1 },
+  { q: 0, r: 1 },
+  { q: 1, r: 1 },
+  { q: -2, r: 2 },
+  { q: -1, r: 2 },
+  { q: 0, r: 2 },
+] as const;
+
+const HEX_CORNER_ANGLES = [0, 60, 120, 180, 240, 300] as const;
+const PORT_SEQUENCE: ReadonlyArray<PortType> = [
+  'three_for_one',
+  'brick',
+  'three_for_one',
+  'wood',
+  'three_for_one',
+  'wool',
+  'grain',
+  'three_for_one',
+  'ore',
+] as const;
+const PORT_COASTAL_EDGE_INDICES = [0, 3, 6, 10, 13, 16, 20, 23, 26] as const;
+
+function roundCoordinate(value: number): number {
+  return Number(value.toFixed(6));
+}
+
+function createVertexKey(x: number, y: number): string {
+  return `${roundCoordinate(x)},${roundCoordinate(y)}`;
+}
+
+function generateBoardTopology(): {
+  intersections: GeneratedIntersectionTopology[];
+  edges: GeneratedEdgeTopology[];
+} {
+  const vertexMap = new Map<
+    string,
+    {
+      x: number;
+      y: number;
+      adjacentHexes: Set<number>;
+      adjacentVertices: Set<string>;
+    }
+  >();
+  const edgeMap = new Map<
+    string,
+    {
+      aKey: string;
+      bKey: string;
+      x: number;
+      y: number;
+    }
+  >();
+
+  for (const [hexId, coordinate] of HEX_COORDINATES.entries()) {
+    const centerX = 1.5 * coordinate.q;
+    const centerY = Math.sqrt(3) * (coordinate.r + coordinate.q / 2);
+    const cornerKeys: string[] = [];
+
+    for (const angleDegrees of HEX_CORNER_ANGLES) {
+      const angleRadians = (Math.PI / 180) * angleDegrees;
+      const x = roundCoordinate(centerX + Math.cos(angleRadians));
+      const y = roundCoordinate(centerY + Math.sin(angleRadians));
+      const key = createVertexKey(x, y);
+
+      if (!vertexMap.has(key)) {
+        vertexMap.set(key, {
+          x,
+          y,
+          adjacentHexes: new Set<number>(),
+          adjacentVertices: new Set<string>(),
+        });
+      }
+      vertexMap.get(key)!.adjacentHexes.add(hexId);
+      cornerKeys.push(key);
+    }
+
+    for (let i = 0; i < cornerKeys.length; i++) {
+      const currentKey = cornerKeys[i]!;
+      const nextKey = cornerKeys[(i + 1) % cornerKeys.length]!;
+      vertexMap.get(currentKey)!.adjacentVertices.add(nextKey);
+      vertexMap.get(nextKey)!.adjacentVertices.add(currentKey);
+
+      const edgeKey = [currentKey, nextKey].sort().join('|');
+      if (!edgeMap.has(edgeKey)) {
+        const currentVertex = vertexMap.get(currentKey)!;
+        const nextVertex = vertexMap.get(nextKey)!;
+        edgeMap.set(edgeKey, {
+          aKey: currentKey,
+          bKey: nextKey,
+          x: roundCoordinate((currentVertex.x + nextVertex.x) / 2),
+          y: roundCoordinate((currentVertex.y + nextVertex.y) / 2),
+        });
+      }
+    }
+  }
+
+  const sortedVertices = Array.from(vertexMap.entries()).sort(([, left], [, right]) => {
+    return left.y - right.y || left.x - right.x;
+  });
+  const vertexIds = new Map(sortedVertices.map(([key], index) => [key, index]));
+
+  const intersections = sortedVertices.map(([, vertex]) => ({
+    x: vertex.x,
+    y: vertex.y,
+    adjacentHexes: Array.from(vertex.adjacentHexes).sort((a, b) => a - b),
+    adjacentIntersections: Array.from(vertex.adjacentVertices)
+      .map((key) => vertexIds.get(key)!)
+      .sort((a, b) => a - b),
+  }));
+
+  const edges = Array.from(edgeMap.values())
+    .map((edge) => {
+      const firstVertex = vertexMap.get(edge.aKey)!;
+      const secondVertex = vertexMap.get(edge.bKey)!;
+      const adjacentHexes = Array.from(firstVertex.adjacentHexes)
+        .filter((hexId) => secondVertex.adjacentHexes.has(hexId))
+        .sort((a, b) => a - b);
+
+      return {
+        x: edge.x,
+        y: edge.y,
+        adjacentIntersections: [vertexIds.get(edge.aKey)!, vertexIds.get(edge.bKey)!].sort(
+          (a, b) => a - b
+        ) as [number, number],
+        adjacentHexes,
+      };
+    })
+    .sort((left, right) => {
+      return (
+        left.y - right.y ||
+        left.x - right.x ||
+        left.adjacentIntersections[0] - right.adjacentIntersections[0] ||
+        left.adjacentIntersections[1] - right.adjacentIntersections[1]
+      );
+    });
+
+  if (
+    intersections.length !== GAME_CONSTANTS.MAX_INTERSECTIONS ||
+    edges.length !== GAME_CONSTANTS.MAX_EDGES
+  ) {
+    throw new Error('Generated Catan board topology is invalid');
+  }
+
+  return { intersections, edges };
+}
+
+const CATAN_BOARD_TOPOLOGY = generateBoardTopology();
+
+function createPortAssignments(): ReadonlyMap<number, PortType> {
+  const coastalEdges = CATAN_BOARD_TOPOLOGY.edges
+    .map((edge, id) => ({
+      id,
+      x: edge.x,
+      y: edge.y,
+      adjacentHexes: edge.adjacentHexes,
+      angle: Math.atan2(edge.y, edge.x),
+    }))
+    .filter((edge) => edge.adjacentHexes.length === 1)
+    .sort((left, right) => {
+      return left.angle - right.angle || left.y - right.y || left.x - right.x || left.id - right.id;
+    });
+
+  if (coastalEdges.length !== 30) {
+    throw new Error('Generated Catan coastline is invalid');
+  }
+
+  return new Map(
+    PORT_COASTAL_EDGE_INDICES.map((coastalIndex, portIndex) => {
+      const edge = coastalEdges[coastalIndex];
+      const port = PORT_SEQUENCE[portIndex];
+
+      if (!edge || !port) {
+        throw new Error('Generated Catan port layout is invalid');
+      }
+
+      return [edge.id, port];
+    })
+  );
+}
+
+const CATAN_PORT_ASSIGNMENTS = createPortAssignments();
+
 export interface CatanState extends GameState {
   board: {
     hexes: HexTile[];
@@ -159,6 +376,7 @@ export interface CatanState extends GameState {
       [playerId: string]: {
         settlement: boolean;
         road: boolean;
+        settlementPosition: number | null;
       };
     };
   };
@@ -169,6 +387,10 @@ export interface CatanState extends GameState {
     requesting: Partial<ResourceCards>;
   };
   pendingRobberMove?: boolean;
+  pendingDiscards?: {
+    [playerId: string]: number;
+  };
+  robberTriggeringPlayer?: string | null;
   playedDevelopmentCardThisTurn?: boolean;
   newDevelopmentCards?: {
     [playerId: string]: DevelopmentCard[];
@@ -186,6 +408,7 @@ interface CatanMove {
     | 'play_development_card'
     | 'trade_with_bank'
     | 'trade_with_player'
+    | 'discard_resources'
     | 'move_robber'
     | 'end_turn';
   position?: number; // For building/robber placement
@@ -198,6 +421,7 @@ interface CatanMove {
   positions?: number[];
   resources?: Resource[];
   resource?: Resource;
+  discarding?: Partial<ResourceCards>;
 }
 
 // Enhanced type definitions for better type safety
@@ -211,7 +435,7 @@ export class CatanGame extends BaseGame {
   declare protected currentState: CatanState;
   private readonly VICTORY_POINTS_TO_WIN = GAME_CONSTANTS.VICTORY_POINTS_TO_WIN;
 
-  // Standard Catan board layout (simplified but production-ready)
+  // Standard Catan board layout in fixed physical order
   private readonly HEX_LAYOUT: ReadonlyArray<{ resource: Resource | 'desert'; number?: number }> = [
     { resource: 'ore', number: 10 },
     { resource: 'wool', number: 2 },
@@ -289,10 +513,12 @@ export class CatanGame extends BaseGame {
         developmentCardDeck,
         setupPhaseState: {
           placedBuildings: Object.fromEntries(
-            playerIds.map((id) => [id, { settlement: false, road: false }])
+            playerIds.map((id) => [id, { settlement: false, road: false, settlementPosition: null }])
           ),
         },
         pendingRobberMove: false,
+        pendingDiscards: {},
+        robberTriggeringPlayer: null,
         playedDevelopmentCardThisTurn: false,
         newDevelopmentCards: Object.fromEntries(playerIds.map((id) => [id, []])),
       };
@@ -378,7 +604,6 @@ export class CatanGame extends BaseGame {
   }
 
   private createBoard(): CatanState['board'] {
-    // Create hexes
     const hexes: HexTile[] = this.HEX_LAYOUT.map((layout, index) => ({
       id: index,
       resource: layout.resource,
@@ -386,50 +611,21 @@ export class CatanGame extends BaseGame {
       hasRobber: false,
     }));
 
-    // Create intersections (simplified - 54 intersections in standard Catan)
-    const intersections: Intersection[] = [];
-    for (let i = 0; i < 54; i++) {
-      intersections.push({
-        id: i,
-        adjacentHexes: this.getAdjacentHexes(i),
-        adjacentIntersections: this.getAdjacentIntersections(i),
-      });
-    }
+    const intersections: Intersection[] = CATAN_BOARD_TOPOLOGY.intersections.map(
+      (intersection, index) => ({
+        id: index,
+        adjacentHexes: [...intersection.adjacentHexes],
+        adjacentIntersections: [...intersection.adjacentIntersections],
+      })
+    );
 
-    // Create edges (simplified - 72 edges in standard Catan)
-    const edges: Edge[] = [];
-    for (let i = 0; i < 72; i++) {
-      edges.push({
-        id: i,
-        adjacentIntersections: this.getEdgeIntersections(i),
-      });
-    }
+    const edges: Edge[] = CATAN_BOARD_TOPOLOGY.edges.map((edge, index) => ({
+      id: index,
+      adjacentIntersections: [...edge.adjacentIntersections],
+      port: CATAN_PORT_ASSIGNMENTS.get(index),
+    }));
 
     return { hexes, intersections, edges };
-  }
-
-  private getAdjacentHexes(intersectionId: number): number[] {
-    // Simplified mapping - in a real implementation, this would be based on the actual board geometry
-    return [intersectionId % 19, (intersectionId + 1) % 19, (intersectionId + 2) % 19].filter(
-      (id) => id < 19
-    );
-  }
-
-  private getAdjacentIntersections(intersectionId: number): number[] {
-    // Simplified mapping
-    const adjacent = [];
-    if (intersectionId > 0) {
-      adjacent.push(intersectionId - 1);
-    }
-    if (intersectionId < 53) {
-      adjacent.push(intersectionId + 1);
-    }
-    return adjacent;
-  }
-
-  private getEdgeIntersections(edgeId: number): number[] {
-    // Simplified mapping - each edge connects two intersections
-    return [edgeId % 54, (edgeId + 1) % 54];
   }
 
   private createDevelopmentCardDeck(): DevelopmentCard[] {
@@ -559,6 +755,7 @@ export class CatanGame extends BaseGame {
         'play_development_card',
         'trade_with_bank',
         'trade_with_player',
+        'discard_resources',
         'move_robber',
         'end_turn',
       ];
@@ -627,6 +824,10 @@ export class CatanGame extends BaseGame {
 
       if (moveData.tradeOffer !== undefined && typeof moveData.tradeOffer === 'object') {
         move.tradeOffer = this.sanitizeTradeOffer(moveData.tradeOffer);
+      }
+
+      if (moveData.discarding !== undefined && typeof moveData.discarding === 'object') {
+        move.discarding = this.sanitizeResourceCards(moveData.discarding);
       }
 
       return move;
@@ -700,6 +901,16 @@ export class CatanGame extends BaseGame {
     return sanitized;
   }
 
+  private getResourceEntries(resources: Partial<ResourceCards>): Array<[Resource, number]> {
+    return (Object.entries(resources) as Array<[Resource, number | undefined]>).filter(([, amount]) => {
+      return typeof amount === 'number' && amount > 0;
+    }) as Array<[Resource, number]>;
+  }
+
+  private sumResourceCards(resources: Partial<ResourceCards>): number {
+    return this.getResourceEntries(resources).reduce((sum, [, amount]) => sum + amount, 0);
+  }
+
   // Enhanced resource validation with bounds checking
   private hasResources(playerResources: ResourceCards, cost: Partial<ResourceCards>): boolean {
     try {
@@ -766,35 +977,38 @@ export class CatanGame extends BaseGame {
   }
 
   // Optimized connection checking with caching
-  private hasConnectionToIntersectionOptimized(
-    intersectionId: number,
-    playerId: string,
-    state: CatanState
-  ): boolean {
+  private hasAdjacentBuilding(intersectionId: number, state: CatanState): boolean {
     const intersection = state.board.intersections[intersectionId];
     if (!intersection) {
       return false;
     }
 
-    // Check adjacent intersections for player's buildings (early termination)
-    for (const adjId of intersection.adjacentIntersections) {
-      if (adjId >= 0 && adjId < state.board.intersections.length) {
-        const adjIntersection = state.board.intersections[adjId];
-        if (adjIntersection?.building?.player === playerId) {
-          return true; // Early termination
-        }
-      }
-    }
+    return intersection.adjacentIntersections.some(
+      (adjacentId) => Boolean(state.board.intersections[adjacentId]?.building)
+    );
+  }
 
-    // Check adjacent edges for player's roads (optimized loop)
-    for (let i = 0; i < state.board.edges.length; i++) {
-      const edge = state.board.edges[i]!;
-      if (edge.road?.player === playerId && edge.adjacentIntersections.includes(intersectionId)) {
-        return true; // Early termination
-      }
-    }
+  private getIncidentEdges(intersectionId: number, state: CatanState): Edge[] {
+    return state.board.edges.filter((edge) => edge.adjacentIntersections.includes(intersectionId));
+  }
 
-    return false;
+  private isIntersectionBlockedByOpponentBuilding(
+    intersectionId: number,
+    playerId: string,
+    state: CatanState
+  ): boolean {
+    const building = state.board.intersections[intersectionId]?.building;
+    return Boolean(building && building.player !== playerId);
+  }
+
+  private hasConnectionToIntersectionOptimized(
+    intersectionId: number,
+    playerId: string,
+    state: CatanState
+  ): boolean {
+    return this.getIncidentEdges(intersectionId, state).some(
+      (edge) => edge.road?.player === playerId
+    );
   }
 
   // Memory-efficient dice rolling with validation
@@ -860,6 +1074,7 @@ export class CatanGame extends BaseGame {
     const setupState = state.setupPhaseState?.placedBuildings?.[move.player] || {
       settlement: false,
       road: false,
+      settlementPosition: null,
     };
 
     if (move.action === 'build_settlement') {
@@ -915,6 +1130,17 @@ export class CatanGame extends BaseGame {
         return { valid: false, error: CATAN_ERROR_MESSAGES.EDGE_OCCUPIED };
       }
 
+      const settlementPosition = setupState.settlementPosition;
+      if (
+        typeof settlementPosition !== 'number' ||
+        !edge.adjacentIntersections.includes(settlementPosition)
+      ) {
+        return {
+          valid: false,
+          error: 'Setup road must connect to the settlement you just placed',
+        };
+      }
+
       return { valid: true };
     }
 
@@ -923,6 +1149,11 @@ export class CatanGame extends BaseGame {
 
   private validatePlayingMove(context: ValidationContext): MoveValidationResult {
     const { state, move, player } = context;
+    const hasPendingDiscards = Object.keys(state.pendingDiscards ?? {}).length > 0;
+
+    if (hasPendingDiscards && move.action !== 'discard_resources') {
+      return { valid: false, error: 'Must finish robber discards before continuing turn' };
+    }
 
     if (state.pendingRobberMove && move.action !== 'move_robber') {
       return { valid: false, error: 'Must move robber before continuing turn' };
@@ -951,6 +1182,10 @@ export class CatanGame extends BaseGame {
 
         if (settlementIntersection.building) {
           return { valid: false, error: CATAN_ERROR_MESSAGES.INTERSECTION_OCCUPIED };
+        }
+
+        if (this.hasAdjacentBuilding(move.position, state)) {
+          return { valid: false, error: CATAN_ERROR_MESSAGES.ADJACENT_SETTLEMENT };
         }
 
         const hasConnection = this.hasConnectionToIntersection(move.position, move.player, state);
@@ -1033,6 +1268,9 @@ export class CatanGame extends BaseGame {
 
       case 'play_development_card':
         return this.validateDevelopmentCardPlay(move, state, player);
+
+      case 'discard_resources':
+        return this.validateDiscardResources(move, player, state);
 
       case 'move_robber':
         return this.validateRobberMove(move, state);
@@ -1156,6 +1394,67 @@ export class CatanGame extends BaseGame {
     return { valid: true };
   }
 
+  private getPlayersNeedingDiscard(state: CatanState): Record<string, number> {
+    const pendingDiscards: Record<string, number> = {};
+
+    for (const [playerId, player] of Object.entries(state.players)) {
+      const totalCards = this.sumResourceCards(player.resources);
+      if (totalCards > GAME_CONSTANTS.MAX_RESOURCE_CARDS_BEFORE_DISCARD) {
+        pendingDiscards[playerId] = Math.floor(totalCards / 2);
+      }
+    }
+
+    return pendingDiscards;
+  }
+
+  private getNextPendingDiscardPlayer(state: CatanState, afterPlayer: string): string | null {
+    const pendingDiscards = state.pendingDiscards ?? {};
+    const startIndex = state.playerOrder.indexOf(afterPlayer);
+
+    for (let offset = 1; offset <= state.playerOrder.length; offset++) {
+      const candidate = state.playerOrder[(startIndex + offset) % state.playerOrder.length]!;
+      if ((pendingDiscards[candidate] ?? 0) > 0) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  private getPlayerPortTypes(state: CatanState, playerId: string): Set<PortType> {
+    const portTypes = new Set<PortType>();
+
+    for (const edge of state.board.edges) {
+      if (!edge.port) {
+        continue;
+      }
+
+      const controlsPort = edge.adjacentIntersections.some((intersectionId) => {
+        return state.board.intersections[intersectionId]?.building?.player === playerId;
+      });
+
+      if (controlsPort) {
+        portTypes.add(edge.port);
+      }
+    }
+
+    return portTypes;
+  }
+
+  private getBankTradeRate(state: CatanState, playerId: string, offeredResource: Resource): number {
+    const portTypes = this.getPlayerPortTypes(state, playerId);
+
+    if (portTypes.has(offeredResource)) {
+      return 2;
+    }
+
+    if (portTypes.has('three_for_one')) {
+      return 3;
+    }
+
+    return 4;
+  }
+
   private getEligibleRobberVictims(thief: string, hexId: number, state: CatanState): string[] {
     const adjacentPlayers = new Set<string>();
 
@@ -1209,6 +1508,37 @@ export class CatanGame extends BaseGame {
     return { valid: true };
   }
 
+  private validateDiscardResources(
+    move: CatanMove,
+    player: CatanState['players'][string],
+    state: CatanState
+  ): MoveValidationResult {
+    const requiredDiscardCount = state.pendingDiscards?.[move.player] ?? 0;
+
+    if (requiredDiscardCount <= 0) {
+      return { valid: false, error: 'This player does not need to discard' };
+    }
+
+    if (!move.discarding) {
+      return { valid: false, error: 'Must specify which resources to discard' };
+    }
+
+    for (const [resource, amount] of this.getResourceEntries(move.discarding)) {
+      if (player.resources[resource] < amount) {
+        return { valid: false, error: `Insufficient ${resource} to discard` };
+      }
+    }
+
+    if (this.sumResourceCards(move.discarding) !== requiredDiscardCount) {
+      return {
+        valid: false,
+        error: `Must discard exactly ${requiredDiscardCount} resource cards`,
+      };
+    }
+
+    return { valid: true };
+  }
+
   private validateBankTrade(
     move: CatanMove,
     state: CatanState,
@@ -1219,23 +1549,26 @@ export class CatanGame extends BaseGame {
     }
 
     const { offering, requesting } = move.tradeOffer;
+    const offeringEntries = this.getResourceEntries(offering);
+    const requestingEntries = this.getResourceEntries(requesting);
 
-    // Check if player has resources to offer
-    for (const [resource, amount] of Object.entries(offering)) {
-      if (player.resources[resource as Resource] < (amount || 0)) {
-        return { valid: false, error: `Insufficient ${resource} to trade` };
-      }
+    if (offeringEntries.length !== 1 || requestingEntries.length !== 1) {
+      return { valid: false, error: CATAN_ERROR_MESSAGES.INVALID_TRADE_RATIO };
     }
 
-    // Validate trade ratios (4:1 general, 3:1 with port, 2:1 with specialized port)
-    // For simplicity, using 4:1 ratio
-    const totalOffering = Object.values(offering).reduce((sum, amount) => sum + (amount || 0), 0);
-    const totalRequesting = Object.values(requesting).reduce(
-      (sum, amount) => sum + (amount || 0),
-      0
-    );
+    const [offeredResource, offeredAmount] = offeringEntries[0]!;
+    const [requestedResource, requestedAmount] = requestingEntries[0]!;
 
-    if (totalOffering < totalRequesting * 4) {
+    if (requestedAmount !== 1 || requestedResource === offeredResource) {
+      return { valid: false, error: CATAN_ERROR_MESSAGES.INVALID_TRADE_RATIO };
+    }
+
+    if (player.resources[offeredResource] < offeredAmount) {
+      return { valid: false, error: `Insufficient ${offeredResource} to trade` };
+    }
+
+    const requiredAmount = this.getBankTradeRate(state, move.player, offeredResource);
+    if (offeredAmount !== requiredAmount) {
       return { valid: false, error: CATAN_ERROR_MESSAGES.INVALID_TRADE_RATIO };
     }
 
@@ -1329,6 +1662,8 @@ export class CatanGame extends BaseGame {
     state.board.hexes[newPos]!.hasRobber = true;
     state.robberPosition = newPos;
     state.pendingRobberMove = false;
+    state.pendingDiscards = {};
+    state.robberTriggeringPlayer = null;
 
     const eligibleVictims = this.getEligibleRobberVictims(move.player, newPos, state);
     const victim = move.targetPlayer ?? (eligibleVictims.length === 1 ? eligibleVictims[0]! : null);
@@ -1360,16 +1695,12 @@ export class CatanGame extends BaseGame {
     player: CatanState['players'][string]
   ): void {
     const { offering, requesting } = move.tradeOffer!;
+    const [offeredResource, offeredAmount] = this.getResourceEntries(offering)[0]!;
+    const [requestedResource] = this.getResourceEntries(requesting)[0]!;
+    const requiredAmount = this.getBankTradeRate(state, move.player, offeredResource);
 
-    // Remove offered resources
-    for (const [resource, amount] of Object.entries(offering)) {
-      player.resources[resource as Resource] -= amount || 0;
-    }
-
-    // Add requested resources
-    for (const [resource, amount] of Object.entries(requesting)) {
-      player.resources[resource as Resource] += amount || 0;
-    }
+    player.resources[offeredResource] -= Math.min(offeredAmount, requiredAmount);
+    player.resources[requestedResource] += 1;
   }
 
   private executePlayerTrade(
@@ -1402,30 +1733,25 @@ export class CatanGame extends BaseGame {
   }
 
   private hasConnectionToEdge(edgeId: number, playerId: string, state: CatanState): boolean {
-    const edge = state.board.edges[edgeId]!;
+    const edge = state.board.edges[edgeId];
+    if (!edge) {
+      return false;
+    }
 
-    // Check if either endpoint has player's building
-    for (const intersectionId of edge.adjacentIntersections) {
+    return edge.adjacentIntersections.some((intersectionId) => {
       const intersection = state.board.intersections[intersectionId];
       if (intersection?.building?.player === playerId) {
         return true;
       }
-    }
 
-    // Check if edge connects to player's existing roads
-    for (const intersectionId of edge.adjacentIntersections) {
-      for (const otherEdge of state.board.edges) {
-        if (
-          otherEdge.id !== edgeId &&
-          otherEdge.road?.player === playerId &&
-          otherEdge.adjacentIntersections.includes(intersectionId)
-        ) {
-          return true;
-        }
+      if (this.isIntersectionBlockedByOpponentBuilding(intersectionId, playerId, state)) {
+        return false;
       }
-    }
 
-    return false;
+      return this.getIncidentEdges(intersectionId, state).some(
+        (otherEdge) => otherEdge.id !== edgeId && otherEdge.road?.player === playerId
+      );
+    });
   }
 
   protected async applyMove(move: GameMove): Promise<void> {
@@ -1454,6 +1780,7 @@ export class CatanGame extends BaseGame {
       // Mark settlement as placed
       if (state.setupPhaseState) {
         state.setupPhaseState.placedBuildings[move.player]!.settlement = true;
+        state.setupPhaseState.placedBuildings[move.player]!.settlementPosition = move.position!;
       }
 
       // In setup round 2, collect resources from adjacent hexes
@@ -1497,8 +1824,7 @@ export class CatanGame extends BaseGame {
         state.diceRoll = roll;
 
         if (roll === 7) {
-          this.handleRobber(state);
-          state.pendingRobberMove = true;
+          this.handleRobber(state, move.player);
         } else {
           this.distributeResources(roll, state);
         }
@@ -1526,6 +1852,10 @@ export class CatanGame extends BaseGame {
         state.playedDevelopmentCardThisTurn = true;
         break;
 
+      case 'discard_resources':
+        this.discardResources(move, state, player);
+        break;
+
       case 'move_robber':
         this.moveRobber(move, state);
         break;
@@ -1549,6 +1879,7 @@ export class CatanGame extends BaseGame {
       details: `${move.player} performed ${move.action.replace('_', ' ')}`,
     };
   }
+
   private advanceSetupPhase(state: CatanState): void {
     const playerCount = state.playerOrder.length;
     const currentIndex = state.playerOrder.indexOf(state.currentPlayer);
@@ -1558,6 +1889,7 @@ export class CatanGame extends BaseGame {
       state.setupPhaseState.placedBuildings[state.currentPlayer] = {
         settlement: false,
         road: false,
+        settlementPosition: null,
       };
     }
 
@@ -1585,29 +1917,46 @@ export class CatanGame extends BaseGame {
     }
   }
 
-  private handleRobber(state: CatanState): void {
-    for (const player of Object.values(state.players)) {
-      const totalCards = Object.values(player.resources).reduce((sum, count) => sum + count, 0);
-      if (totalCards >= 8) {
-        const toDiscard = Math.floor(totalCards / 2);
-        this.randomlyDiscardResources(player.resources, toDiscard);
+  private handleRobber(state: CatanState, triggeringPlayer: string): void {
+    const pendingDiscards = this.getPlayersNeedingDiscard(state);
+    state.pendingDiscards = pendingDiscards;
+    state.robberTriggeringPlayer = triggeringPlayer;
+    state.pendingRobberMove = false;
+
+    const triggeringIndex = state.playerOrder.indexOf(triggeringPlayer);
+    for (let offset = 0; offset < state.playerOrder.length; offset++) {
+      const candidate = state.playerOrder[(triggeringIndex + offset) % state.playerOrder.length]!;
+      if ((pendingDiscards[candidate] ?? 0) > 0) {
+        state.currentPlayer = candidate;
+        return;
       }
     }
+
+    state.pendingRobberMove = true;
   }
 
-  private randomlyDiscardResources(resources: ResourceCards, count: number): void {
-    const resourceTypes = Object.keys(resources) as Resource[];
-    const mutableResources = resources as any;
-
-    for (let i = 0; i < count; i++) {
-      const availableTypes = resourceTypes.filter((type) => resources[type] > 0);
-      if (availableTypes.length === 0) {
-        break;
-      }
-
-      const randomType = availableTypes[Math.floor(Math.random() * availableTypes.length)]!;
-      mutableResources[randomType]--;
+  private discardResources(
+    move: CatanMove,
+    state: CatanState,
+    player: CatanState['players'][string]
+  ): void {
+    for (const [resource, amount] of this.getResourceEntries(move.discarding ?? {})) {
+      player.resources[resource] -= amount;
     }
+
+    if (state.pendingDiscards) {
+      delete state.pendingDiscards[move.player];
+    }
+
+    const nextDiscardPlayer = this.getNextPendingDiscardPlayer(state, move.player);
+    if (nextDiscardPlayer) {
+      state.currentPlayer = nextDiscardPlayer;
+      return;
+    }
+
+    state.pendingDiscards = {};
+    state.currentPlayer = state.robberTriggeringPlayer ?? move.player;
+    state.pendingRobberMove = true;
   }
 
   private buildSettlement(
@@ -1657,7 +2006,7 @@ export class CatanGame extends BaseGame {
     edge.road = { player: move.player };
     player.buildings.roads--;
 
-    // Update longest road (simplified calculation)
+    // Update longest road after each road placement
     this.updateLongestRoad(state);
   }
 
@@ -1689,35 +2038,105 @@ export class CatanGame extends BaseGame {
   }
 
   private updateLongestRoad(state: CatanState): void {
-    // Simplified longest road calculation
-    for (const [_playerId, player] of Object.entries(state.players)) {
-      const roadCount = state.board.edges.filter((edge) => edge.road?.player === _playerId).length;
-      player.longestRoad = roadCount;
+    for (const [playerId, player] of Object.entries(state.players)) {
+      player.longestRoad = this.calculateLongestRoad(state, playerId);
+    }
 
-      // Award longest road bonus (5+ roads needed)
-      if (roadCount >= 5) {
-        // Remove bonus from other players
-        for (const otherPlayer of Object.values(state.players)) {
-          if (otherPlayer.hasLongestRoad) {
-            otherPlayer.hasLongestRoad = false;
-            otherPlayer.victoryPoints -= 2;
-          }
-        }
+    const currentHolder =
+      Object.entries(state.players).find(([, player]) => player.hasLongestRoad)?.[0] ?? null;
+    const maxRoadLength = Math.max(
+      0,
+      ...Object.values(state.players).map((player) => player.longestRoad)
+    );
+    const eligiblePlayers = Object.entries(state.players)
+      .filter(([, player]) => {
+        return (
+          player.longestRoad >= GAME_CONSTANTS.LONGEST_ROAD_MIN &&
+          player.longestRoad === maxRoadLength
+        );
+      })
+      .map(([playerId]) => playerId);
 
-        // Award to current player if they have the most
-        const maxRoads = Math.max(...Object.values(state.players).map((p) => p.longestRoad));
-        if (roadCount === maxRoads && !player.hasLongestRoad) {
-          player.hasLongestRoad = true;
-          player.victoryPoints += 2;
-        }
+    let nextHolder: string | null = null;
+    if (currentHolder && eligiblePlayers.includes(currentHolder)) {
+      nextHolder = currentHolder;
+    } else if (eligiblePlayers.length === 1) {
+      nextHolder = eligiblePlayers[0]!;
+    }
+
+    for (const [playerId, player] of Object.entries(state.players)) {
+      if (player.hasLongestRoad && playerId !== nextHolder) {
+        player.hasLongestRoad = false;
+        player.victoryPoints -= 2;
       }
     }
+
+    if (nextHolder && !state.players[nextHolder]!.hasLongestRoad) {
+      state.players[nextHolder]!.hasLongestRoad = true;
+      state.players[nextHolder]!.victoryPoints += 2;
+    }
+  }
+
+  private calculateLongestRoad(state: CatanState, playerId: string): number {
+    const roadMap = new Map<number, number[]>();
+
+    for (const edge of state.board.edges) {
+      if (edge.road?.player !== playerId) {
+        continue;
+      }
+
+      for (const intersectionId of edge.adjacentIntersections) {
+        const existing = roadMap.get(intersectionId) ?? [];
+        existing.push(edge.id);
+        roadMap.set(intersectionId, existing);
+      }
+    }
+
+    if (roadMap.size === 0) {
+      return 0;
+    }
+
+    const walk = (intersectionId: number, usedEdges: Set<number>): number => {
+      if (
+        usedEdges.size > 0 &&
+        this.isIntersectionBlockedByOpponentBuilding(intersectionId, playerId, state)
+      ) {
+        return 0;
+      }
+
+      let best = 0;
+      for (const edgeId of roadMap.get(intersectionId) ?? []) {
+        if (usedEdges.has(edgeId)) {
+          continue;
+        }
+
+        usedEdges.add(edgeId);
+        const edge = state.board.edges[edgeId]!;
+        const nextIntersection =
+          edge.adjacentIntersections[0] === intersectionId
+            ? edge.adjacentIntersections[1]!
+            : edge.adjacentIntersections[0]!;
+        best = Math.max(best, 1 + walk(nextIntersection, usedEdges));
+        usedEdges.delete(edgeId);
+      }
+
+      return best;
+    };
+
+    let longestRoad = 0;
+    for (const intersectionId of roadMap.keys()) {
+      longestRoad = Math.max(longestRoad, walk(intersectionId, new Set<number>()));
+    }
+
+    return longestRoad;
   }
 
   private endTurn(state: CatanState): void {
     const endingPlayer = state.currentPlayer;
     state.diceRoll = null;
     state.pendingRobberMove = false;
+    state.pendingDiscards = {};
+    state.robberTriggeringPlayer = null;
     state.playedDevelopmentCardThisTurn = false;
 
     if (state.newDevelopmentCards?.[endingPlayer]) {
@@ -1781,6 +2200,7 @@ export class CatanGame extends BaseGame {
       diceRoll: state.diceRoll,
       robberPosition: state.robberPosition,
       pendingRobberMove: state.pendingRobberMove ?? false,
+      pendingDiscards: state.pendingDiscards ?? {},
       lastAction: state.lastAction,
       developmentCardsLeft: state.developmentCardDeck.length,
     };

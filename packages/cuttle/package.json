@@ -1,36 +1,37 @@
 {
-    "name":  "@versus/cuttle",
-    "version":  "0.1.0",
-    "description":  "Standalone Versus cuttle engine package",
-    "license":  "MIT",
-    "type":  "module",
-    "sideEffects":  false,
-    "publishConfig":  {
-                          "access":  "public"
-                      },
-    "main":  "./dist/index.js",
-    "types":  "./dist/index.d.ts",
-    "exports":  {
-                    ".":  {
-                              "types":  "./dist/index.d.ts",
-                              "import":  "./dist/index.js"
-                          }
-                },
-    "files":  [
-                  "dist",
-                  "README.md"
-              ],
-    "scripts":  {
-                    "build":  "tsc -p tsconfig.json",
-                    "prepack":  "npm run build"
-                },
-    "repository":  {
-                       "type":  "git",
-                       "url":  "https://github.com/lightnolimit/versus.git",
-                       "directory":  "packages/cuttle"
-                   },
-    "dependencies":  {
-                         "@versus/game-core":  "^0.1.0"
-                     }
+  "name": "@versus/cuttle",
+  "version": "0.1.0",
+  "description": "Standalone Versus cuttle engine package",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "RULES.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lightnolimit/versus.git",
+    "directory": "packages/cuttle"
+  },
+  "dependencies": {
+    "@versus/game-core": "^0.1.0"
+  }
 }
-

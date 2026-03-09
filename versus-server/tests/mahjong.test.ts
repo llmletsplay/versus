@@ -5,6 +5,40 @@ function getInternalState(game: any): any {
   return game.currentState;
 }
 
+function createSuitTile(suit: string, value: number, id: string): any {
+  return { type: 'suit', suit, value, id };
+}
+
+function createHonorTile(honor: string, id: string): any {
+  return { type: 'honor', honor, id };
+}
+
+function createNonWinningHand(prefix: string, count: number = 13): any[] {
+  return [
+    createSuitTile('bamboo', 1, prefix + '-b1'),
+    createSuitTile('bamboo', 3, prefix + '-b3'),
+    createSuitTile('bamboo', 5, prefix + '-b5'),
+    createSuitTile('character', 1, prefix + '-c1'),
+    createSuitTile('character', 3, prefix + '-c3'),
+    createSuitTile('character', 5, prefix + '-c5'),
+    createSuitTile('dot', 1, prefix + '-d1'),
+    createSuitTile('dot', 3, prefix + '-d3'),
+    createSuitTile('dot', 5, prefix + '-d5'),
+    createHonorTile('east', prefix + '-east'),
+    createHonorTile('south', prefix + '-south'),
+    createHonorTile('west', prefix + '-west'),
+    createHonorTile('green', prefix + '-green'),
+    createHonorTile('white', prefix + '-white'),
+  ].slice(0, count);
+}
+
+async function passAllClaims(game: MahjongGame): Promise<void> {
+  while (getInternalState(game).claimWindow) {
+    const currentPlayer = getInternalState(game).currentPlayer;
+    await game.makeMove({ player: currentPlayer, action: 'pass_claim' });
+  }
+}
+
 describe('MahjongGame', () => {
   let game: MahjongGame;
 
@@ -85,6 +119,7 @@ describe('MahjongGame', () => {
         action: 'discard',
         tile: dealerTile,
       });
+      await passAllClaims(game);
 
       // Now player2 can draw
       const result = await game.validateMove({
@@ -171,7 +206,9 @@ describe('MahjongGame', () => {
         action: 'invalid-action',
       });
       expect(result.valid).toBe(false);
-      expect(result.error).toBe('Action must be draw, discard, or declare_win');
+      expect(result.error).toBe(
+        'Action must be draw, discard, declare_win, claim_pon, claim_chi, claim_kan, declare_kan, or pass_claim'
+      );
     });
 
     it('should reject move without required fields', async () => {
@@ -206,6 +243,7 @@ describe('MahjongGame', () => {
         action: 'discard',
         tile: internalState.hands.player1[0],
       });
+      await passAllClaims(game);
 
       const wallSizeBefore = internalState.wall.length;
 
@@ -234,7 +272,7 @@ describe('MahjongGame', () => {
       expect(internalState.discardPile.length).toBe(1);
       expect(internalState.discardPile[0].id).toBe(tile.id);
       expect(internalState.lastDiscard?.id).toBe(tile.id);
-      expect(internalState.currentPlayer).toBe('player2');
+      expect(internalState.currentPlayer).toBeTruthy();
     });
 
     it('should rotate players correctly', async () => {
@@ -246,6 +284,7 @@ describe('MahjongGame', () => {
         action: 'discard',
         tile: internalState.hands.player1[0],
       });
+      await passAllClaims(game);
       expect(internalState.currentPlayer).toBe('player2');
 
       // Player2 draw and discard
@@ -255,6 +294,7 @@ describe('MahjongGame', () => {
         action: 'discard',
         tile: internalState.hands.player2[0],
       });
+      await passAllClaims(game);
       expect(internalState.currentPlayer).toBe('player3');
 
       // Player3 draw and discard
@@ -264,6 +304,7 @@ describe('MahjongGame', () => {
         action: 'discard',
         tile: internalState.hands.player3[0],
       });
+      await passAllClaims(game);
       expect(internalState.currentPlayer).toBe('player4');
 
       // Player4 draw and discard
@@ -273,6 +314,7 @@ describe('MahjongGame', () => {
         action: 'discard',
         tile: internalState.hands.player4[0],
       });
+      await passAllClaims(game);
       expect(internalState.currentPlayer).toBe('player1');
     });
 
@@ -290,6 +332,438 @@ describe('MahjongGame', () => {
       expect(internalState.lastAction?.player).toBe('player1');
       expect(internalState.lastAction?.tile?.id).toBe(tile.id);
       expect(internalState.lastAction?.details).toContain('discarded');
+    });
+  });
+
+  describe('discard claims', () => {
+    beforeEach(async () => {
+      await game.initializeGame({ playerCount: 4 });
+    });
+
+    it('should let another player claim pon before the turn advances', async () => {
+      const state = getInternalState(game);
+      const discardTile = createHonorTile('red', 'discard-red');
+
+      state.hands.player1 = [
+        discardTile,
+        createSuitTile('bamboo', 1, 'p1-b1'),
+        createSuitTile('bamboo', 2, 'p1-b2'),
+        createSuitTile('bamboo', 3, 'p1-b3'),
+        createSuitTile('character', 1, 'p1-c1'),
+        createSuitTile('character', 2, 'p1-c2'),
+        createSuitTile('character', 3, 'p1-c3'),
+        createSuitTile('dot', 1, 'p1-d1'),
+        createSuitTile('dot', 2, 'p1-d2'),
+        createSuitTile('dot', 3, 'p1-d3'),
+        createHonorTile('east', 'p1-east'),
+        createHonorTile('south', 'p1-south'),
+        createHonorTile('west', 'p1-west'),
+        createHonorTile('north', 'p1-north'),
+      ];
+      state.hands.player2 = [
+        createSuitTile('bamboo', 4, 'p2-b4'),
+        createSuitTile('bamboo', 5, 'p2-b5'),
+        createSuitTile('character', 4, 'p2-c4'),
+        createSuitTile('character', 5, 'p2-c5'),
+        createSuitTile('dot', 4, 'p2-d4'),
+        createSuitTile('dot', 5, 'p2-d5'),
+        createHonorTile('east', 'p2-east'),
+        createHonorTile('south', 'p2-south'),
+        createHonorTile('west', 'p2-west'),
+        createHonorTile('north', 'p2-north'),
+        createHonorTile('green', 'p2-green'),
+        createHonorTile('white', 'p2-white'),
+        createSuitTile('dot', 9, 'p2-d9'),
+      ];
+      state.hands.player3 = [
+        createHonorTile('red', 'p3-red-1'),
+        createHonorTile('red', 'p3-red-2'),
+        createSuitTile('bamboo', 6, 'p3-b6'),
+        createSuitTile('bamboo', 7, 'p3-b7'),
+        createSuitTile('character', 6, 'p3-c6'),
+        createSuitTile('character', 7, 'p3-c7'),
+        createSuitTile('dot', 6, 'p3-d6'),
+        createSuitTile('dot', 7, 'p3-d7'),
+        createHonorTile('east', 'p3-east'),
+        createHonorTile('south', 'p3-south'),
+        createHonorTile('west', 'p3-west'),
+        createHonorTile('north', 'p3-north'),
+        createSuitTile('dot', 8, 'p3-d8'),
+      ];
+      state.hands.player4 = [
+        createSuitTile('bamboo', 8, 'p4-b8'),
+        createSuitTile('bamboo', 9, 'p4-b9'),
+        createSuitTile('character', 8, 'p4-c8'),
+        createSuitTile('character', 9, 'p4-c9'),
+        createSuitTile('dot', 8, 'p4-d8'),
+        createSuitTile('dot', 9, 'p4-d9'),
+        createHonorTile('east', 'p4-east'),
+        createHonorTile('south', 'p4-south'),
+        createHonorTile('west', 'p4-west'),
+        createHonorTile('north', 'p4-north'),
+        createHonorTile('green', 'p4-green'),
+        createHonorTile('white', 'p4-white'),
+        createSuitTile('character', 1, 'p4-c1'),
+      ];
+      state.currentPlayer = 'player1';
+      state.discardPile = [];
+      state.lastDiscard = null;
+      state.lastDiscardPlayer = null;
+      state.claimWindow = null;
+
+      await game.makeMove({ player: 'player1', action: 'discard', tile: discardTile });
+
+      expect(state.claimWindow?.phase).toBe('pon');
+      expect(state.currentPlayer).toBe('player3');
+
+      await game.makeMove({ player: 'player3', action: 'claim_pon' });
+
+      expect(state.melds.player3).toHaveLength(1);
+      expect(state.melds.player3[0]).toHaveLength(3);
+      expect(state.currentPlayer).toBe('player3');
+      expect(state.lastDiscard).toBeNull();
+    });
+
+    it('should let the next player claim chi with an explicit sequence choice', async () => {
+      const state = getInternalState(game);
+      const discardTile = createSuitTile('bamboo', 2, 'discard-b2');
+      const chiLeft = createSuitTile('bamboo', 1, 'chi-b1');
+      const chiRight = createSuitTile('bamboo', 3, 'chi-b3');
+
+      state.hands.player1 = [
+        discardTile,
+        createSuitTile('character', 1, 'p1-c1'),
+        createSuitTile('character', 2, 'p1-c2'),
+        createSuitTile('character', 3, 'p1-c3'),
+        createSuitTile('dot', 1, 'p1-d1'),
+        createSuitTile('dot', 2, 'p1-d2'),
+        createSuitTile('dot', 3, 'p1-d3'),
+        createHonorTile('east', 'p1-east'),
+        createHonorTile('south', 'p1-south'),
+        createHonorTile('west', 'p1-west'),
+        createHonorTile('north', 'p1-north'),
+        createHonorTile('green', 'p1-green'),
+        createHonorTile('white', 'p1-white'),
+        createSuitTile('dot', 9, 'p1-d9'),
+      ];
+      state.hands.player2 = [
+        chiLeft,
+        chiRight,
+        createSuitTile('bamboo', 5, 'p2-b5'),
+        createSuitTile('character', 4, 'p2-c4'),
+        createSuitTile('character', 5, 'p2-c5'),
+        createSuitTile('dot', 4, 'p2-d4'),
+        createSuitTile('dot', 5, 'p2-d5'),
+        createHonorTile('east', 'p2-east'),
+        createHonorTile('south', 'p2-south'),
+        createHonorTile('west', 'p2-west'),
+        createHonorTile('north', 'p2-north'),
+        createHonorTile('red', 'p2-red'),
+        createHonorTile('green', 'p2-green'),
+      ];
+      state.hands.player3 = [
+        createSuitTile('bamboo', 6, 'p3-b6'),
+        createSuitTile('bamboo', 7, 'p3-b7'),
+        createSuitTile('character', 6, 'p3-c6'),
+        createSuitTile('character', 7, 'p3-c7'),
+        createSuitTile('dot', 6, 'p3-d6'),
+        createSuitTile('dot', 7, 'p3-d7'),
+        createHonorTile('east', 'p3-east'),
+        createHonorTile('south', 'p3-south'),
+        createHonorTile('west', 'p3-west'),
+        createHonorTile('north', 'p3-north'),
+        createHonorTile('red', 'p3-red'),
+        createHonorTile('green', 'p3-green'),
+        createHonorTile('white', 'p3-white'),
+      ];
+      state.hands.player4 = [
+        createSuitTile('bamboo', 8, 'p4-b8'),
+        createSuitTile('bamboo', 9, 'p4-b9'),
+        createSuitTile('character', 8, 'p4-c8'),
+        createSuitTile('character', 9, 'p4-c9'),
+        createSuitTile('dot', 8, 'p4-d8'),
+        createSuitTile('dot', 9, 'p4-d9'),
+        createHonorTile('east', 'p4-east'),
+        createHonorTile('south', 'p4-south'),
+        createHonorTile('west', 'p4-west'),
+        createHonorTile('north', 'p4-north'),
+        createHonorTile('red', 'p4-red'),
+        createHonorTile('green', 'p4-green'),
+        createHonorTile('white', 'p4-white'),
+      ];
+      state.currentPlayer = 'player1';
+      state.discardPile = [];
+      state.lastDiscard = null;
+      state.lastDiscardPlayer = null;
+      state.claimWindow = null;
+
+      await game.makeMove({ player: 'player1', action: 'discard', tile: discardTile });
+
+      expect(state.claimWindow?.phase).toBe('chi');
+      expect(state.currentPlayer).toBe('player2');
+
+      await game.makeMove({
+        player: 'player2',
+        action: 'claim_chi',
+        tiles: [chiLeft, chiRight],
+      });
+
+      expect(state.melds.player2).toHaveLength(1);
+      expect(state.melds.player2[0]).toHaveLength(3);
+      expect(state.currentPlayer).toBe('player2');
+      expect(state.lastDiscard).toBeNull();
+    });
+
+    it("should let a player win off another player's discard", async () => {
+      const state = getInternalState(game);
+      const discardTile = createSuitTile('bamboo', 3, 'discard-b3');
+
+      state.hands.player1 = [
+        discardTile,
+        createSuitTile('character', 1, 'p1-c1'),
+        createSuitTile('character', 2, 'p1-c2'),
+        createSuitTile('character', 3, 'p1-c3'),
+        createSuitTile('dot', 1, 'p1-d1'),
+        createSuitTile('dot', 2, 'p1-d2'),
+        createSuitTile('dot', 3, 'p1-d3'),
+        createHonorTile('east', 'p1-east'),
+        createHonorTile('south', 'p1-south'),
+        createHonorTile('west', 'p1-west'),
+        createHonorTile('north', 'p1-north'),
+        createHonorTile('red', 'p1-red'),
+        createHonorTile('green', 'p1-green'),
+        createHonorTile('white', 'p1-white'),
+      ];
+      state.hands.player2 = [
+        createSuitTile('bamboo', 1, 'p2-b1'),
+        createSuitTile('bamboo', 2, 'p2-b2'),
+        createSuitTile('bamboo', 4, 'p2-b4-1'),
+        createSuitTile('bamboo', 4, 'p2-b4-2'),
+        createSuitTile('bamboo', 4, 'p2-b4-3'),
+        createSuitTile('character', 5, 'p2-c5-1'),
+        createSuitTile('character', 5, 'p2-c5-2'),
+        createSuitTile('character', 5, 'p2-c5-3'),
+        createSuitTile('dot', 6, 'p2-d6-1'),
+        createSuitTile('dot', 6, 'p2-d6-2'),
+        createSuitTile('dot', 6, 'p2-d6-3'),
+        createHonorTile('red', 'p2-red-1'),
+        createHonorTile('red', 'p2-red-2'),
+      ];
+      state.hands.player3 = [
+        createSuitTile('bamboo', 6, 'p3-b6'),
+        createSuitTile('bamboo', 7, 'p3-b7'),
+        createSuitTile('character', 6, 'p3-c6'),
+        createSuitTile('character', 7, 'p3-c7'),
+        createSuitTile('dot', 6, 'p3-d6'),
+        createSuitTile('dot', 7, 'p3-d7'),
+        createHonorTile('east', 'p3-east'),
+        createHonorTile('south', 'p3-south'),
+        createHonorTile('west', 'p3-west'),
+        createHonorTile('north', 'p3-north'),
+        createHonorTile('green', 'p3-green'),
+        createHonorTile('white', 'p3-white'),
+        createSuitTile('dot', 9, 'p3-d9'),
+      ];
+      state.hands.player4 = [
+        createSuitTile('bamboo', 8, 'p4-b8'),
+        createSuitTile('bamboo', 9, 'p4-b9'),
+        createSuitTile('character', 8, 'p4-c8'),
+        createSuitTile('character', 9, 'p4-c9'),
+        createSuitTile('dot', 8, 'p4-d8'),
+        createSuitTile('dot', 9, 'p4-d9'),
+        createHonorTile('east', 'p4-east'),
+        createHonorTile('south', 'p4-south'),
+        createHonorTile('west', 'p4-west'),
+        createHonorTile('north', 'p4-north'),
+        createHonorTile('green', 'p4-green'),
+        createHonorTile('white', 'p4-white'),
+        createSuitTile('character', 1, 'p4-c1'),
+      ];
+      state.currentPlayer = 'player1';
+      state.discardPile = [];
+      state.lastDiscard = null;
+      state.lastDiscardPlayer = null;
+      state.claimWindow = null;
+
+      await game.makeMove({ player: 'player1', action: 'discard', tile: discardTile });
+
+      expect(state.claimWindow?.phase).toBe('ron');
+      expect(state.currentPlayer).toBe('player2');
+
+      await game.makeMove({ player: 'player2', action: 'declare_win' });
+
+      expect(state.gameOver).toBe(true);
+      expect(state.winner).toBe('player2');
+      expect(state.gamePhase).toBe('finished');
+    });
+  });
+
+  describe('kan flow', () => {
+    beforeEach(async () => {
+      await game.initializeGame({ playerCount: 4 });
+    });
+
+    it('should allow a player to declare a concealed kan and draw a supplemental tile', async () => {
+      const state = getInternalState(game);
+      const kanTiles = [
+        createHonorTile('red', 'p1-red-1'),
+        createHonorTile('red', 'p1-red-2'),
+        createHonorTile('red', 'p1-red-3'),
+        createHonorTile('red', 'p1-red-4'),
+      ];
+      const supplementalTile = createSuitTile('dot', 9, 'supplemental-concealed');
+
+      state.hands.player1 = [...kanTiles, ...createNonWinningHand('p1-fill', 10)];
+      state.hands.player2 = createNonWinningHand('p2');
+      state.hands.player3 = createNonWinningHand('p3');
+      state.hands.player4 = createNonWinningHand('p4');
+      state.melds = { player1: [], player2: [], player3: [], player4: [] };
+      state.wall = [createSuitTile('bamboo', 9, 'wall-live-1'), supplementalTile];
+      state.currentPlayer = 'player1';
+      state.discardPile = [];
+      state.lastDiscard = null;
+      state.lastDiscardPlayer = null;
+      state.claimWindow = null;
+      state.supplementalDrawsUsed = 0;
+      state.gameOver = false;
+      state.winner = null;
+      state.gamePhase = 'playing';
+
+      const validation = await game.validateMove({
+        player: 'player1',
+        action: 'declare_kan',
+        tile: kanTiles[0],
+      });
+      expect(validation.valid).toBe(true);
+
+      await game.makeMove({
+        player: 'player1',
+        action: 'declare_kan',
+        tile: kanTiles[0],
+      });
+
+      expect(state.melds.player1).toHaveLength(1);
+      expect(state.melds.player1[0]).toHaveLength(4);
+      expect(state.hands.player1.some((tile: any) => tile.id === supplementalTile.id)).toBe(true);
+      expect(state.supplementalDrawsUsed).toBe(1);
+      expect(state.lastAction?.action).toBe('declare_kan');
+
+      const discardValidation = await game.validateMove({
+        player: 'player1',
+        action: 'discard',
+        tile: state.hands.player1[0],
+      });
+      expect(discardValidation.valid).toBe(true);
+    });
+
+    it('should let a player claim kan from a discard and draw a supplemental tile', async () => {
+      const state = getInternalState(game);
+      const discardTile = createHonorTile('red', 'discard-red-kan');
+      const supplementalTile = createSuitTile('dot', 8, 'supplemental-claim-kan');
+
+      state.hands.player1 = [discardTile, ...createNonWinningHand('p1', 13)];
+      state.hands.player2 = createNonWinningHand('p2');
+      state.hands.player3 = [
+        createHonorTile('red', 'p3-red-1'),
+        createHonorTile('red', 'p3-red-2'),
+        createHonorTile('red', 'p3-red-3'),
+        ...createNonWinningHand('p3-fill', 10),
+      ];
+      state.hands.player4 = createNonWinningHand('p4');
+      state.melds = { player1: [], player2: [], player3: [], player4: [] };
+      state.wall = [createSuitTile('character', 9, 'wall-live-2'), supplementalTile];
+      state.currentPlayer = 'player1';
+      state.discardPile = [];
+      state.lastDiscard = null;
+      state.lastDiscardPlayer = null;
+      state.claimWindow = null;
+      state.supplementalDrawsUsed = 0;
+      state.gameOver = false;
+      state.winner = null;
+      state.gamePhase = 'playing';
+
+      await game.makeMove({ player: 'player1', action: 'discard', tile: discardTile });
+
+      expect(state.claimWindow?.phase).toBe('pon');
+      expect(state.currentPlayer).toBe('player3');
+
+      const validation = await game.validateMove({
+        player: 'player3',
+        action: 'claim_kan',
+      });
+      expect(validation.valid).toBe(true);
+
+      await game.makeMove({ player: 'player3', action: 'claim_kan' });
+
+      expect(state.melds.player3).toHaveLength(1);
+      expect(state.melds.player3[0]).toHaveLength(4);
+      expect(state.hands.player3.some((tile: any) => tile.id === supplementalTile.id)).toBe(true);
+      expect(state.currentPlayer).toBe('player3');
+      expect(state.lastDiscard).toBeNull();
+      expect(state.supplementalDrawsUsed).toBe(1);
+
+      const discardValidation = await game.validateMove({
+        player: 'player3',
+        action: 'discard',
+        tile: state.hands.player3[0],
+      });
+      expect(discardValidation.valid).toBe(true);
+    });
+
+    it('should allow upgrading an open pon into an added kan', async () => {
+      const state = getInternalState(game);
+      const addedKanTile = createHonorTile('white', 'p1-white-4');
+      const supplementalTile = createSuitTile('character', 8, 'supplemental-added-kan');
+
+      state.hands.player1 = [addedKanTile, ...createNonWinningHand('p1-added', 10)];
+      state.hands.player2 = createNonWinningHand('p2');
+      state.hands.player3 = createNonWinningHand('p3');
+      state.hands.player4 = createNonWinningHand('p4');
+      state.melds = {
+        player1: [[
+          createHonorTile('white', 'p1-white-1'),
+          createHonorTile('white', 'p1-white-2'),
+          createHonorTile('white', 'p1-white-3'),
+        ]],
+        player2: [],
+        player3: [],
+        player4: [],
+      };
+      state.wall = [createSuitTile('dot', 7, 'wall-live-3'), supplementalTile];
+      state.currentPlayer = 'player1';
+      state.discardPile = [];
+      state.lastDiscard = null;
+      state.lastDiscardPlayer = null;
+      state.claimWindow = null;
+      state.supplementalDrawsUsed = 0;
+      state.gameOver = false;
+      state.winner = null;
+      state.gamePhase = 'playing';
+
+      const validation = await game.validateMove({
+        player: 'player1',
+        action: 'declare_kan',
+        tile: addedKanTile,
+      });
+      expect(validation.valid).toBe(true);
+
+      await game.makeMove({
+        player: 'player1',
+        action: 'declare_kan',
+        tile: addedKanTile,
+      });
+
+      expect(state.melds.player1).toHaveLength(1);
+      expect(state.melds.player1[0]).toHaveLength(4);
+      expect(state.hands.player1.some((tile: any) => tile.id === supplementalTile.id)).toBe(true);
+      expect(state.supplementalDrawsUsed).toBe(1);
+
+      const discardValidation = await game.validateMove({
+        player: 'player1',
+        action: 'discard',
+        tile: state.hands.player1[0],
+      });
+      expect(discardValidation.valid).toBe(true);
     });
   });
 
@@ -411,26 +885,38 @@ describe('MahjongGame', () => {
       expect(result.error).toBe('Player does not have a winning hand');
     });
 
-    it('should handle wall running out', async () => {
+    it('should end the round in a draw when only dead wall tiles remain after a discard', async () => {
       const internalState = getInternalState(game);
+      const discardTile = createHonorTile('red', 'draw-red');
 
-      // Dealer needs to discard first since they have 14 tiles
+      internalState.hands.player1 = [discardTile, ...createNonWinningHand('draw-p1', 13)];
+      internalState.hands.player2 = createNonWinningHand('draw-p2');
+      internalState.hands.player3 = createNonWinningHand('draw-p3');
+      internalState.hands.player4 = createNonWinningHand('draw-p4');
+      internalState.melds = { player1: [], player2: [], player3: [], player4: [] };
+      internalState.wall = Array.from({ length: 14 }, (_, index) =>
+        createSuitTile('bamboo', (index % 9) + 1, 'dead-wall-' + index)
+      );
+      internalState.currentPlayer = 'player1';
+      internalState.discardPile = [];
+      internalState.lastDiscard = null;
+      internalState.lastDiscardPlayer = null;
+      internalState.claimWindow = null;
+      internalState.supplementalDrawsUsed = 0;
+      internalState.gameOver = false;
+      internalState.winner = null;
+      internalState.gamePhase = 'playing';
+
       await game.makeMove({
         player: 'player1',
         action: 'discard',
-        tile: internalState.hands.player1[0],
+        tile: discardTile,
       });
 
-      // Empty the wall
-      internalState.wall = [];
-
-      // Now player2 tries to draw
-      const result = await game.validateMove({
-        player: 'player2',
-        action: 'draw',
-      });
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('No tiles left in wall');
+      expect(internalState.gameOver).toBe(true);
+      expect(internalState.winner).toBeNull();
+      expect(internalState.gamePhase).toBe('finished');
+      expect(internalState.lastAction?.action).toBe('draw_game');
     });
   });
 
@@ -544,6 +1030,8 @@ describe('MahjongGame', () => {
       expect(state.gameType).toBe('mahjong');
       expect(state.currentPlayer).toBe('player1');
       expect(state.wallSize).toBeDefined();
+      expect(state.liveWallSize).toBeDefined();
+      expect(state.supplementalDrawsUsed).toBe(0);
       expect(state.discardPile).toBeDefined();
 
       // Check hands are provided with tile counts

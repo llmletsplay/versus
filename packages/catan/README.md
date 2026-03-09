@@ -1,6 +1,6 @@
 # @versus/catan
 
-Standalone Versus catan engine package
+Drop-in Catan engine with setup, production, building, trading, and development cards.
 
 ## Install
 
@@ -8,19 +8,37 @@ Standalone Versus catan engine package
 npm install @versus/catan
 ```
 
-## Usage
+## Quick Start
 
-```ts
+```js
 import { CatanGame } from '@versus/catan';
 
 const game = new CatanGame('demo');
 await game.initializeGame();
 const state = await game.getGameState();
+
+console.log(state.currentPlayer);
 ```
 
-## Rule Scope
+## What You Get
 
-This package is playable and covered by the shared game test suite, but it is not a full official Catan rules implementation yet.
+- ESM build output from `dist/`
+- Type declarations for TS consumers
+- In-memory storage by default, with optional database injection when you need persistence
+- Package-local rules in [RULES.md](./RULES.md)
 
-Current simplifications include board topology, random discard choice when a 7 is rolled, and longest-road calculation.
+## Public API
 
+- `new CatanGame(gameId, database?)`
+- `initializeGame(config?)`
+- `validateMove(move)`
+- `makeMove(move)`
+- `getGameState()`
+
+## Rules
+
+See [RULES.md](./RULES.md) for the implemented objective, setup, turn flow, end conditions, and engine notes.
+
+## Testing
+
+This package is exercised by the shared game-engine test suite that the server integration layer also consumes.

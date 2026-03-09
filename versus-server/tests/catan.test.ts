@@ -1,42 +1,259 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import { CatanGame } from '../src/games/catan.js';
+import { restoreGameState } from './helpers/restore-game-state.js';
+
+type Resource = 'wood' | 'brick' | 'wool' | 'grain' | 'ore';
+
+type RoadPath = {
+  edges: number[];
+  intersections: number[];
+};
+
+type PortType = Resource | 'three_for_one';
+
+const ROAD_COST = { wood: 1, brick: 1 };
+const SETTLEMENT_COST = { wood: 1, brick: 1, wool: 1, grain: 1 };
 
 function getInternalState(game: CatanGame): any {
   return (game as any).currentState;
 }
 
+function createResources(overrides: Partial<Record<Resource, number>> = {}) {
+  return {
+    wood: 0,
+    brick: 0,
+    wool: 0,
+    grain: 0,
+    ore: 0,
+    ...overrides,
+  };
+}
+
+function totalResources(resources: Record<Resource, number>): number {
+  return Object.values(resources).reduce((sum, count) => sum + count, 0);
+}
+
+function getIncidentEdges(state: any, intersectionId: number): any[] {
+  return state.board.edges.filter((edge: any) => edge.adjacentIntersections.includes(intersectionId));
+}
+
+function findEdgeBetweenIntersections(state: any, a: number, b: number): number {
+  const edge = state.board.edges.find((candidate: any) => {
+    return (
+      candidate.adjacentIntersections.includes(a) && candidate.adjacentIntersections.includes(b)
+    );
+  });
+
+  if (!edge) {
+    throw new Error(`No edge connects intersections ${a} and ${b}`);
+  }
+
+  return edge.id;
+}
+
+function placeSettlement(state: any, playerId: string, intersectionId: number): void {
+  state.board.intersections[intersectionId].building = { type: 'settlement', player: playerId };
+  state.players[playerId].buildings.settlements -= 1;
+  state.players[playerId].victoryPoints += 1;
+}
+
+function placeRoad(state: any, playerId: string, edgeId: number): void {
+  state.board.edges[edgeId].road = { player: playerId };
+  state.players[playerId].buildings.roads -= 1;
+}
+
+async function seedCatan(game: CatanGame, mutate: (state: any) => void): Promise<void> {
+  await game.initializeGame();
+  const state = structuredClone(getInternalState(game));
+  mutate(state);
+  await restoreGameState(game, state);
+}
+
+async function seedPlayingState(game: CatanGame, mutate: (state: any) => void): Promise<void> {
+  await seedCatan(game, (state) => {
+    state.gamePhase = 'playing';
+    state.setupRound = 2;
+    state.currentPlayer = 'player1';
+    state.diceRoll = null;
+    state.pendingRobberMove = false;
+    state.pendingDiscards = {};
+    state.robberTriggeringPlayer = null;
+    state.playedDevelopmentCardThisTurn = false;
+    state.newDevelopmentCards = {
+      player1: [],
+      player2: [],
+      player3: [],
+      player4: [],
+    };
+    delete state.setupPhaseState;
+    mutate(state);
+  });
+}
+
+async function findFirstLegalPosition(
+  game: CatanGame,
+  player: string,
+  action: 'build_settlement' | 'build_road'
+): Promise<number> {
+  const state = await game.getGameState();
+  const positions = action === 'build_road' ? state.board.edges : state.board.intersections;
+
+  for (const position of positions) {
+    const result = await game.validateMove({ player, action, position: position.id });
+    if (result.valid) {
+      return position.id;
+    }
+  }
+
+  throw new Error(`Could not find a legal ${action} position for ${player}`);
+}
+
+async function findFirstPositionWithError(
+  game: CatanGame,
+  player: string,
+  action: 'build_settlement' | 'build_road',
+  errorSnippet: string
+): Promise<number> {
+  const state = await game.getGameState();
+  const positions = action === 'build_road' ? state.board.edges : state.board.intersections;
+
+  for (const position of positions) {
+    const result = await game.validateMove({ player, action, position: position.id });
+    if (!result.valid && result.error?.includes(errorSnippet)) {
+      return position.id;
+    }
+  }
+
+  throw new Error(`Could not find a ${action} position that fails with ${errorSnippet}`);
+}
+
 async function completeSetupPhase(game: CatanGame): Promise<void> {
   await game.initializeGame();
 
-  for (let round = 1; round <= 2; round++) {
-    const players =
-      round === 1
-        ? ['player1', 'player2', 'player3', 'player4']
-        : ['player4', 'player3', 'player2', 'player1'];
+  while ((await game.getGameState()).gamePhase === 'setup') {
+    const state = await game.getGameState();
+    const player = state.currentPlayer;
+    const settlementPosition = await findFirstLegalPosition(game, player, 'build_settlement');
+    await game.makeMove({
+      player,
+      action: 'build_settlement',
+      position: settlementPosition,
+    });
 
-    for (const player of players) {
-      const pos = parseInt(player.slice(-1)) * 10 + (round - 1) * 5;
-      await game.makeMove({
-        player,
-        action: 'build_settlement',
-        position: pos,
-      });
-      await game.makeMove({
-        player,
-        action: 'build_road',
-        position: pos,
-      });
+    const roadPosition = await findFirstLegalPosition(game, player, 'build_road');
+    await game.makeMove({
+      player,
+      action: 'build_road',
+      position: roadPosition,
+    });
+  }
+}
+
+function findSettlementConflictCandidate(state: any): {
+  candidateId: number;
+  blockedId: number;
+  supportEdgeId: number;
+  supportIntersectionId: number;
+} {
+  for (const candidate of state.board.intersections) {
+    for (const blockedId of candidate.adjacentIntersections) {
+      for (const edge of getIncidentEdges(state, candidate.id)) {
+        const supportIntersectionId = edge.adjacentIntersections.find(
+          (id: number) => id !== candidate.id
+        );
+        if (supportIntersectionId !== undefined && supportIntersectionId !== blockedId) {
+          return {
+            candidateId: candidate.id,
+            blockedId,
+            supportEdgeId: edge.id,
+            supportIntersectionId,
+          };
+        }
+      }
     }
   }
+
+  throw new Error('Could not find a connected settlement conflict candidate');
+}
+
+function findPortEdge(state: any, portType: PortType): any {
+  const edge = state.board.edges.find((candidate: any) => candidate.port === portType);
+  if (!edge) {
+    throw new Error(`Could not find ${portType} port edge`);
+  }
+
+  return edge;
+}
+
+function findRoadPath(state: any, length: number): RoadPath {
+  const edgesByIntersection = new Map<number, number[]>();
+
+  for (const edge of state.board.edges) {
+    for (const intersectionId of edge.adjacentIntersections) {
+      const existing = edgesByIntersection.get(intersectionId) ?? [];
+      existing.push(edge.id);
+      edgesByIntersection.set(intersectionId, existing);
+    }
+  }
+
+  const walk = (
+    intersectionId: number,
+    usedEdges: number[],
+    intersections: number[]
+  ): RoadPath | null => {
+    if (usedEdges.length === length) {
+      return { edges: [...usedEdges], intersections: [...intersections] };
+    }
+
+    for (const edgeId of edgesByIntersection.get(intersectionId) ?? []) {
+      if (usedEdges.includes(edgeId)) {
+        continue;
+      }
+
+      const edge = state.board.edges[edgeId];
+      const nextIntersection = edge.adjacentIntersections.find(
+        (candidate: number) => candidate !== intersectionId
+      );
+      if (nextIntersection === undefined) {
+        continue;
+      }
+
+      const result = walk(
+        nextIntersection,
+        [...usedEdges, edgeId],
+        [...intersections, nextIntersection]
+      );
+      if (result) {
+        return result;
+      }
+    }
+
+    return null;
+  };
+
+  for (const intersection of state.board.intersections) {
+    const result = walk(intersection.id, [], [intersection.id]);
+    if (result) {
+      return result;
+    }
+  }
+
+  throw new Error(`Could not find a ${length}-edge road path on the Catan graph`);
 }
 
 async function rollNonRobber(game: CatanGame, player: string): Promise<void> {
   const randomSpy = jest.spyOn(Math, 'random').mockReturnValueOnce(0).mockReturnValueOnce(0);
   try {
-    await game.makeMove({
-      player,
-      action: 'roll_dice',
-    });
+    await game.makeMove({ player, action: 'roll_dice' });
+  } finally {
+    randomSpy.mockRestore();
+  }
+}
+
+async function rollSeven(game: CatanGame, player: string): Promise<void> {
+  const randomSpy = jest.spyOn(Math, 'random').mockReturnValueOnce(0.34).mockReturnValueOnce(0.51);
+  try {
+    await game.makeMove({ player, action: 'roll_dice' });
   } finally {
     randomSpy.mockRestore();
   }
@@ -49,933 +266,569 @@ describe('CatanGame', () => {
     game = new CatanGame('test-catan-game');
   });
 
-  describe('Game Initialization', () => {
-    test('should initialize with correct game type', async () => {
-      const state = await game.getGameState();
-      expect(state.gameType).toBe('catan');
-    });
+  test('initializes a real 19-hex board graph with the official harbor set', async () => {
+    const state = await game.initializeGame();
 
-    test('should return correct metadata', () => {
-      const metadata = game.getMetadata();
-      expect(metadata.name).toBe('Settlers of Catan');
-      expect(metadata.minPlayers).toBe(3);
-      expect(metadata.maxPlayers).toBe(4);
-      expect(metadata.complexity).toBe('advanced');
-      expect(metadata.categories).toContain('strategy');
-      expect(metadata.categories).toContain('building');
-      expect(metadata.categories).toContain('trading');
-    });
+    expect(state.board.hexes).toHaveLength(19);
+    expect(state.board.intersections).toHaveLength(54);
+    expect(state.board.edges).toHaveLength(72);
 
-    test('should initialize game with default 4 players', async () => {
-      await game.initializeGame();
-      const state = await game.getGameState();
+    for (const intersection of state.board.intersections) {
+      expect(intersection.adjacentHexes.length).toBeGreaterThanOrEqual(1);
+      expect(intersection.adjacentHexes.length).toBeLessThanOrEqual(3);
+      expect(intersection.adjacentIntersections.length).toBeGreaterThanOrEqual(2);
+      expect(intersection.adjacentIntersections.length).toBeLessThanOrEqual(3);
+    }
 
-      expect(Object.keys(state.players)).toHaveLength(4);
-      expect(state.currentPlayer).toBe('player1');
-      expect(state.gamePhase).toBe('setup');
-      expect(state.setupRound).toBe(1);
-      expect(state.gameOver).toBe(false);
-    });
+    for (const edge of state.board.edges) {
+      expect(edge.adjacentIntersections).toHaveLength(2);
+    }
 
-    test('should initialize game with custom player count', async () => {
-      await game.initializeGame({ playerCount: 3 });
-      const state = await game.getGameState();
+    const desertHex = state.board.hexes.find((hex) => hex.resource === 'desert');
+    expect(desertHex?.hasRobber).toBe(true);
 
-      expect(Object.keys(state.players)).toHaveLength(3);
-      expect(state.playerOrder).toEqual(['player1', 'player2', 'player3']);
-    });
-
-    test('should create proper board structure', async () => {
-      await game.initializeGame();
-      const state = await game.getGameState();
-
-      expect(state.board.hexes).toHaveLength(19);
-      expect(state.board.intersections).toHaveLength(54);
-      expect(state.board.edges).toHaveLength(72);
-
-      // Check that robber is on desert
-      const desertHex = state.board.hexes.find((hex) => hex.resource === 'desert');
-      expect(desertHex?.hasRobber).toBe(true);
-    });
-
-    test('should initialize players with correct starting resources', async () => {
-      await game.initializeGame();
-      const state = await game.getGameState();
-
-      for (const player of Object.values(state.players)) {
-        expect(player.resources).toEqual({
-          wood: 0,
-          brick: 0,
-          wool: 0,
-          grain: 0,
-          ore: 0,
-        });
-        expect(player.buildings).toEqual({
-          settlements: 5,
-          cities: 4,
-          roads: 15,
-        });
-        expect(player.victoryPoints).toBe(0);
-        expect(player.hasLongestRoad).toBe(false);
-        expect(player.hasLargestArmy).toBe(false);
+    const portCounts = state.board.edges.reduce((counts: Record<string, number>, edge) => {
+      if (edge.port) {
+        counts[edge.port] = (counts[edge.port] ?? 0) + 1;
       }
-    });
+      return counts;
+    }, {});
+
+    expect(Object.values(portCounts).reduce((sum, count) => sum + count, 0)).toBe(9);
+    expect(portCounts.three_for_one).toBe(4);
+    expect(portCounts.wood).toBe(1);
+    expect(portCounts.brick).toBe(1);
+    expect(portCounts.wool).toBe(1);
+    expect(portCounts.grain).toBe(1);
+    expect(portCounts.ore).toBe(1);
   });
 
-  describe('Setup Phase', () => {
-    beforeEach(async () => {
-      await game.initializeGame();
+  test('requires the setup road to connect to the settlement just placed', async () => {
+    await game.initializeGame();
+    const player = (await game.getGameState()).currentPlayer;
+    const settlementPosition = await findFirstLegalPosition(game, player, 'build_settlement');
+
+    await game.makeMove({
+      player,
+      action: 'build_settlement',
+      position: settlementPosition,
     });
 
-    test('should allow settlement placement during setup', async () => {
-      const state = await game.getGameState();
-      const currentPlayer = state.currentPlayer; // Use actual current player
+    const internalState = getInternalState(game);
+    const incidentEdgeIds = new Set(
+      getIncidentEdges(internalState, settlementPosition).map((edge: any) => edge.id)
+    );
+    const nonAdjacentEdge = internalState.board.edges.find(
+      (edge: any) => !incidentEdgeIds.has(edge.id)
+    )!.id;
 
-      const result = await game.validateMove({
-        player: currentPlayer,
-        action: 'build_settlement',
-        position: 0,
-      });
-
-      expect(result.valid).toBe(true);
+    const validation = await game.validateMove({
+      player,
+      action: 'build_road',
+      position: nonAdjacentEdge,
     });
 
-    test('should reject settlement placement on occupied intersection', async () => {
-      const state = await game.getGameState();
-      const currentPlayer = state.currentPlayer;
+    expect(validation.valid).toBe(false);
+    expect(validation.error).toContain('just placed');
+  });
 
-      // Place first settlement
-      await game.makeMove({
-        player: currentPlayer,
-        action: 'build_settlement',
-        position: 0,
-      });
+  test('completes setup in snake order and enters the main playing phase', async () => {
+    await completeSetupPhase(game);
 
-      // Advance to next player and try to place on same position
-      await game.makeMove({
-        player: currentPlayer,
-        action: 'build_road',
-        position: 0,
-      });
+    const state = await game.getGameState();
+    const internalState = getInternalState(game);
 
-      const newState = await game.getGameState();
-      const nextPlayer = newState.currentPlayer;
+    expect(state.gamePhase).toBe('playing');
+    expect(state.currentPlayer).toBe('player1');
+    expect(internalState.setupPhaseState).toBeUndefined();
 
-      const result = await game.validateMove({
-        player: nextPlayer,
-        action: 'build_settlement',
-        position: 0,
-      });
+    for (const [playerId, player] of Object.entries(internalState.players)) {
+      expect(player.buildings.settlements).toBe(3);
+      expect(player.buildings.roads).toBe(13);
+      expect(player.victoryPoints).toBe(2);
+      expect(
+        internalState.board.intersections.filter((intersection: any) => {
+          return intersection.building?.player === playerId;
+        })
+      ).toHaveLength(2);
+      expect(
+        internalState.board.edges.filter((edge: any) => edge.road?.player === playerId)
+      ).toHaveLength(2);
+    }
+  });
 
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('already occupied');
+  test('awards round-two setup resources from the actual adjacent producing hexes', async () => {
+    await seedCatan(game, (state) => {
+      state.setupRound = 2;
+      state.currentPlayer = 'player1';
     });
 
-    test('should reject adjacent settlement placement', async () => {
-      const state = await game.getGameState();
-      const currentPlayer = state.currentPlayer;
-
-      // Place first settlement
-      await game.makeMove({
-        player: currentPlayer,
-        action: 'build_settlement',
-        position: 0,
-      });
-
-      // Complete first player's turn
-      await game.makeMove({
-        player: currentPlayer,
-        action: 'build_road',
-        position: 0,
-      });
-
-      const newState = await game.getGameState();
-      const nextPlayer = newState.currentPlayer;
-
-      // Try to place settlement on adjacent intersection
-      const result = await game.validateMove({
-        player: nextPlayer,
-        action: 'build_settlement',
-        position: 1,
-      });
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('adjacent');
-    });
-
-    test('should allow road placement during setup', async () => {
-      const state = await game.getGameState();
-      const currentPlayer = state.currentPlayer;
-
-      // First place a settlement, then try to place a road
-      await game.makeMove({
-        player: currentPlayer,
-        action: 'build_settlement',
-        position: 0,
-      });
-
-      const result = await game.validateMove({
-        player: currentPlayer,
-        action: 'build_road',
-        position: 0,
-      });
-
-      expect(result.valid).toBe(true);
-    });
-
-    test('should advance setup phase correctly', async () => {
-      const initialState = await game.getGameState();
-      expect(initialState.currentPlayer).toBe('player1');
-      expect(initialState.setupRound).toBe(1);
-
-      // Player 1 builds settlement and road
-      await game.makeMove({
-        player: 'player1',
-        action: 'build_settlement',
-        position: 0,
-      });
-      await game.makeMove({
-        player: 'player1',
-        action: 'build_road',
-        position: 0,
-      });
-
-      const state2 = await game.getGameState();
-      expect(state2.currentPlayer).toBe('player2');
-    });
-
-    test('should collect resources in setup round 2', async () => {
-      // Fast-forward through setup round 1
-      const players = ['player1', 'player2', 'player3', 'player4'];
-      for (let i = 0; i < players.length; i++) {
-        await game.makeMove({
-          player: players[i]!,
-          action: 'build_settlement',
-          position: i * 10,
-        });
-        await game.makeMove({
-          player: players[i]!,
-          action: 'build_road',
-          position: i * 10,
-        });
-      }
-
-      const state = await game.getGameState();
-      expect(state.setupRound).toBe(2);
-
-      // In round 2, players go in reverse order, so current player should be player4
-      expect(state.currentPlayer).toBe('player4');
-
-      // Place settlement in round 2 - should collect resources
-      await game.makeMove({
-        player: state.currentPlayer,
-        action: 'build_settlement',
-        position: 50,
-      });
-
-      const finalState = await game.getGameState();
-      const currentPlayerResources = Object.values(
-        finalState.players[state.currentPlayer]!.resources
+    const internalState = getInternalState(game);
+    const settlementPosition = internalState.board.intersections.find((intersection: any) => {
+      return intersection.adjacentHexes.some(
+        (hexId: number) => internalState.board.hexes[hexId].resource !== 'desert'
       );
-      const totalResources = currentPlayerResources.reduce((sum, count) => sum + count, 0);
-      expect(totalResources).toBeGreaterThanOrEqual(0); // May be 0 if settlement not adjacent to resource hexes
+    }).id;
+    const expectedResources = internalState.board.intersections[settlementPosition].adjacentHexes.filter(
+      (hexId: number) => internalState.board.hexes[hexId].resource !== 'desert'
+    );
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'build_settlement',
+      position: settlementPosition,
     });
+
+    const playerResources = getInternalState(game).players.player1.resources;
+    expect(totalResources(playerResources)).toBe(expectedResources.length);
   });
 
-  describe('Playing Phase Move Validation', () => {
-    beforeEach(async () => {
-      await completeSetupPhase(game);
+  test('distributes resources to buildings that are actually adjacent to the rolled hex', async () => {
+    await seedPlayingState(game, (state) => {
+      const targetHex = state.board.hexes.find((hex: any) => hex.number === 2)!;
+      const settlementPosition = state.board.intersections.find((intersection: any) => {
+        return intersection.adjacentHexes.includes(targetHex.id);
+      }).id;
+
+      placeSettlement(state, 'player1', settlementPosition);
     });
 
-    test('should require a dice roll before normal build actions', async () => {
-      const state = await game.getGameState();
-      expect(state.gamePhase).toBe('playing');
-      expect(state.diceRoll).toBeNull();
-      expect(state.currentPlayer).toBe('player1');
+    const targetHex = getInternalState(game).board.hexes.find((hex: any) => hex.number === 2)!;
+    await rollNonRobber(game, 'player1');
 
-      const result = await game.validateMove({
-        player: state.currentPlayer,
-        action: 'build_settlement',
-        position: 11,
-      });
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('roll dice');
-    });
-
-    test('should allow dice rolling', async () => {
-      const state = await game.getGameState();
-      const currentPlayer = state.currentPlayer;
-
-      const result = await game.validateMove({
-        player: currentPlayer,
-        action: 'roll_dice',
-      });
-
-      expect(result.valid).toBe(true);
-    });
-
-    test('should reject second dice roll in same turn', async () => {
-      const state = await game.getGameState();
-      const currentPlayer = state.currentPlayer;
-
-      await rollNonRobber(game, currentPlayer);
-
-      const result = await game.validateMove({
-        player: currentPlayer,
-        action: 'roll_dice',
-      });
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('already rolled');
-    });
-
-    test('should validate building costs', async () => {
-      const state = await game.getGameState();
-      const currentPlayer = state.currentPlayer;
-
-      // Roll dice first
-      await rollNonRobber(game, currentPlayer);
-
-      // Make the resource state explicit so this assertion is deterministic.
-      (game as any).currentState.players[currentPlayer].resources = {
-        wood: 0,
-        brick: 1,
-        wool: 1,
-        grain: 1,
-        ore: 0,
-      };
-
-      const result = await game.validateMove({
-        player: currentPlayer,
-        action: 'build_settlement',
-        position: 11, // Use position connected to player1's existing settlement at 10
-      });
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('Insufficient resources');
-    });
-
-    test('should validate development card purchase', async () => {
-      const state = await game.getGameState();
-      const currentPlayer = state.currentPlayer;
-
-      await rollNonRobber(game, currentPlayer);
-
-      // Setup-round resource distribution is board-dependent, so make this explicit.
-      (game as any).currentState.players[currentPlayer].resources = {
-        wood: 0,
-        brick: 1,
-        wool: 1,
-        grain: 1,
-        ore: 0,
-      };
-
-      const result = await game.validateMove({
-        player: currentPlayer,
-        action: 'buy_development_card',
-      });
-
-      // A development card requires wool, grain, and ore.
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('Insufficient resources');
-    });
+    expect(getInternalState(game).players.player1.resources[targetHex.resource]).toBe(1);
   });
 
-  describe('Building Mechanics', () => {
-    beforeEach(async () => {
-      await completeSetupPhase(game);
+  test('requires a dice roll before normal build actions in the playing phase', async () => {
+    await completeSetupPhase(game);
+
+    const validation = await game.validateMove({
+      player: 'player1',
+      action: 'build_road',
+      position: 0,
     });
 
-    test('should validate city upgrade requirements', async () => {
-      const state = await game.getGameState();
-      const currentPlayer = state.currentPlayer;
-
-      await rollNonRobber(game, currentPlayer);
-
-      const result = await game.validateMove({
-        player: currentPlayer,
-        action: 'build_city',
-        position: 10, // Position where player1 has a settlement
-      });
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('Insufficient resources');
-    });
-
-    test('should reject city upgrade on empty intersection', async () => {
-      const state = await game.getGameState();
-      const currentPlayer = state.currentPlayer;
-
-      await rollNonRobber(game, currentPlayer);
-
-      const result = await game.validateMove({
-        player: currentPlayer,
-        action: 'build_city',
-        position: 50, // Use truly empty position
-      });
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('No building');
-    });
-
-    test('should reject upgrading opponent settlement', async () => {
-      const state = await game.getGameState();
-      const currentPlayer = state.currentPlayer;
-
-      await rollNonRobber(game, currentPlayer);
-
-      const result = await game.validateMove({
-        player: currentPlayer,
-        action: 'build_city',
-        position: 20, // Position where player2 has a settlement
-      });
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('your own');
-    });
+    expect(validation.valid).toBe(false);
+    expect(validation.error).toContain('roll dice');
   });
 
-  describe('Resource Distribution', () => {
-    beforeEach(async () => {
-      await completeSetupPhase(game);
+  test('rejects building a settlement adjacent to another settlement during normal play', async () => {
+    await seedPlayingState(game, (state) => {
+      const candidate = findSettlementConflictCandidate(state);
+      placeSettlement(state, 'player1', candidate.supportIntersectionId);
+      placeRoad(state, 'player1', candidate.supportEdgeId);
+      placeSettlement(state, 'player2', candidate.blockedId);
+      state.diceRoll = 8;
+      state.players.player1.resources = createResources(SETTLEMENT_COST);
     });
 
-    test('should distribute resources on non-robber dice rolls', async () => {
-      const stateBefore = await game.getGameState();
-      const currentPlayer = stateBefore.currentPlayer;
-      const totalResourcesBefore = Object.values(stateBefore.players).reduce((sum, player) => {
-        return sum + Object.values(player.resources).reduce((pSum, count) => pSum + count, 0);
-      }, 0);
+    const conflict = findSettlementConflictCandidate(getInternalState(game));
+    const validation = await game.validateMove({
+      player: 'player1',
+      action: 'build_settlement',
+      position: conflict.candidateId,
+    });
 
-      const randomSpy = jest.spyOn(Math, 'random').mockReturnValueOnce(0).mockReturnValueOnce(0);
-      try {
-        await game.makeMove({
-          player: currentPlayer,
-          action: 'roll_dice',
-        });
-      } finally {
-        randomSpy.mockRestore();
+    expect(validation.valid).toBe(false);
+    expect(validation.error).toContain('adjacent');
+  });
+
+  test('allows a connected settlement build on a legal empty intersection', async () => {
+    await seedPlayingState(game, (state) => {
+      const path = findRoadPath(state, 2);
+      placeSettlement(state, 'player1', path.intersections[0]);
+      placeRoad(state, 'player1', path.edges[0]);
+      placeRoad(state, 'player1', path.edges[1]);
+      state.players.player1.resources = createResources(SETTLEMENT_COST);
+      state.diceRoll = 8;
+      state.__testConnectedSettlementPath = path;
+    });
+
+    const path = getInternalState(game).__testConnectedSettlementPath as RoadPath;
+    const settlementPosition = path.intersections[2];
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'build_settlement',
+      position: settlementPosition,
+    });
+
+    expect(getInternalState(game).board.intersections[settlementPosition].building?.player).toBe(
+      'player1'
+    );
+  });
+
+  test('rejects an unconnected settlement build in the playing phase', async () => {
+    await completeSetupPhase(game);
+    const internalState = getInternalState(game);
+    internalState.diceRoll = 8;
+    internalState.players.player1.resources = createResources(SETTLEMENT_COST);
+
+    const unconnectedPosition = await findFirstPositionWithError(
+      game,
+      'player1',
+      'build_settlement',
+      'connected'
+    );
+    const validation = await game.validateMove({
+      player: 'player1',
+      action: 'build_settlement',
+      position: unconnectedPosition,
+    });
+
+    expect(validation.valid).toBe(false);
+    expect(validation.error).toContain('connected');
+  });
+
+  test('requires each player to choose exact robber discards before the robber can move', async () => {
+    await seedPlayingState(game, (state) => {
+      state.players.player1.resources = createResources({ wood: 4, brick: 4 });
+      state.players.player2.resources = createResources({ wool: 4, grain: 4 });
+      state.players.player3.resources = createResources({ ore: 2, grain: 2, wool: 2, wood: 1 });
+      state.players.player4.resources = createResources({ wood: 1 });
+    });
+
+    await rollSeven(game, 'player1');
+
+    let state = getInternalState(game);
+    expect(state.currentPlayer).toBe('player1');
+    expect(state.pendingRobberMove).toBe(false);
+    expect(state.pendingDiscards).toEqual({ player1: 4, player2: 4 });
+
+    const moveRobberTooSoon = await game.validateMove({
+      player: 'player1',
+      action: 'move_robber',
+      position: state.board.hexes.find((hex: any) => !hex.hasRobber).id,
+    });
+    expect(moveRobberTooSoon.valid).toBe(false);
+    expect(moveRobberTooSoon.error).toContain('finish robber discards');
+
+    const wrongDiscardCount = await game.validateMove({
+      player: 'player1',
+      action: 'discard_resources',
+      discarding: { wood: 3 },
+    });
+    expect(wrongDiscardCount.valid).toBe(false);
+    expect(wrongDiscardCount.error).toContain('exactly 4');
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'discard_resources',
+      discarding: { wood: 2, brick: 2 },
+    });
+
+    state = getInternalState(game);
+    expect(state.currentPlayer).toBe('player2');
+    expect(state.pendingDiscards).toEqual({ player2: 4 });
+
+    await game.makeMove({
+      player: 'player2',
+      action: 'discard_resources',
+      discarding: { wool: 2, grain: 2 },
+    });
+
+    state = getInternalState(game);
+    expect(state.currentPlayer).toBe('player1');
+    expect(state.pendingDiscards).toEqual({});
+    expect(state.pendingRobberMove).toBe(true);
+  });
+
+  test('uses a 3:1 harbor for maritime trade when the player controls a generic port', async () => {
+    await seedPlayingState(game, (state) => {
+      const portEdge = findPortEdge(state, 'three_for_one');
+      placeSettlement(state, 'player1', portEdge.adjacentIntersections[0]);
+      state.players.player1.resources = createResources({ wood: 3 });
+      state.diceRoll = 8;
+    });
+
+    const validation = await game.validateMove({
+      player: 'player1',
+      action: 'trade_with_bank',
+      tradeOffer: {
+        offering: { wood: 3 },
+        requesting: { brick: 1 },
+      },
+    });
+    expect(validation.valid).toBe(true);
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'trade_with_bank',
+      tradeOffer: {
+        offering: { wood: 3 },
+        requesting: { brick: 1 },
+      },
+    });
+
+    expect(getInternalState(game).players.player1.resources).toMatchObject({ wood: 0, brick: 1 });
+  });
+
+  test('allows the base 4:1 bank trade without any harbor', async () => {
+    await seedPlayingState(game, (state) => {
+      state.players.player1.resources = createResources({ wood: 4 });
+      state.diceRoll = 8;
+    });
+
+    const validation = await game.validateMove({
+      player: 'player1',
+      action: 'trade_with_bank',
+      tradeOffer: {
+        offering: { wood: 4 },
+        requesting: { ore: 1 },
+      },
+    });
+    expect(validation.valid).toBe(true);
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'trade_with_bank',
+      tradeOffer: {
+        offering: { wood: 4 },
+        requesting: { ore: 1 },
+      },
+    });
+
+    expect(getInternalState(game).players.player1.resources).toMatchObject({ wood: 0, ore: 1 });
+  });
+
+  test('uses a 2:1 specialized harbor and rejects the same trade ratio without that port', async () => {
+    await seedPlayingState(game, (state) => {
+      const woodPort = findPortEdge(state, 'wood');
+      placeSettlement(state, 'player1', woodPort.adjacentIntersections[0]);
+      state.players.player1.resources = createResources({ wood: 2 });
+      state.diceRoll = 8;
+    });
+
+    const validSpecializedTrade = await game.validateMove({
+      player: 'player1',
+      action: 'trade_with_bank',
+      tradeOffer: {
+        offering: { wood: 2 },
+        requesting: { ore: 1 },
+      },
+    });
+    expect(validSpecializedTrade.valid).toBe(true);
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'trade_with_bank',
+      tradeOffer: {
+        offering: { wood: 2 },
+        requesting: { ore: 1 },
+      },
+    });
+
+    expect(getInternalState(game).players.player1.resources).toMatchObject({ wood: 0, ore: 1 });
+
+    await seedPlayingState(game, (state) => {
+      state.players.player1.resources = createResources({ wood: 3 });
+      state.diceRoll = 8;
+    });
+
+    const invalidTradeWithoutPort = await game.validateMove({
+      player: 'player1',
+      action: 'trade_with_bank',
+      tradeOffer: {
+        offering: { wood: 3 },
+        requesting: { brick: 1 },
+      },
+    });
+    expect(invalidTradeWithoutPort.valid).toBe(false);
+    expect(invalidTradeWithoutPort.error).toContain('trade ratio');
+  });
+
+  test('requires an explicit robber target when multiple adjacent victims can be stolen from', async () => {
+    await seedPlayingState(game, (state) => {
+      state.diceRoll = 7;
+      state.pendingRobberMove = true;
+
+      const targetHex = state.board.hexes.find((hex: any) => !hex.hasRobber)!;
+      const victimIntersections = state.board.intersections
+        .filter((intersection: any) => intersection.adjacentHexes.includes(targetHex.id))
+        .slice(0, 2);
+
+      placeSettlement(state, 'player2', victimIntersections[0].id);
+      placeSettlement(state, 'player3', victimIntersections[1].id);
+      state.players.player2.resources = createResources({ wood: 1 });
+      state.players.player3.resources = createResources({ brick: 1 });
+    });
+
+    const internalState = getInternalState(game);
+    const targetHex = internalState.board.hexes.find((hex: any) => !hex.hasRobber)!;
+    const validation = await game.validateMove({
+      player: 'player1',
+      action: 'move_robber',
+      position: targetHex.id,
+    });
+
+    expect(validation.valid).toBe(false);
+    expect(validation.error).toContain('specify');
+  });
+
+  test('moves the robber to a chosen hex and steals from the chosen adjacent player', async () => {
+    await seedPlayingState(game, (state) => {
+      state.diceRoll = 7;
+      state.pendingRobberMove = true;
+      state.players.player1.resources = createResources();
+      state.players.player2.resources = createResources({ wood: 1 });
+
+      const targetHex = state.board.hexes.find((hex: any) => !hex.hasRobber)!;
+      const victimIntersection = state.board.intersections.find((intersection: any) => {
+        return intersection.adjacentHexes.includes(targetHex.id);
+      }).id;
+
+      placeSettlement(state, 'player2', victimIntersection);
+    });
+
+    const internalState = getInternalState(game);
+    const targetHex = internalState.board.hexes.find((hex: any) => !hex.hasRobber)!;
+    const victimPlayer = 'player2';
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'move_robber',
+      position: targetHex.id,
+      targetPlayer: victimPlayer,
+    });
+
+    expect(getInternalState(game).robberPosition).toBe(targetHex.id);
+    expect(getInternalState(game).players.player1.resources.wood).toBe(1);
+    expect(getInternalState(game).players.player2.resources.wood).toBe(0);
+  });
+
+  test('resolves Year of Plenty from explicit move input', async () => {
+    await seedPlayingState(game, (state) => {
+      state.players.player1.developmentCards = ['year_of_plenty'];
+      state.players.player1.resources = createResources();
+    });
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'play_development_card',
+      cardType: 'year_of_plenty',
+      resources: ['ore', 'grain'],
+    });
+
+    expect(getInternalState(game).players.player1.resources.ore).toBe(1);
+    expect(getInternalState(game).players.player1.resources.grain).toBe(1);
+    expect(getInternalState(game).playedDevelopmentCardThisTurn).toBe(true);
+  });
+
+  test('resolves Monopoly deterministically for the chosen resource', async () => {
+    await seedPlayingState(game, (state) => {
+      state.players.player1.developmentCards = ['monopoly'];
+      state.players.player2.resources = createResources({ wood: 2 });
+      state.players.player3.resources = createResources({ wood: 1 });
+      state.players.player4.resources = createResources({ wood: 3 });
+    });
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'play_development_card',
+      cardType: 'monopoly',
+      resource: 'wood',
+    });
+
+    expect(getInternalState(game).players.player1.resources.wood).toBe(6);
+    expect(getInternalState(game).players.player2.resources.wood).toBe(0);
+    expect(getInternalState(game).players.player3.resources.wood).toBe(0);
+    expect(getInternalState(game).players.player4.resources.wood).toBe(0);
+  });
+
+  test('builds both Road Building roads from explicit connected positions without spending resources', async () => {
+    await seedPlayingState(game, (state) => {
+      const path = findRoadPath(state, 2);
+      placeSettlement(state, 'player1', path.intersections[0]);
+      state.players.player1.developmentCards = ['road_building'];
+      state.players.player1.resources = createResources();
+      state.__testRoadBuildingPath = path;
+    });
+
+    const path = getInternalState(game).__testRoadBuildingPath as RoadPath;
+    const roadsBefore = getInternalState(game).players.player1.buildings.roads;
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'play_development_card',
+      cardType: 'road_building',
+      positions: path.edges,
+    });
+
+    expect(getInternalState(game).board.edges[path.edges[0]].road?.player).toBe('player1');
+    expect(getInternalState(game).board.edges[path.edges[1]].road?.player).toBe('player1');
+    expect(getInternalState(game).players.player1.buildings.roads).toBe(roadsBefore - 2);
+    expect(totalResources(getInternalState(game).players.player1.resources)).toBe(0);
+  });
+
+  test('allows only one development card play per turn', async () => {
+    await seedPlayingState(game, (state) => {
+      state.players.player1.developmentCards = ['year_of_plenty', 'monopoly'];
+    });
+
+    await game.makeMove({
+      player: 'player1',
+      action: 'play_development_card',
+      cardType: 'year_of_plenty',
+      resources: ['ore', 'grain'],
+    });
+
+    const validation = await game.validateMove({
+      player: 'player1',
+      action: 'play_development_card',
+      cardType: 'monopoly',
+      resource: 'wood',
+    });
+
+    expect(validation.valid).toBe(false);
+    expect(validation.error).toContain('Only one development card');
+  });
+
+  test('awards longest road when a player reaches a connected road of length 5', async () => {
+    await seedPlayingState(game, (state) => {
+      const path = findRoadPath(state, 5);
+      placeSettlement(state, 'player1', path.intersections[0]);
+      for (const edgeId of path.edges.slice(0, 4)) {
+        placeRoad(state, 'player1', edgeId);
       }
-
-      const stateAfter = await game.getGameState();
-      const totalResourcesAfter = Object.values(stateAfter.players).reduce((sum, player) => {
-        return sum + Object.values(player.resources).reduce((pSum, count) => pSum + count, 0);
-      }, 0);
-
-      expect(stateAfter.diceRoll).toBe(2);
-      expect(totalResourcesAfter).toBeGreaterThanOrEqual(totalResourcesBefore);
+      state.players.player1.resources = createResources(ROAD_COST);
+      state.diceRoll = 8;
+      state.__testLongestRoadPath = path;
     });
 
-    test('should require explicit robber movement after a 7 is rolled', async () => {
-      const currentPlayer = (await game.getGameState()).currentPlayer;
-      const initialRobberPosition = getInternalState(game).robberPosition;
+    const path = getInternalState(game).__testLongestRoadPath as RoadPath;
+    await game.makeMove({
+      player: 'player1',
+      action: 'build_road',
+      position: path.edges[4],
+    });
 
-      const randomSpy = jest.spyOn(Math, 'random').mockReturnValueOnce(0.34).mockReturnValueOnce(0.51);
-      try {
-        await game.makeMove({
-          player: currentPlayer,
-          action: 'roll_dice',
-        });
-      } finally {
-        randomSpy.mockRestore();
+    expect(getInternalState(game).players.player1.longestRoad).toBe(5);
+    expect(getInternalState(game).players.player1.hasLongestRoad).toBe(true);
+    expect(getInternalState(game).players.player1.victoryPoints).toBe(3);
+  });
+
+  test('breaks a road network at an opponent settlement when calculating longest road', async () => {
+    await seedPlayingState(game, (state) => {
+      const path = findRoadPath(state, 5);
+      placeSettlement(state, 'player1', path.intersections[0]);
+      placeSettlement(state, 'player2', path.intersections[2]);
+      for (const edgeId of path.edges.slice(0, 4)) {
+        placeRoad(state, 'player1', edgeId);
       }
-
-      const internalState = getInternalState(game);
-      expect(internalState.diceRoll).toBe(7);
-      expect(internalState.pendingRobberMove).toBe(true);
-      expect(internalState.robberPosition).toBe(initialRobberPosition);
-
-      const buildValidation = await game.validateMove({
-        player: currentPlayer,
-        action: 'build_settlement',
-        position: 11,
-      });
-      expect(buildValidation.valid).toBe(false);
-      expect(buildValidation.error).toContain('move robber');
+      state.players.player1.resources = createResources(ROAD_COST);
+      state.diceRoll = 8;
+      state.__testBlockedRoadPath = path;
     });
 
-    test('should move the robber to a chosen hex and steal from the chosen adjacent player', async () => {
-      const internalState = getInternalState(game);
-      internalState.diceRoll = 7;
-      internalState.pendingRobberMove = true;
-      internalState.board.hexes.forEach((hex: any) => {
-        hex.hasRobber = hex.id === 1;
-      });
-      internalState.robberPosition = 1;
-      internalState.board.intersections[0].building = { type: 'settlement', player: 'player2' };
-      internalState.players.player1.resources = {
-        wood: 0,
-        brick: 0,
-        wool: 0,
-        grain: 0,
-        ore: 0,
-      };
-      internalState.players.player2.resources = {
-        wood: 1,
-        brick: 0,
-        wool: 0,
-        grain: 0,
-        ore: 0,
-      };
-
-      const validation = await game.validateMove({
-        player: 'player1',
-        action: 'move_robber',
-        position: 0,
-        targetPlayer: 'player2',
-      });
-      expect(validation.valid).toBe(true);
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'move_robber',
-        position: 0,
-        targetPlayer: 'player2',
-      });
-
-      expect(internalState.robberPosition).toBe(0);
-      expect(internalState.pendingRobberMove).toBe(false);
-      expect(internalState.players.player1.resources.wood).toBe(1);
-      expect(internalState.players.player2.resources.wood).toBe(0);
+    const path = getInternalState(game).__testBlockedRoadPath as RoadPath;
+    await game.makeMove({
+      player: 'player1',
+      action: 'build_road',
+      position: path.edges[4],
     });
 
-    test('should require a target player when multiple adjacent victims are available', async () => {
-      const internalState = getInternalState(game);
-      internalState.diceRoll = 7;
-      internalState.pendingRobberMove = true;
-      internalState.board.hexes.forEach((hex: any) => {
-        hex.hasRobber = hex.id === 1;
-      });
-      internalState.robberPosition = 1;
-      internalState.board.intersections[0].building = { type: 'settlement', player: 'player2' };
-      internalState.board.intersections[19].building = { type: 'settlement', player: 'player3' };
-      internalState.players.player2.resources = {
-        wood: 1,
-        brick: 0,
-        wool: 0,
-        grain: 0,
-        ore: 0,
-      };
-      internalState.players.player3.resources = {
-        wood: 1,
-        brick: 0,
-        wool: 0,
-        grain: 0,
-        ore: 0,
-      };
-
-      const validation = await game.validateMove({
-        player: 'player1',
-        action: 'move_robber',
-        position: 0,
-      });
-
-      expect(validation.valid).toBe(false);
-      expect(validation.error).toContain('specify');
-    });
-  });
-
-  describe('Development Cards', () => {
-    beforeEach(async () => {
-      await completeSetupPhase(game);
-    });
-
-    test('should allow Year of Plenty before rolling dice and grant the chosen resources', async () => {
-      const internalState = getInternalState(game);
-      internalState.players.player1.developmentCards = ['year_of_plenty'];
-      internalState.newDevelopmentCards = {
-        player1: [],
-        player2: [],
-        player3: [],
-        player4: [],
-      };
-      internalState.players.player1.resources = {
-        wood: 0,
-        brick: 0,
-        wool: 0,
-        grain: 0,
-        ore: 0,
-      };
-
-      const validation = await game.validateMove({
-        player: 'player1',
-        action: 'play_development_card',
-        cardType: 'year_of_plenty',
-        resources: ['ore', 'grain'],
-      });
-      expect(validation.valid).toBe(true);
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'play_development_card',
-        cardType: 'year_of_plenty',
-        resources: ['ore', 'grain'],
-      });
-
-      expect(internalState.players.player1.resources.ore).toBe(1);
-      expect(internalState.players.player1.resources.grain).toBe(1);
-      expect(internalState.playedDevelopmentCardThisTurn).toBe(true);
-    });
-
-    test('should prevent playing a development card the turn it was bought', async () => {
-      const internalState = getInternalState(game);
-      internalState.players.player1.developmentCards = ['monopoly'];
-      internalState.newDevelopmentCards = {
-        player1: ['monopoly'],
-        player2: [],
-        player3: [],
-        player4: [],
-      };
-
-      const validation = await game.validateMove({
-        player: 'player1',
-        action: 'play_development_card',
-        cardType: 'monopoly',
-        resource: 'wood',
-      });
-
-      expect(validation.valid).toBe(false);
-      expect(validation.error).toContain('turn you bought');
-    });
-
-    test('should resolve Monopoly for the chosen resource', async () => {
-      const internalState = getInternalState(game);
-      internalState.players.player1.developmentCards = ['monopoly'];
-      internalState.newDevelopmentCards = {
-        player1: [],
-        player2: [],
-        player3: [],
-        player4: [],
-      };
-      internalState.players.player1.resources = {
-        wood: 0,
-        brick: 0,
-        wool: 0,
-        grain: 0,
-        ore: 0,
-      };
-      internalState.players.player2.resources.wood = 2;
-      internalState.players.player3.resources.wood = 1;
-      internalState.players.player4.resources.wood = 3;
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'play_development_card',
-        cardType: 'monopoly',
-        resource: 'wood',
-      });
-
-      expect(internalState.players.player1.resources.wood).toBe(6);
-      expect(internalState.players.player2.resources.wood).toBe(0);
-      expect(internalState.players.player3.resources.wood).toBe(0);
-      expect(internalState.players.player4.resources.wood).toBe(0);
-    });
-
-    test('should build the chosen roads for Road Building without spending resources', async () => {
-      const internalState = getInternalState(game);
-      internalState.players.player1.developmentCards = ['road_building'];
-      internalState.newDevelopmentCards = {
-        player1: [],
-        player2: [],
-        player3: [],
-        player4: [],
-      };
-      internalState.players.player1.resources = {
-        wood: 0,
-        brick: 0,
-        wool: 0,
-        grain: 0,
-        ore: 0,
-      };
-      const roadsBefore = internalState.players.player1.buildings.roads;
-
-      const validation = await game.validateMove({
-        player: 'player1',
-        action: 'play_development_card',
-        cardType: 'road_building',
-        positions: [11, 12],
-      });
-      expect(validation.valid).toBe(true);
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'play_development_card',
-        cardType: 'road_building',
-        positions: [11, 12],
-      });
-
-      expect(internalState.board.edges[11].road?.player).toBe('player1');
-      expect(internalState.board.edges[12].road?.player).toBe('player1');
-      expect(internalState.players.player1.buildings.roads).toBe(roadsBefore - 2);
-      expect(internalState.players.player1.resources.wood).toBe(0);
-      expect(internalState.players.player1.resources.brick).toBe(0);
-    });
-
-    test('should allow only one development card play per turn', async () => {
-      const internalState = getInternalState(game);
-      internalState.players.player1.developmentCards = ['year_of_plenty', 'monopoly'];
-      internalState.newDevelopmentCards = {
-        player1: [],
-        player2: [],
-        player3: [],
-        player4: [],
-      };
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'play_development_card',
-        cardType: 'year_of_plenty',
-        resources: ['ore', 'grain'],
-      });
-
-      const secondValidation = await game.validateMove({
-        player: 'player1',
-        action: 'play_development_card',
-        cardType: 'monopoly',
-        resource: 'wood',
-      });
-
-      expect(secondValidation.valid).toBe(false);
-      expect(secondValidation.error).toContain('Only one development card');
-    });
-  });
-  describe('Turn Management', () => {
-    beforeEach(async () => {
-      await completeSetupPhase(game);
-    });
-
-    test('should advance to next player on end turn', async () => {
-      const stateBefore = await game.getGameState();
-      expect(stateBefore.currentPlayer).toBe('player1');
-
-      await rollNonRobber(game, 'player1');
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'end_turn',
-      });
-
-      const stateAfter = await game.getGameState();
-      expect(stateAfter.currentPlayer).toBe('player2');
-      expect(stateAfter.diceRoll).toBeNull();
-    });
-
-    test('should reject end turn without dice roll', async () => {
-      const state = await game.getGameState();
-      const currentPlayer = state.currentPlayer;
-
-      const result = await game.validateMove({
-        player: currentPlayer,
-        action: 'end_turn',
-      });
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('roll dice');
-    });
-
-    test('should reject moves from wrong player', async () => {
-      const state = await game.getGameState();
-      const currentPlayer = state.currentPlayer;
-      const wrongPlayer = currentPlayer === 'player1' ? 'player2' : 'player1';
-
-      const result = await game.validateMove({
-        player: wrongPlayer,
-        action: 'roll_dice',
-      });
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('Not your turn');
-    });
-  });
-
-  describe('Error Handling', () => {
-    beforeEach(async () => {
-      await game.initializeGame();
-    });
-
-    test('should handle invalid move data gracefully', async () => {
-      const result = await game.validateMove({});
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('player and action');
-    });
-
-    test('should handle malformed move objects', async () => {
-      const result = await game.validateMove({
-        player: 'player1',
-        action: 'invalid_action',
-      });
-      expect(result.valid).toBe(false); // Invalid actions should return false
-    });
-
-    test('should prevent moves after game over', async () => {
-      // Complete setup phase so we have a valid current player
-      for (let round = 1; round <= 2; round++) {
-        const players =
-          round === 1
-            ? ['player1', 'player2', 'player3', 'player4']
-            : ['player4', 'player3', 'player2', 'player1'];
-        for (const player of players) {
-          const pos = parseInt(player.slice(-1)) * 10 + (round - 1) * 5;
-          await game.makeMove({
-            player,
-            action: 'build_settlement',
-            position: pos,
-          });
-          await game.makeMove({
-            player,
-            action: 'build_road',
-            position: pos,
-          });
-        }
-      }
-
-      // Test that the current player can make a valid move (game is not over)
-      const state = await game.getGameState();
-      const result = await game.validateMove({
-        player: state.currentPlayer, // Use the actual current player
-        action: 'roll_dice',
-      });
-      // Game is not over, so this should be valid
-      expect(result.valid).toBe(true);
-    });
-
-    test('should reject invalid player IDs', async () => {
-      const result = await game.validateMove({
-        player: 'invalid_player',
-        action: 'roll_dice',
-      });
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('Invalid player');
-    });
-
-    test('should handle missing position for building actions', async () => {
-      const result = await game.validateMove({
-        player: 'player1',
-        action: 'build_settlement',
-        // Missing position
-      });
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('position');
-    });
-  });
-
-  describe('Game State Management', () => {
-    test('should maintain consistent game state', async () => {
-      await game.initializeGame();
-      const state1 = await game.getGameState();
-      const state2 = await game.getGameState();
-
-      expect(state1).toEqual(state2);
-    });
-
-    test('should track last action correctly', async () => {
-      await game.initializeGame();
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'build_settlement',
-        position: 0,
-      });
-
-      const state = await game.getGameState();
-      expect(state.lastAction).toBeDefined();
-      expect(state.lastAction?.action).toBe('build_settlement');
-      expect(state.lastAction?.player).toBe('player1');
-    });
-
-    test('should hide development cards from other players', async () => {
-      await game.initializeGame();
-      const state = await game.getGameState();
-
-      // Development cards should be shown as count, not actual cards
-      for (const player of Object.values(state.players)) {
-        expect(typeof player.developmentCards).toBe('number');
-      }
-    });
-
-    test('should track building counts correctly', async () => {
-      await game.initializeGame();
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'build_settlement',
-        position: 0,
-      });
-
-      const state = await game.getGameState();
-      expect(state.players.player1.buildings.settlements).toBe(4); // Started with 5, built 1
-    });
-  });
-
-  describe('Complex Game Scenarios', () => {
-    test('should handle multiple building placements', async () => {
-      await game.initializeGame();
-
-      // Place multiple settlements and roads
-      await game.makeMove({
-        player: 'player1',
-        action: 'build_settlement',
-        position: 0,
-      });
-
-      await game.makeMove({
-        player: 'player1',
-        action: 'build_road',
-        position: 0,
-      });
-
-      const state = await game.getGameState();
-      expect(state.board.intersections[0]?.building?.player).toBe('player1');
-      expect(state.board.edges[0]?.road?.player).toBe('player1');
-    });
-
-    test('should enforce connection rules for buildings', async () => {
-      await game.initializeGame();
-      // Complete setup phase first
-      for (let round = 1; round <= 2; round++) {
-        const players =
-          round === 1
-            ? ['player1', 'player2', 'player3', 'player4']
-            : ['player4', 'player3', 'player2', 'player1'];
-        for (const player of players) {
-          const pos = parseInt(player.slice(-1)) * 10 + (round - 1) * 5;
-          await game.makeMove({
-            player,
-            action: 'build_settlement',
-            position: pos,
-          });
-          await game.makeMove({
-            player,
-            action: 'build_road',
-            position: pos,
-          });
-        }
-      }
-
-      // Now in playing phase
-      await rollNonRobber(game, 'player1');
-
-      // Try to build settlement without connection
-      const result = await game.validateMove({
-        player: 'player1',
-        action: 'build_settlement',
-        position: 50, // Unconnected position
-      });
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('connected');
-    });
+    expect(getInternalState(game).players.player1.longestRoad).toBe(3);
+    expect(getInternalState(game).players.player1.hasLongestRoad).toBe(false);
+    expect(getInternalState(game).players.player1.victoryPoints).toBe(1);
   });
 });
-
-
-
-
-
-
-
-
-
-

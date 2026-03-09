@@ -10,6 +10,8 @@ import type {
 } from '@versus/game-core';
 
 type Player = 'red' | 'blue' | 'green' | 'yellow' | 'orange' | 'purple';
+type PlayerCount = 2 | 3 | 4 | 6;
+type HomeArea = 'north' | 'northeast' | 'southeast' | 'south' | 'southwest' | 'northwest';
 
 interface Position {
   row: number;
@@ -40,14 +42,147 @@ interface ChineseCheckersMove {
   to: Position;
 }
 
-export class ChineseCheckersGame extends BaseGame {
-  private readonly BOARD_SIZE = 17;
-  private readonly VALID_POSITIONS: Set<string> = new Set();
-  private readonly STEP_DIRECTIONS: Position[] = [
-    { row: -1, col: 0 },
-    { row: 1, col: 0 },
-    { row: 0, col: -1 },
-    { row: 0, col: 1 },
+const BOARD_ROWS: readonly number[][] = [
+  [12],
+  [11, 13],
+  [10, 12, 14],
+  [9, 11, 13, 15],
+  [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24],
+  [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23],
+  [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22],
+  [3, 5, 7, 9, 11, 13, 15, 17, 19, 21],
+  [4, 6, 8, 10, 12, 14, 16, 18, 20],
+  [3, 5, 7, 9, 11, 13, 15, 17, 19, 21],
+  [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22],
+  [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23],
+  [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24],
+  [9, 11, 13, 15],
+  [10, 12, 14],
+  [11, 13],
+  [12],
+] as const;
+
+const AREA_POSITIONS: Readonly<Record<HomeArea, readonly Position[]>> = {
+  north: [
+    { row: 0, col: 12 },
+    { row: 1, col: 11 },
+    { row: 1, col: 13 },
+    { row: 2, col: 10 },
+    { row: 2, col: 12 },
+    { row: 2, col: 14 },
+    { row: 3, col: 9 },
+    { row: 3, col: 11 },
+    { row: 3, col: 13 },
+    { row: 3, col: 15 },
+  ],
+  northeast: [
+    { row: 4, col: 18 },
+    { row: 4, col: 20 },
+    { row: 4, col: 22 },
+    { row: 4, col: 24 },
+    { row: 5, col: 19 },
+    { row: 5, col: 21 },
+    { row: 5, col: 23 },
+    { row: 6, col: 20 },
+    { row: 6, col: 22 },
+    { row: 7, col: 21 },
+  ],
+  southeast: [
+    { row: 9, col: 21 },
+    { row: 10, col: 20 },
+    { row: 10, col: 22 },
+    { row: 11, col: 19 },
+    { row: 11, col: 21 },
+    { row: 11, col: 23 },
+    { row: 12, col: 18 },
+    { row: 12, col: 20 },
+    { row: 12, col: 22 },
+    { row: 12, col: 24 },
+  ],
+  south: [
+    { row: 13, col: 9 },
+    { row: 13, col: 11 },
+    { row: 13, col: 13 },
+    { row: 13, col: 15 },
+    { row: 14, col: 10 },
+    { row: 14, col: 12 },
+    { row: 14, col: 14 },
+    { row: 15, col: 11 },
+    { row: 15, col: 13 },
+    { row: 16, col: 12 },
+  ],
+  southwest: [
+    { row: 9, col: 3 },
+    { row: 10, col: 2 },
+    { row: 10, col: 4 },
+    { row: 11, col: 1 },
+    { row: 11, col: 3 },
+    { row: 11, col: 5 },
+    { row: 12, col: 0 },
+    { row: 12, col: 2 },
+    { row: 12, col: 4 },
+    { row: 12, col: 6 },
+  ],
+  northwest: [
+    { row: 4, col: 0 },
+    { row: 4, col: 2 },
+    { row: 4, col: 4 },
+    { row: 4, col: 6 },
+    { row: 5, col: 1 },
+    { row: 5, col: 3 },
+    { row: 5, col: 5 },
+    { row: 6, col: 2 },
+    { row: 6, col: 4 },
+    { row: 7, col: 3 },
+  ],
+} as const;
+
+const PLAYER_SETUPS: Readonly<
+  Record<
+    PlayerCount,
+    readonly { player: Player; home: HomeArea; target: HomeArea }[]
+  >
+> = {
+  2: [
+    { player: 'red', home: 'north', target: 'south' },
+    { player: 'blue', home: 'south', target: 'north' },
+  ],
+  3: [
+    { player: 'red', home: 'north', target: 'south' },
+    { player: 'blue', home: 'southwest', target: 'northeast' },
+    { player: 'green', home: 'southeast', target: 'northwest' },
+  ],
+  4: [
+    { player: 'red', home: 'northwest', target: 'southeast' },
+    { player: 'blue', home: 'northeast', target: 'southwest' },
+    { player: 'green', home: 'southwest', target: 'northeast' },
+    { player: 'yellow', home: 'southeast', target: 'northwest' },
+  ],
+  6: [
+    { player: 'red', home: 'north', target: 'south' },
+    { player: 'blue', home: 'south', target: 'north' },
+    { player: 'green', home: 'northwest', target: 'southeast' },
+    { player: 'yellow', home: 'southeast', target: 'northwest' },
+    { player: 'orange', home: 'northeast', target: 'southwest' },
+    { player: 'purple', home: 'southwest', target: 'northeast' },
+  ],
+} as const;
+
+function clonePositions(positions: readonly Position[]): Position[] {
+  return positions.map((position) => ({ ...position }));
+}
+
+export class ChineseCheckersGame extends BaseGame<ChineseCheckersState> {
+  declare protected currentState: ChineseCheckersState;
+
+  private readonly BOARD_HEIGHT = BOARD_ROWS.length;
+  private readonly BOARD_WIDTH = 25;
+  private readonly VALID_POSITIONS = new Set(
+    BOARD_ROWS.flatMap((cols, row) => cols.map((col) => `${row},${col}`))
+  );
+  private readonly STEP_DIRECTIONS: readonly Position[] = [
+    { row: 0, col: -2 },
+    { row: 0, col: 2 },
     { row: -1, col: -1 },
     { row: -1, col: 1 },
     { row: 1, col: -1 },
@@ -56,79 +191,26 @@ export class ChineseCheckersGame extends BaseGame {
 
   constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
     super(gameId, 'chinese-checkers', database);
-    this.initializeValidPositions();
   }
 
-  private initializeValidPositions(): void {
-    for (let row = 6; row <= 10; row++) {
-      for (let col = 6; col <= 10; col++) {
-        if (this.isValidCenterPosition(row, col)) {
-          this.VALID_POSITIONS.add(`${row},${col}`);
-        }
+  async initializeGame(config?: GameConfig): Promise<ChineseCheckersState> {
+    const playerCount = this.resolvePlayerCount(config);
+    const playerSetup = PLAYER_SETUPS[playerCount];
+    const players = playerSetup.map((entry) => entry.player);
+    const board = this.createBoard();
+    const startingPositions: ChineseCheckersState['startingPositions'] = {};
+    const targetPositions: ChineseCheckersState['targetPositions'] = {};
+
+    for (const entry of playerSetup) {
+      const start = clonePositions(AREA_POSITIONS[entry.home]);
+      const target = clonePositions(AREA_POSITIONS[entry.target]);
+      startingPositions[entry.player] = start;
+      targetPositions[entry.player] = target;
+
+      for (const position of start) {
+        board[position.row]![position.col] = entry.player;
       }
     }
-
-    for (let row = 0; row < 6; row++) {
-      for (let col = 6 + row; col <= 10 - row; col++) {
-        this.VALID_POSITIONS.add(`${row},${col}`);
-      }
-    }
-
-    for (let row = 11; row < 17; row++) {
-      const offset = row - 10;
-      for (let col = 6 + offset; col <= 10 - offset; col++) {
-        this.VALID_POSITIONS.add(`${row},${col}`);
-      }
-    }
-
-    for (let row = 6; row <= 10; row++) {
-      for (let col = 0; col < 6; col++) {
-        if (this.isValidSidePosition(row, col, 'left')) {
-          this.VALID_POSITIONS.add(`${row},${col}`);
-        }
-      }
-    }
-
-    for (let row = 6; row <= 10; row++) {
-      for (let col = 11; col < 17; col++) {
-        if (this.isValidSidePosition(row, col, 'right')) {
-          this.VALID_POSITIONS.add(`${row},${col}`);
-        }
-      }
-    }
-  }
-
-  private isValidCenterPosition(row: number, col: number): boolean {
-    const centerRow = 8;
-    const centerCol = 8;
-    const distance = Math.abs(row - centerRow) + Math.abs(col - centerCol);
-    return distance <= 2;
-  }
-
-  private isValidSidePosition(row: number, col: number, side: 'left' | 'right'): boolean {
-    if (side === 'left') {
-      return col <= 5 - Math.abs(row - 8);
-    }
-    return col >= 11 + Math.abs(row - 8);
-  }
-
-  private isValidPosition(pos: Position): boolean {
-    return this.VALID_POSITIONS.has(`${pos.row},${pos.col}`);
-  }
-
-  async initializeGame(config?: GameConfig): Promise<GameState> {
-    const playerCount = Math.min(Math.max((config as any)?.playerCount || 2, 2), 6);
-    const availablePlayers: Player[] = ['red', 'blue', 'green', 'yellow', 'orange', 'purple'];
-    const players = availablePlayers.slice(0, playerCount);
-
-    const board: (Player | null)[][] = Array(this.BOARD_SIZE)
-      .fill(null)
-      .map(() => Array(this.BOARD_SIZE).fill(null));
-
-    const startingPositions: { [player in Player]?: Position[] } = {};
-    const targetPositions: { [player in Player]?: Position[] } = {};
-
-    this.setupPlayerPositions(players, board, startingPositions, targetPositions);
 
     const initialState: ChineseCheckersState = {
       gameId: this.gameId,
@@ -150,90 +232,27 @@ export class ChineseCheckersGame extends BaseGame {
     return this.getGameState();
   }
 
-  private setupPlayerPositions(
-    players: Player[],
-    board: (Player | null)[][],
-    startingPositions: { [player in Player]?: Position[] },
-    targetPositions: { [player in Player]?: Position[] }
-  ): void {
-    const playerSetups: { [player in Player]?: { start: Position[]; target: Position[] } } = {
-      red: {
-        start: [
-          { row: 0, col: 8 },
-          { row: 1, col: 7 },
-          { row: 1, col: 8 },
-          { row: 1, col: 9 },
-          { row: 2, col: 6 },
-          { row: 2, col: 7 },
-          { row: 2, col: 8 },
-          { row: 2, col: 9 },
-          { row: 2, col: 10 },
-          { row: 3, col: 7 },
-          { row: 3, col: 8 },
-          { row: 3, col: 9 },
-        ],
-        target: [
-          { row: 16, col: 8 },
-          { row: 15, col: 7 },
-          { row: 15, col: 8 },
-          { row: 15, col: 9 },
-          { row: 14, col: 6 },
-          { row: 14, col: 7 },
-          { row: 14, col: 8 },
-          { row: 14, col: 9 },
-          { row: 14, col: 10 },
-          { row: 13, col: 7 },
-          { row: 13, col: 8 },
-          { row: 13, col: 9 },
-        ],
-      },
-      blue: {
-        start: [
-          { row: 16, col: 8 },
-          { row: 15, col: 7 },
-          { row: 15, col: 8 },
-          { row: 15, col: 9 },
-          { row: 14, col: 6 },
-          { row: 14, col: 7 },
-          { row: 14, col: 8 },
-          { row: 14, col: 9 },
-          { row: 14, col: 10 },
-          { row: 13, col: 7 },
-          { row: 13, col: 8 },
-          { row: 13, col: 9 },
-        ],
-        target: [
-          { row: 0, col: 8 },
-          { row: 1, col: 7 },
-          { row: 1, col: 8 },
-          { row: 1, col: 9 },
-          { row: 2, col: 6 },
-          { row: 2, col: 7 },
-          { row: 2, col: 8 },
-          { row: 2, col: 9 },
-          { row: 2, col: 10 },
-          { row: 3, col: 7 },
-          { row: 3, col: 8 },
-          { row: 3, col: 9 },
-        ],
-      },
-    };
+  private resolvePlayerCount(config?: GameConfig): PlayerCount {
+    const requestedPlayerCount =
+      (config as any)?.playerCount ?? (config as any)?.customRules?.playerCount ?? 2;
 
-    for (const player of players) {
-      const setup = playerSetups[player];
-      if (!setup) {
-        continue;
-      }
-
-      startingPositions[player] = setup.start;
-      targetPositions[player] = setup.target;
-
-      for (const pos of setup.start) {
-        if (this.isValidPosition(pos)) {
-          board[pos.row]![pos.col] = player;
-        }
-      }
+    if (![2, 3, 4, 6].includes(requestedPlayerCount)) {
+      throw new Error('Official Chinese Checkers supports 2, 3, 4, or 6 players');
     }
+
+    return requestedPlayerCount as PlayerCount;
+  }
+
+  private createBoard(): (Player | null)[][] {
+    return Array.from({ length: this.BOARD_HEIGHT }, () => Array(this.BOARD_WIDTH).fill(null));
+  }
+
+  private isValidPosition(position: Position): boolean {
+    return (
+      Number.isInteger(position.row) &&
+      Number.isInteger(position.col) &&
+      this.VALID_POSITIONS.has(this.getPositionKey(position))
+    );
   }
 
   async validateMove(moveData: Record<string, any>): Promise<MoveValidationResult> {
@@ -279,25 +298,27 @@ export class ChineseCheckersGame extends BaseGame {
     move: ChineseCheckersMove,
     state: ChineseCheckersState
   ): MoveValidationResult {
-    const { from, to } = move;
-
-    if (this.isAdjacentMove(from, to)) {
+    if (this.isAdjacentMove(move.from, move.to)) {
       return { valid: true };
     }
 
-    if (this.canReachByJumpSequence(from, to, state)) {
+    if (this.canReachByJumpSequence(move.from, move.to, state)) {
       return { valid: true };
     }
 
     const isDirectJumpAttempt = this.STEP_DIRECTIONS.some(
       (direction) =>
-        from.row + direction.row * 2 === to.row && from.col + direction.col * 2 === to.col
+        move.from.row + direction.row * 2 === move.to.row &&
+        move.from.col + direction.col * 2 === move.to.col
     );
 
     if (isDirectJumpAttempt) {
-      const midRow = Math.floor((from.row + to.row) / 2);
-      const midCol = Math.floor((from.col + to.col) / 2);
-      if (state.board[midRow]![midCol] === null) {
+      const middle = {
+        row: move.from.row + (move.to.row - move.from.row) / 2,
+        col: move.from.col + (move.to.col - move.from.col) / 2,
+      };
+
+      if (state.board[middle.row]![middle.col] === null) {
         return { valid: false, error: 'No piece to jump over' };
       }
     }
@@ -317,14 +338,14 @@ export class ChineseCheckersGame extends BaseGame {
     state: ChineseCheckersState
   ): boolean {
     const queue: Position[] = [from];
-    const visited = new Set([`${from.row},${from.col}`]);
+    const visited = new Set([this.getPositionKey(from)]);
 
     while (queue.length > 0) {
       const current = queue.shift()!;
-      const destinations = this.getJumpDestinations(current, state);
+      const jumpDestinations = this.getJumpDestinations(current, state);
 
-      for (const destination of destinations) {
-        const key = `${destination.row},${destination.col}`;
+      for (const destination of jumpDestinations) {
+        const key = this.getPositionKey(destination);
         if (visited.has(key)) {
           continue;
         }
@@ -345,8 +366,14 @@ export class ChineseCheckersGame extends BaseGame {
     const destinations: Position[] = [];
 
     for (const direction of this.STEP_DIRECTIONS) {
-      const middle = { row: from.row + direction.row, col: from.col + direction.col };
-      const landing = { row: from.row + direction.row * 2, col: from.col + direction.col * 2 };
+      const middle = {
+        row: from.row + direction.row,
+        col: from.col + direction.col,
+      };
+      const landing = {
+        row: from.row + direction.row * 2,
+        col: from.col + direction.col * 2,
+      };
 
       if (!this.isValidPosition(middle) || !this.isValidPosition(landing)) {
         continue;
@@ -367,11 +394,11 @@ export class ChineseCheckersGame extends BaseGame {
   }
 
   protected async applyMove(move: GameMove): Promise<void> {
-    const checkersMove = move.moveData as ChineseCheckersMove;
+    const chineseCheckersMove = move.moveData as ChineseCheckersMove;
     const state = this.currentState as ChineseCheckersState;
 
-    this.movePiece(checkersMove, state);
-    this.checkWinCondition(state);
+    this.movePiece(chineseCheckersMove, state);
+    this.checkWinCondition(state, chineseCheckersMove.player);
 
     if (!state.gameOver) {
       this.moveToNextPlayer(state);
@@ -379,46 +406,39 @@ export class ChineseCheckersGame extends BaseGame {
   }
 
   private movePiece(move: ChineseCheckersMove, state: ChineseCheckersState): void {
-    const { player, from, to } = move;
-
-    state.board[from.row]![from.col] = null;
-    state.board[to.row]![to.col] = player;
+    state.board[move.from.row]![move.from.col] = null;
+    state.board[move.to.row]![move.to.col] = move.player;
     state.moveCount++;
-
     state.lastAction = {
       action: 'move',
-      player,
-      from,
-      to,
-      details: `${player} moved from (${from.row},${from.col}) to (${to.row},${to.col})`,
+      player: move.player,
+      from: move.from,
+      to: move.to,
+      details: `${move.player} moved from (${move.from.row},${move.from.col}) to (${move.to.row},${move.to.col})`,
     };
   }
 
-  private checkWinCondition(state: ChineseCheckersState): void {
-    const targetPositions = state.targetPositions[state.currentPlayer];
+  private checkWinCondition(state: ChineseCheckersState, player: Player): void {
+    const targetPositions = state.targetPositions[player];
     if (!targetPositions) {
       return;
     }
 
-    let piecesInTarget = 0;
-    for (const pos of targetPositions) {
-      if (state.board[pos.row]![pos.col] === state.currentPlayer) {
-        piecesInTarget++;
-      }
+    const hasFilledTargetArea = targetPositions.every(
+      (position) => state.board[position.row]![position.col] === player
+    );
+
+    if (!hasFilledTargetArea) {
+      return;
     }
 
-    const startingPositions = state.startingPositions[state.currentPlayer];
-    const totalPieces = startingPositions?.length || 0;
-
-    if (piecesInTarget === totalPieces) {
-      state.gameOver = true;
-      state.winner = state.currentPlayer;
-      state.lastAction = {
-        action: 'win',
-        player: state.currentPlayer,
-        details: `${state.currentPlayer} wins by getting all pieces to the target area!`,
-      };
-    }
+    state.gameOver = true;
+    state.winner = player;
+    state.lastAction = {
+      action: 'win',
+      player,
+      details: `${player} wins by occupying the opposite home triangle.`,
+    };
   }
 
   private moveToNextPlayer(state: ChineseCheckersState): void {
@@ -427,7 +447,11 @@ export class ChineseCheckersGame extends BaseGame {
     state.currentPlayer = state.players[nextIndex]!;
   }
 
-  async getGameState(): Promise<GameState> {
+  private getPositionKey(position: Position): string {
+    return `${position.row},${position.col}`;
+  }
+
+  async getGameState(): Promise<ChineseCheckersState> {
     const state = this.currentState as ChineseCheckersState;
 
     return {
@@ -443,23 +467,26 @@ export class ChineseCheckersGame extends BaseGame {
       lastAction: state.lastAction,
       moveCount: state.moveCount,
       validPositions: Array.from(this.VALID_POSITIONS),
+      boardDimensions: {
+        rows: this.BOARD_HEIGHT,
+        cols: this.BOARD_WIDTH,
+      },
     };
   }
 
   async isGameOver(): Promise<boolean> {
-    const state = this.currentState as ChineseCheckersState;
-    return state.gameOver;
+    return (this.currentState as ChineseCheckersState).gameOver;
   }
 
   async getWinner(): Promise<string | null> {
-    const state = this.currentState as ChineseCheckersState;
-    return state.winner;
+    return (this.currentState as ChineseCheckersState).winner;
   }
 
   getMetadata(): GameMetadata {
     return {
       name: 'Chinese Checkers',
-      description: 'Strategic board game played on a star-shaped board with jumping mechanics',
+      description:
+        'Strategic star-board race game with official home triangles, adjacent steps, and chained jumps',
       minPlayers: 2,
       maxPlayers: 6,
       estimatedDuration: '30-60 minutes',

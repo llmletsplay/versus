@@ -57,10 +57,14 @@ describe('BlackjackGame', () => {
       expect(state.playerHands[0].isDouble).toBe(false);
       expect(state.playerHands[0].isSplit).toBe(false);
 
-      // Dealer should have 2 cards (one face down, one face up)
+      // Dealer starts with a hole card unless the opening deal already finished the round.
       expect(state.dealerHand.cards).toHaveLength(2);
-      expect(state.dealerHand.cards[0].faceUp).toBe(false);
-      expect(state.dealerHand.cards[1].faceUp).toBe(true);
+      if (state.phase === 'finished') {
+        expect(state.dealerHand.cards.every((card: any) => card.faceUp)).toBe(true);
+      } else {
+        expect(state.dealerHand.cards[0].faceUp).toBe(false);
+        expect(state.dealerHand.cards[1].faceUp).toBe(true);
+      }
 
       // Game should be in playing phase unless blackjack was dealt
       if (state.playerHands[0].isBlackjack || state.dealerHand.isBlackjack) {

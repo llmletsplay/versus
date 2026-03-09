@@ -21,16 +21,16 @@ Platform-only concerns stay in [`versus-server/`](../versus-server):
 
 ## Consumer Experience
 
-Each package is shaped like a normal npm library:
+Each game package is shaped like a normal npm library:
 
 - `main`, `types`, and `exports` point at `dist/`
-- `prepack` builds the package before publishing
-- constructors work out of the box with the in-memory provider
-- consumers can inject a storage provider explicitly when they need one
+- constructors work out of the box with the default in-memory provider
+- host applications can inject a storage provider when they want persistence
+- every game package ships `README.md`, `RULES.md`, and `LICENSE`
 
 Example:
 
-```ts
+```js
 import { TicTacToeGame } from '@versus/tic-tac-toe';
 
 const game = new TicTacToeGame('demo');
@@ -45,7 +45,7 @@ await game.initializeGame();
 
 That keeps the packages as the canonical game-logic source while preserving the server's existing import surface.
 
-## Build And Publish
+## Build And Release Checks
 
 Inside any package directory:
 
@@ -57,17 +57,18 @@ npm pack
 From the repo root you can also run:
 
 ```bash
+npm run docs:packages
 npm run build:packages
+npm run check:packages
 npm run test:games
 ```
 
-Each package uses its own `tsconfig.json` so it emits a package-local `dist/` folder with JavaScript and `.d.ts` files.
+`npm run check:packages` verifies the publish contract so releases only ship built artifacts plus the package docs and license.
 
 ## Rules And Tests
 
-Gameplay tests currently live in [`versus-server/tests/`](../versus-server/tests) and rules docs currently live in [`versus-server/docs/rules/`](../versus-server/docs/rules).
-
-That is acceptable because the server now consumes the packages directly, but package-specific tests and rules can still move closer to each package over time.
+- Every game package now ships package-local rules in `RULES.md`.
+- Gameplay tests still live in [`versus-server/tests/`](../versus-server/tests), but those tests execute the package implementations through the server-compatible import surface.
 
 ## Rule Scope Notes
 
@@ -75,8 +76,6 @@ Most game packages implement the full rule set covered by the current engine tes
 
 The following packages still have deliberate scope limits and should be documented that way in releases:
 
-- @versus/catan: board topology, random discard choice on 7s, and longest-road logic are still simplified.
-- @versus/chinese-checkers: board geometry and target-completion logic are simplified.
-- @versus/mahjong: the engine covers draw-discard play plus standard-hand and seven-pairs wins, but not calls, scoring, or ruleset-specific yaku systems.
+- `@versus/mahjong`: the engine now supports chi, pon, kan, discard wins, supplemental draws, and exhaustive draws, but scoring and ruleset-specific yaku systems are still out of scope.
 
 

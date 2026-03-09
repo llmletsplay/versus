@@ -1,3 +1,4 @@
+﻿import { createHash } from 'node:crypto';
 import { InMemoryDatabaseProvider } from '@versus/game-core';
 import { BaseGame } from '@versus/game-core';
 import type {
@@ -71,6 +72,7 @@ export interface WordsState extends GameState {
   } | null;
   gamePhase: 'playing' | 'finished';
   firstMove: boolean; // Must cover center star
+  lexicon?: WordsLexiconMetadata;
 }
 
 interface WordsMove {
@@ -78,6 +80,53 @@ interface WordsMove {
   action: 'play' | 'pass' | 'exchange';
   placements?: Array<{ row: number; col: number; tile: WordsTile; letter?: TileLetter }>; // letter for blank tiles
   exchangeTiles?: WordsTile[]; // For exchange action
+}
+
+interface WordsLexiconMetadata {
+  source: 'built-in' | 'custom';
+  size: number;
+  fingerprint: string;
+  name?: string;
+}
+
+interface WordTilesOptions {
+  lexicon?: Iterable<string>;
+  lexiconName?: string;
+}
+
+function isDatabaseProvider(value: unknown): value is DatabaseProvider {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      typeof (value as DatabaseProvider).initialize === 'function' &&
+      typeof (value as DatabaseProvider).saveGameState === 'function' &&
+      typeof (value as DatabaseProvider).getGameState === 'function'
+  );
+}
+
+function normalizeLexiconWords(words: Iterable<string>): string[] {
+  const normalizedWords = Array.from(
+    new Set(
+      Array.from(words, (word) => String(word).trim().toUpperCase()).filter((word) => /^[A-Z]+$/.test(word))
+    )
+  ).sort();
+
+  if (normalizedWords.length === 0) {
+    throw new Error('Custom lexicon must contain at least one A-Z word');
+  }
+
+  return normalizedWords;
+}
+
+function createLexiconFingerprint(words: Iterable<string>): string {
+  const hash = createHash('sha256');
+
+  for (const word of normalizeLexiconWords(words)) {
+    hash.update(word);
+    hash.update('\n');
+  }
+
+  return hash.digest('hex').slice(0, 16);
 }
 
 export class WordTilesGame extends BaseGame {
@@ -118,9 +167,29 @@ export class WordTilesGame extends BaseGame {
 
   // Premium squares layout (cached for efficiency)
   private readonly PREMIUM_SQUARES_MAP = new Map<string, 'DL' | 'TL' | 'DW' | 'TW' | 'STAR'>();
+  private readonly activeLexicon: ReadonlySet<string>;
+  private readonly lexiconMetadata: WordsLexiconMetadata;
 
   // Expanded word list for better validation
   private readonly VALID_WORDS = new Set([
+    'A',
+    'I',
+    'AT',
+    'TO',
+    'IN',
+    'ON',
+    'NO',
+    'HE',
+    'HI',
+    'IT',
+    'AX',
+    'OX',
+    'HAT',
+    'HATS',
+    'HATE',
+    'TAX',
+    'TAXI',
+    'AXE',
     // Common words
     'THE',
     'AND',
@@ -292,9 +361,30 @@ export class WordTilesGame extends BaseGame {
     'FREIGHT',
   ]);
 
-  constructor(gameId: string, database: DatabaseProvider = new InMemoryDatabaseProvider()) {
+  constructor(
+    gameId: string,
+    databaseOrOptions: DatabaseProvider | WordTilesOptions = new InMemoryDatabaseProvider(),
+    options: WordTilesOptions = {}
+  ) {
+    const database = isDatabaseProvider(databaseOrOptions)
+      ? databaseOrOptions
+      : new InMemoryDatabaseProvider();
+    const resolvedOptions = isDatabaseProvider(databaseOrOptions) ? options : databaseOrOptions;
+
     super(gameId, 'word-tiles', database);
     this.initializePremiumSquares();
+
+    const lexiconWords = resolvedOptions.lexicon
+      ? normalizeLexiconWords(resolvedOptions.lexicon)
+      : Array.from(this.VALID_WORDS).sort();
+
+    this.activeLexicon = new Set(lexiconWords);
+    this.lexiconMetadata = {
+      source: resolvedOptions.lexicon ? 'custom' : 'built-in',
+      size: this.activeLexicon.size,
+      fingerprint: createLexiconFingerprint(lexiconWords),
+      name: resolvedOptions.lexicon ? resolvedOptions.lexiconName : undefined,
+    };
   }
 
   private initializePremiumSquares(): void {
@@ -386,7 +476,8 @@ export class WordTilesGame extends BaseGame {
     this.shuffleTiles(tileBag);
 
     // Initialize players (2-4 players)
-    const playerCount = Math.min(Math.max((config as any)?.playerCount || 2, 2), 4);
+    const requestedPlayerCount = (config as any)?.playerCount ?? (config as any)?.customRules?.playerCount ?? 2;
+    const playerCount = Math.min(Math.max(requestedPlayerCount, 2), 4);
     const playerIds = Array.from({ length: playerCount }, (_, i) => `player${i + 1}`);
 
     const players: WordsState['players'] = {};
@@ -413,6 +504,7 @@ export class WordTilesGame extends BaseGame {
       lastMove: null,
       gamePhase: 'playing',
       firstMove: true,
+      lexicon: { ...this.lexiconMetadata },
     };
 
     this.currentState = initialState;
@@ -467,6 +559,20 @@ export class WordTilesGame extends BaseGame {
     return tileBag.splice(0, Math.min(count, tileBag.length));
   }
 
+  private getStateLexicon(state: WordsState): WordsLexiconMetadata {
+    return state.lexicon ?? this.lexiconMetadata;
+  }
+
+  private getLexiconMismatchError(state: WordsState): string | null {
+    if (!state.lexicon) {
+      return null;
+    }
+
+    return state.lexicon.fingerprint === this.lexiconMetadata.fingerprint
+      ? null
+      : 'This game was created with a different lexicon configuration';
+  }
+
   async validateMove(moveData: Record<string, any>): Promise<MoveValidationResult> {
     try {
       const move = moveData as WordsMove;
@@ -476,17 +582,22 @@ export class WordTilesGame extends BaseGame {
       }
 
       const state = this.currentState as WordsState;
+      const lexiconMismatchError = this.getLexiconMismatchError(state);
+
+      if (lexiconMismatchError) {
+        return { valid: false, error: lexiconMismatchError };
+      }
 
       if (state.gameOver) {
         return { valid: false, error: 'Game is already over' };
       }
 
-      if (move.player !== state.currentPlayer) {
-        return { valid: false, error: 'Not your turn' };
-      }
-
       if (!state.players[move.player]) {
         return { valid: false, error: 'Invalid player' };
+      }
+
+      if (move.player !== state.currentPlayer) {
+        return { valid: false, error: 'Not your turn' };
       }
 
       if (move.action === 'pass') {
@@ -502,13 +613,10 @@ export class WordTilesGame extends BaseGame {
           return { valid: false, error: 'Not enough tiles in bag for exchange' };
         }
 
-        // Verify player has the tiles they want to exchange
-        const playerRack = state.players[move.player]!.rack;
+        // Verify player has the tiles they want to exchange, including duplicates.
+        const rackCounts = this.countTiles(state.players[move.player]!.rack);
         for (const tile of move.exchangeTiles) {
-          const hasThisTile = playerRack.some(
-            (rackTile) => rackTile.letter === tile.letter && rackTile.value === tile.value
-          );
-          if (!hasThisTile) {
+          if (!this.consumeTile(rackCounts, tile)) {
             return {
               valid: false,
               error: 'You do not have one or more of the tiles you want to exchange',
@@ -536,14 +644,33 @@ export class WordTilesGame extends BaseGame {
   private validateWordPlay(move: WordsMove, state: WordsState): MoveValidationResult {
     const placements = move.placements!;
     const playerRack = state.players[move.player]!.rack;
+    const seenPositions = new Set<string>();
+    const rackCounts = this.countTiles(playerRack);
 
-    // Verify player has all the tiles they're trying to place
     for (const placement of placements) {
-      const hasThisTile = playerRack.some(
-        (rackTile) =>
-          rackTile.letter === placement.tile.letter && rackTile.value === placement.tile.value
-      );
-      if (!hasThisTile) {
+      if (!this.isValidPosition(placement.row, placement.col)) {
+        return { valid: false, error: 'Invalid board position' };
+      }
+
+      const positionKey = `${placement.row},${placement.col}`;
+      if (seenPositions.has(positionKey)) {
+        return { valid: false, error: 'Cannot place multiple tiles on the same square' };
+      }
+      seenPositions.add(positionKey);
+
+      if (state.board[placement.row]![placement.col]!.tile) {
+        return { valid: false, error: 'Cannot place tile on occupied square' };
+      }
+
+      if (placement.tile.isBlank) {
+        if (!this.isAssignableLetter(placement.letter)) {
+          return { valid: false, error: 'Blank tiles must declare a replacement letter' };
+        }
+      } else if (placement.letter && placement.letter !== placement.tile.letter) {
+        return { valid: false, error: 'Only blank tiles can declare a replacement letter' };
+      }
+
+      if (!this.consumeTile(rackCounts, placement.tile)) {
         return {
           valid: false,
           error: 'You do not have one or more of the tiles you are trying to place',
@@ -551,33 +678,33 @@ export class WordTilesGame extends BaseGame {
       }
     }
 
-    // Verify all placements are on empty squares
-    for (const placement of placements) {
-      if (!this.isValidPosition(placement.row, placement.col)) {
-        return { valid: false, error: 'Invalid board position' };
-      }
-
-      if (state.board[placement.row]![placement.col]!.tile) {
-        return { valid: false, error: 'Cannot place tile on occupied square' };
-      }
-    }
-
-    // Verify tiles are placed in a line (horizontal or vertical)
     if (!this.areTilesInLine(placements)) {
       return { valid: false, error: 'All tiles must be placed in a single row or column' };
     }
 
-    // First move must cover the center star
+    if (!this.isPlacementContinuous(placements, state.board)) {
+      return { valid: false, error: 'Placed tiles must form a continuous word' };
+    }
+
     if (state.firstMove) {
       const coversStar = placements.some((p) => p.row === 7 && p.col === 7);
       if (!coversStar) {
         return { valid: false, error: 'First move must cover the center star' };
       }
-    } else {
-      // Subsequent moves must connect to existing tiles
-      if (!this.connectsToExistingTiles(placements, state.board)) {
-        return { valid: false, error: 'New tiles must connect to existing tiles on the board' };
-      }
+    } else if (!this.connectsToExistingTiles(placements, state.board)) {
+      return { valid: false, error: 'New tiles must connect to existing tiles on the board' };
+    }
+
+    const boardAfter = this.createBoardWithPlacements(state.board, placements);
+    const formedWords = this.collectFormedWords(placements, boardAfter, state.firstMove);
+
+    if (formedWords.length === 0) {
+      return { valid: false, error: 'Move must form at least one valid word' };
+    }
+
+    const invalidWord = formedWords.find(({ word }) => !this.isValidWord(word));
+    if (invalidWord) {
+      return { valid: false, error: `Invalid word: ${invalidWord.word}` };
     }
 
     return { valid: true };
@@ -585,6 +712,72 @@ export class WordTilesGame extends BaseGame {
 
   private isValidPosition(row: number, col: number): boolean {
     return row >= 0 && row < this.BOARD_SIZE && col >= 0 && col < this.BOARD_SIZE;
+  }
+
+  private isAssignableLetter(letter?: TileLetter): boolean {
+    return typeof letter === 'string' && /^[A-Z]$/.test(letter);
+  }
+
+  private createTileKey(tile: WordsTile): string {
+    return `${tile.letter}:${tile.value}:${tile.isBlank ? '1' : '0'}`;
+  }
+
+  private countTiles(tiles: WordsTile[]): Map<string, number> {
+    const counts = new Map<string, number>();
+
+    for (const tile of tiles) {
+      const key = this.createTileKey(tile);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+
+    return counts;
+  }
+
+  private consumeTile(counts: Map<string, number>, tile: WordsTile): boolean {
+    const key = this.createTileKey(tile);
+    const remaining = counts.get(key) || 0;
+
+    if (remaining === 0) {
+      return false;
+    }
+
+    counts.set(key, remaining - 1);
+    return true;
+  }
+
+  private resolvePlacementTile(placement: {
+    row: number;
+    col: number;
+    tile: WordsTile;
+    letter?: TileLetter;
+  }): WordsTile {
+    if (!placement.tile.isBlank) {
+      return { ...placement.tile };
+    }
+
+    return {
+      ...placement.tile,
+      letter: placement.letter!,
+      isBlank: true,
+    };
+  }
+
+  private createBoardWithPlacements(
+    board: BoardCell[][],
+    placements: Array<{ row: number; col: number; tile: WordsTile; letter?: TileLetter }>
+  ): BoardCell[][] {
+    const nextBoard = board.map((row) =>
+      row.map((cell) => ({
+        ...cell,
+        tile: cell.tile ? { ...cell.tile } : null,
+      }))
+    );
+
+    for (const placement of placements) {
+      nextBoard[placement.row]![placement.col]!.tile = this.resolvePlacementTile(placement);
+    }
+
+    return nextBoard;
   }
 
   private areTilesInLine(
@@ -603,6 +796,43 @@ export class WordTilesGame extends BaseGame {
     return sameRow || sameCol;
   }
 
+  private isPlacementContinuous(
+    placements: Array<{ row: number; col: number; tile: WordsTile }>,
+    board: BoardCell[][]
+  ): boolean {
+    if (placements.length <= 1) {
+      return true;
+    }
+
+    const sameRow = placements.every((placement) => placement.row === placements[0]!.row);
+    const occupiedByPlacement = new Set(
+      placements.map((placement) => `${placement.row},${placement.col}`)
+    );
+
+    if (sameRow) {
+      const row = placements[0]!.row;
+      const cols = placements.map((placement) => placement.col).sort((a, b) => a - b);
+
+      for (let col = cols[0]!; col <= cols[cols.length - 1]!; col++) {
+        if (!occupiedByPlacement.has(`${row},${col}`) && !board[row]![col]!.tile) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    const col = placements[0]!.col;
+    const rows = placements.map((placement) => placement.row).sort((a, b) => a - b);
+
+    for (let row = rows[0]!; row <= rows[rows.length - 1]!; row++) {
+      if (!occupiedByPlacement.has(`${row},${col}`) && !board[row]![col]!.tile) {
+        return false;
+      }
+    }
+
+    return true;
+  }
   private connectsToExistingTiles(
     placements: Array<{ row: number; col: number; tile: WordsTile }>,
     board: BoardCell[][]
@@ -659,8 +889,8 @@ export class WordTilesGame extends BaseGame {
       state.passCount = 0; // Reset pass count
       state.firstMove = false;
 
-      // Check for game end conditions
-      if (player.rack.length === 0 || state.tileBag.length === 0) {
+      // Official-style finish: the game ends when a player uses their last tile and the bag is empty.
+      if (player.rack.length === 0 && state.tileBag.length === 0) {
         this.endGame(state);
         return;
       }
@@ -673,62 +903,57 @@ export class WordTilesGame extends BaseGame {
     const player = state.players[move.player]!;
     const tilesToExchange = move.exchangeTiles!;
 
-    // Remove tiles from player's rack
     for (const tile of tilesToExchange) {
-      const index = player.rack.findIndex(
-        (rackTile) => rackTile.letter === tile.letter && rackTile.value === tile.value
-      );
+      const tileKey = this.createTileKey(tile);
+      const index = player.rack.findIndex((rackTile) => this.createTileKey(rackTile) === tileKey);
       if (index !== -1) {
         player.rack.splice(index, 1);
       }
     }
 
-    // Draw new tiles
     const newTiles = this.drawTiles(state.tileBag, tilesToExchange.length);
     player.rack.push(...newTiles);
 
-    // Return exchanged tiles to bag and shuffle
-    state.tileBag.push(...tilesToExchange);
+    state.tileBag.push(...tilesToExchange.map((tile) => ({ ...tile })));
     this.shuffleTiles(state.tileBag);
   }
 
   private placeTilesAndScore(move: WordsMove, state: WordsState): number {
     const placements = move.placements!;
     const player = state.players[move.player]!;
+    const resolvedPlacements: Array<{ row: number; col: number; tile: WordsTile }> = [];
 
-    // Place tiles on board
     for (const placement of placements) {
-      // Handle blank tiles
-      let tileToPlace = placement.tile;
-      if (placement.tile.isBlank && placement.letter) {
-        tileToPlace = {
-          ...placement.tile,
-          letter: placement.letter,
-        };
-      }
-
+      const tileToPlace = this.resolvePlacementTile(placement);
       state.board[placement.row]![placement.col]!.tile = tileToPlace;
 
-      // Remove tile from player's rack
+      const rackKey = this.createTileKey(placement.tile);
       const rackIndex = player.rack.findIndex(
-        (rackTile) =>
-          rackTile.letter === placement.tile.letter && rackTile.value === placement.tile.value
+        (rackTile) => this.createTileKey(rackTile) === rackKey
       );
       if (rackIndex !== -1) {
         player.rack.splice(rackIndex, 1);
       }
+
+      resolvedPlacements.push({
+        row: placement.row,
+        col: placement.col,
+        tile: tileToPlace,
+      });
     }
 
-    // Calculate score
-    const score = this.calculateScore(placements, state.board);
+    const formedWords = this.collectFormedWords(resolvedPlacements, state.board, state.firstMove);
+    const score = this.calculateScore(resolvedPlacements, state.board, formedWords);
 
-    // Record the move
-    const words = this.getFormedWords(placements, state.board);
     state.lastMove = {
       playerId: move.player,
-      words,
+      words: formedWords.map(({ word }) => word),
       score,
-      tilesPlaced: placements.map((p) => ({ row: p.row, col: p.col, tile: p.tile })),
+      tilesPlaced: resolvedPlacements.map((placement) => ({
+        row: placement.row,
+        col: placement.col,
+        tile: placement.tile,
+      })),
     };
 
     return score;
@@ -736,36 +961,43 @@ export class WordTilesGame extends BaseGame {
 
   private calculateScore(
     placements: Array<{ row: number; col: number; tile: WordsTile }>,
-    board: BoardCell[][]
+    board: BoardCell[][],
+    formedWords = this.collectFormedWords(placements, board, false)
   ): number {
+    const placementKeys = new Set(
+      placements.map((placement) => `${placement.row},${placement.col}`)
+    );
     let totalScore = 0;
-    let wordMultiplier = 1;
 
-    // Calculate main word score
-    for (const placement of placements) {
-      let letterScore = placement.tile.value;
-      const cell = board[placement.row]![placement.col]!;
+    for (const formedWord of formedWords) {
+      let wordScore = 0;
+      let wordMultiplier = 1;
 
-      // Apply letter multipliers
-      if (cell.multiplier === 'DL') {
-        letterScore *= 2;
-      } else if (cell.multiplier === 'TL') {
-        letterScore *= 3;
+      for (const position of formedWord.positions) {
+        const cell = board[position.row]![position.col]!;
+        const tile = cell.tile!;
+        let letterScore = tile.value;
+
+        if (placementKeys.has(`${position.row},${position.col}`)) {
+          if (cell.multiplier === 'DL') {
+            letterScore *= 2;
+          } else if (cell.multiplier === 'TL') {
+            letterScore *= 3;
+          }
+
+          if (cell.multiplier === 'DW' || cell.multiplier === 'STAR') {
+            wordMultiplier *= 2;
+          } else if (cell.multiplier === 'TW') {
+            wordMultiplier *= 3;
+          }
+        }
+
+        wordScore += letterScore;
       }
 
-      // Apply word multipliers
-      if (cell.multiplier === 'DW' || cell.multiplier === 'STAR') {
-        wordMultiplier *= 2;
-      } else if (cell.multiplier === 'TW') {
-        wordMultiplier *= 3;
-      }
-
-      totalScore += letterScore;
+      totalScore += wordScore * wordMultiplier;
     }
 
-    totalScore *= wordMultiplier;
-
-    // Bonus for using all 7 tiles (bingo)
     if (placements.length === 7) {
       totalScore += 50;
     }
@@ -773,155 +1005,166 @@ export class WordTilesGame extends BaseGame {
     return totalScore;
   }
 
-  private getFormedWords(
+  private collectFormedWords(
     placements: Array<{ row: number; col: number; tile: WordsTile }>,
-    board: BoardCell[][]
-  ): string[] {
-    const words: string[] = [];
+    board: BoardCell[][],
+    allowSingleLetterWord: boolean
+  ): Array<{
+    word: string;
+    positions: Array<{ row: number; col: number }>;
+    direction: 'horizontal' | 'vertical';
+  }> {
+    const words: Array<{
+      word: string;
+      positions: Array<{ row: number; col: number }>;
+      direction: 'horizontal' | 'vertical';
+    }> = [];
+    const seen = new Set<string>();
+    const primaryDirection = this.getPrimaryDirection(placements);
 
-    if (placements.length === 0) {
+    if (placements.length === 1) {
+      const placement = placements[0]!;
+      const horizontalWord = this.readWordAt(placement.row, placement.col, board, 'horizontal');
+      const verticalWord = this.readWordAt(placement.row, placement.col, board, 'vertical');
+
+      this.addWordIfNew(words, seen, horizontalWord, false);
+      this.addWordIfNew(words, seen, verticalWord, false);
+
+      if (words.length === 0 && allowSingleLetterWord) {
+        this.addWordIfNew(words, seen, horizontalWord, true);
+      }
+
       return words;
     }
 
-    // Sort placements to determine direction
-    const sortedPlacements = [...placements].sort((a, b) => {
-      if (a.row !== b.row) {
-        return a.row - b.row;
-      }
-      return a.col - b.col;
-    });
-
-    const isHorizontal = sortedPlacements.every((p) => p.row === sortedPlacements[0]!.row);
-
-    if (isHorizontal) {
-      // Find the main horizontal word
-      const row = sortedPlacements[0]!.row;
-      const startCol = this.findWordStart(row, sortedPlacements[0]!.col, board, 'horizontal');
-      const endCol = this.findWordEnd(
-        row,
-        sortedPlacements[sortedPlacements.length - 1]!.col,
-        board,
-        'horizontal'
+    if (primaryDirection) {
+      this.addWordIfNew(
+        words,
+        seen,
+        this.readWordAt(placements[0]!.row, placements[0]!.col, board, primaryDirection),
+        allowSingleLetterWord
       );
 
-      if (endCol > startCol) {
-        const word = this.extractWord(row, startCol, endCol, board, 'horizontal');
-        if (word.length > 1) {
-          words.push(word);
-        }
-      }
-
-      // Check for perpendicular words formed by each placement
+      const perpendicularDirection = primaryDirection === 'horizontal' ? 'vertical' : 'horizontal';
       for (const placement of placements) {
-        const startRow = this.findWordStart(placement.row, placement.col, board, 'vertical');
-        const endRow = this.findWordEnd(placement.row, placement.col, board, 'vertical');
-
-        if (endRow > startRow) {
-          const word = this.extractWord(startRow, placement.col, endRow, board, 'vertical');
-          if (word.length > 1) {
-            words.push(word);
-          }
-        }
-      }
-    } else {
-      // Find the main vertical word
-      const col = sortedPlacements[0]!.col;
-      const startRow = this.findWordStart(sortedPlacements[0]!.row, col, board, 'vertical');
-      const endRow = this.findWordEnd(
-        sortedPlacements[sortedPlacements.length - 1]!.row,
-        col,
-        board,
-        'vertical'
-      );
-
-      if (endRow > startRow) {
-        const word = this.extractWord(startRow, col, endRow, board, 'vertical');
-        if (word.length > 1) {
-          words.push(word);
-        }
-      }
-
-      // Check for perpendicular words formed by each placement
-      for (const placement of placements) {
-        const startCol = this.findWordStart(placement.row, placement.col, board, 'horizontal');
-        const endCol = this.findWordEnd(placement.row, placement.col, board, 'horizontal');
-
-        if (endCol > startCol) {
-          const word = this.extractWord(placement.row, startCol, endCol, board, 'horizontal');
-          if (word.length > 1) {
-            words.push(word);
-          }
-        }
+        this.addWordIfNew(
+          words,
+          seen,
+          this.readWordAt(placement.row, placement.col, board, perpendicularDirection),
+          false
+        );
       }
     }
 
     return words;
   }
 
-  private findWordStart(
+  private addWordIfNew(
+    words: Array<{
+      word: string;
+      positions: Array<{ row: number; col: number }>;
+      direction: 'horizontal' | 'vertical';
+    }>,
+    seen: Set<string>,
+    formedWord:
+      | {
+          word: string;
+          positions: Array<{ row: number; col: number }>;
+          direction: 'horizontal' | 'vertical';
+        }
+      | null,
+    allowSingleLetterWord: boolean
+  ): void {
+    if (!formedWord) {
+      return;
+    }
+
+    if (formedWord.positions.length === 1 && !allowSingleLetterWord) {
+      return;
+    }
+
+    const first = formedWord.positions[0]!;
+    const last = formedWord.positions[formedWord.positions.length - 1]!;
+    const key = `${formedWord.direction}:${first.row},${first.col}:${last.row},${last.col}`;
+
+    if (seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    words.push(formedWord);
+  }
+
+  private getPrimaryDirection(
+    placements: Array<{ row: number; col: number; tile: WordsTile }>
+  ): 'horizontal' | 'vertical' | null {
+    if (placements.length <= 1) {
+      return null;
+    }
+
+    if (placements.every((placement) => placement.row === placements[0]!.row)) {
+      return 'horizontal';
+    }
+
+    if (placements.every((placement) => placement.col === placements[0]!.col)) {
+      return 'vertical';
+    }
+
+    return null;
+  }
+
+  private readWordAt(
     row: number,
     col: number,
     board: BoardCell[][],
     direction: 'horizontal' | 'vertical'
-  ): number {
-    if (direction === 'horizontal') {
-      while (col > 0 && board[row]![col - 1]!.tile) {
-        col--;
+  ):
+    | {
+        word: string;
+        positions: Array<{ row: number; col: number }>;
+        direction: 'horizontal' | 'vertical';
       }
-    } else {
-      while (row > 0 && board[row - 1]![col]!.tile) {
-        row--;
-      }
+    | null {
+    if (!board[row]![col]!.tile) {
+      return null;
     }
-    return direction === 'horizontal' ? col : row;
-  }
 
-  private findWordEnd(
-    row: number,
-    col: number,
-    board: BoardCell[][],
-    direction: 'horizontal' | 'vertical'
-  ): number {
-    if (direction === 'horizontal') {
-      while (col < this.BOARD_SIZE - 1 && board[row]![col + 1]!.tile) {
-        col++;
-      }
-    } else {
-      while (row < this.BOARD_SIZE - 1 && board[row + 1]![col]!.tile) {
-        row++;
-      }
+    const rowDelta = direction === 'vertical' ? 1 : 0;
+    const colDelta = direction === 'horizontal' ? 1 : 0;
+
+    let startRow = row;
+    let startCol = col;
+
+    while (
+      this.isValidPosition(startRow - rowDelta, startCol - colDelta) &&
+      board[startRow - rowDelta]![startCol - colDelta]!.tile
+    ) {
+      startRow -= rowDelta;
+      startCol -= colDelta;
     }
-    return direction === 'horizontal' ? col : row;
-  }
 
-  private extractWord(
-    row: number,
-    startPos: number,
-    endPos: number,
-    board: BoardCell[][],
-    direction: 'horizontal' | 'vertical'
-  ): string {
+    const positions: Array<{ row: number; col: number }> = [];
     let word = '';
+    let currentRow = startRow;
+    let currentCol = startCol;
 
-    if (direction === 'horizontal') {
-      for (let col = startPos; col <= endPos; col++) {
-        const tile = board[row]![col]!.tile;
-        if (tile) {
-          word += tile.letter === '_' ? 'A' : tile.letter; // Blank tiles default to 'A' for word formation
-        }
-      }
-    } else {
-      for (let r = startPos; r <= endPos; r++) {
-        const tile = board[r]![row]!.tile;
-        if (tile) {
-          word += tile.letter === '_' ? 'A' : tile.letter; // Blank tiles default to 'A' for word formation
-        }
-      }
+    while (this.isValidPosition(currentRow, currentCol) && board[currentRow]![currentCol]!.tile) {
+      positions.push({ row: currentRow, col: currentCol });
+      word += board[currentRow]![currentCol]!.tile!.letter;
+      currentRow += rowDelta;
+      currentCol += colDelta;
     }
 
-    return word;
+    return {
+      word,
+      positions,
+      direction,
+    };
   }
 
+  private isValidWord(word: string): boolean {
+    return this.activeLexicon.has(word.toUpperCase());
+  }
   private moveToNextPlayer(state: WordsState): void {
     const currentIndex = state.playerOrder.indexOf(state.currentPlayer);
     const nextIndex = (currentIndex + 1) % state.playerOrder.length;
@@ -974,6 +1217,7 @@ export class WordTilesGame extends BaseGame {
       lastMove: state.lastMove,
       gamePhase: state.gamePhase,
       firstMove: state.firstMove,
+      lexicon: this.getStateLexicon(state),
       tileBagSize: state.tileBag.length,
     };
   }
@@ -1008,4 +1252,6 @@ export function createWordTilesGame(
 ): WordTilesGame {
   return new WordTilesGame(gameId, database);
 }
+
+
 

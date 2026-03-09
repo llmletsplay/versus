@@ -10,8 +10,10 @@ Create this structure:
 
 ```text
 packages/my-game/
-|-- package.json
+|-- LICENSE
 |-- README.md
+|-- RULES.md
+|-- package.json
 |-- tsconfig.json
 `-- src/index.ts
 ```
@@ -31,7 +33,7 @@ Your `package.json` should publish built artifacts, not raw source:
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": ["dist", "README.md", "RULES.md", "LICENSE"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepack": "npm run build"
@@ -75,7 +77,6 @@ export class MyGame extends BaseGame<MyGameState> {
       players: ['player1', 'player2'],
       gameOver: false,
       winner: null,
-      status: 'active',
     };
 
     await this.persistState();
@@ -106,7 +107,7 @@ export class MyGame extends BaseGame<MyGameState> {
   }
 
   async getWinner(): Promise<string | null> {
-    return this.currentState.winner;
+    return this.currentState.winner ?? null;
   }
 
   getMetadata(): GameMetadata {
@@ -120,12 +121,16 @@ export class MyGame extends BaseGame<MyGameState> {
       categories: ['custom'],
     };
   }
+
+  async restoreFromDatabase(gameStateData: import('@versus/game-core').GameStateData): Promise<void> {
+    await super.restoreFromDatabase(gameStateData);
+  }
 }
 ```
 
-`applyMove()` should only mutate state. `BaseGame.makeMove()` handles validation flow, move history, undo snapshots, and persistence.
+`applyMove()` should only mutate state. `BaseGame.makeMove()` handles validation flow, history snapshots, undo state, and persistence.
 
-## 3. Add A Package README And tsconfig
+## 3. Add Package Docs And tsconfig
 
 `tsconfig.json` should emit package-local build output:
 
@@ -140,6 +145,12 @@ export class MyGame extends BaseGame<MyGameState> {
   "exclude": ["dist", "node_modules"]
 }
 ```
+
+Every package should ship:
+
+- `README.md` with install instructions and a quick-start example
+- `RULES.md` with the implemented objective, setup, turn flow, end conditions, and scope notes
+- `LICENSE`
 
 ## 4. Register The Package In The Server
 
@@ -157,17 +168,13 @@ Then add a compatibility shim at [`versus-server/src/games/my-game.ts`](../../ve
 export * from '@versus/my-game';
 ```
 
-## 5. Document The Rules
+## 5. Write Real Tests
 
-Add concise rules documentation in [`versus-server/docs/rules/`](../../versus-server/docs/rules) until package-local rules docs are introduced.
+Write tests against the public package-backed API, not private implementation details. Prefer:
 
-## 6. Write Real Tests
-
-Write tests against the public package-backed API, not private fields. Prefer:
-
-- real move sequences
-- `restoreFromDatabase()` for custom board-state setup
-- assertions about rule outcomes, not placeholder "validation exists" checks
+- full move sequences
+- `restoreFromDatabase()` helpers for custom board-state setup
+- assertions about real rule outcomes, not placeholder "validation exists" checks
 
 Example:
 
@@ -189,6 +196,17 @@ describe('MyGame', () => {
 });
 ```
 
+## 6. Sync Docs And Run Release Checks
+
+Use the root commands before calling a package ready:
+
+```bash
+npm run docs:packages
+npm run build:packages
+npm run check:packages
+npm run test:games
+```
+
 ## Checklist
 
 - [ ] package created in `packages/<game>`
@@ -196,5 +214,6 @@ describe('MyGame', () => {
 - [ ] game class extends `BaseGame`
 - [ ] server registry updated
 - [ ] compatibility shim added
-- [ ] rules documented
+- [ ] `README.md`, `RULES.md`, and `LICENSE` added
 - [ ] public-API tests added
+- [ ] `npm run check:packages` passes

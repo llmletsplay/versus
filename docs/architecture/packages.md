@@ -26,12 +26,13 @@ Every standalone package should provide:
 - a built `dist/` entrypoint
 - type declarations
 - a zero-config constructor that works with the in-memory provider
-- an optional database/provider parameter for host applications
+- an optional storage/provider parameter for host applications
+- package-local `README.md`, `RULES.md`, and `LICENSE` files
 - no dependency on server-only concerns
 
 Example:
 
-```ts
+```js
 import { PokerGame } from '@versus/poker';
 
 const game = new PokerGame('table-1');
@@ -45,9 +46,11 @@ const state = await game.getGameState();
 - [`versus-server/src/games/*.ts`](../../versus-server/src/games) re-export those packages for compatibility.
 - [`versus-server/src/core/base-game.ts`](../../versus-server/src/core/base-game.ts) re-exports `@versus/game-core`.
 
-## Tests And Rules
+## Tests, Rules, And Release Checks
 
-- Gameplay tests currently live in [`versus-server/tests/`](../../versus-server/tests).
-- Rules docs currently live in [`versus-server/docs/rules/`](../../versus-server/docs/rules).
+- Gameplay tests live in [`versus-server/tests/`](../../versus-server/tests) and exercise the package implementations.
+- Rules live beside each published package in `packages/<game>/RULES.md`.
+- `npm run check:packages` validates the publish contract so releases stay clean.
 
-Because the server uses the packages directly, those tests still exercise the package implementations rather than a separate copy.
+Because the server uses the packages directly, the shared game suite still verifies the package behavior rather than a separate copy.
+

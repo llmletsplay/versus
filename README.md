@@ -1,4 +1,4 @@
-# Versus
+﻿# Versus
 
 Versus is a package-first multiplayer game platform.
 
@@ -50,7 +50,7 @@ versus/
 
 ## Using A Game Package
 
-```ts
+```js
 import { ChessGame } from '@versus/chess';
 
 const game = new ChessGame('demo-chess');
@@ -58,7 +58,7 @@ await game.initializeGame();
 const state = await game.getGameState();
 ```
 
-Each game package ships its own `dist/` build, type declarations, and an optional storage hook for consumers that want to swap out the default in-memory provider.
+Each game package ships its own `dist/` build, type declarations, and package-local `README.md`, `RULES.md`, and `LICENSE` files. Consumers can use the default in-memory provider or inject their own storage implementation.
 
 ## Development
 
@@ -74,7 +74,9 @@ make build
 Package-only release prep:
 
 ```bash
+npm run docs:packages
 npm run build:packages
+npm run check:packages
 npm run test:games
 ```
 
@@ -83,6 +85,7 @@ The server test suite in [`versus-server/tests/`](./versus-server/tests) exercis
 ## Documentation
 
 - [Packages Overview](./docs/architecture/packages.md)
+- [Games Engine](./docs/architecture/games.md)
 - [Architecture Overview](./docs/architecture/overview.md)
 - [Adding Games](./docs/contributing/adding-games.md)
 - [Wagering API (Experimental)](./docs/api/wagering.md)
