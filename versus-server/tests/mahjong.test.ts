@@ -932,6 +932,472 @@ describe('MahjongGame', () => {
     });
   });
 
+  describe('session progression', () => {
+    beforeEach(async () => {
+      await game.initializeGame({ playerCount: 4 });
+    });
+
+    it('should accumulate session scores from a winning hand', async () => {
+      const state = getInternalState(game);
+      const discardTile = createHonorTile('red', 'session-red-win');
+
+      state.hands.player1 = [discardTile, ...createNonWinningHand('session-p1', 13)];
+      state.hands.player2 = [
+        createSuitTile('bamboo', 4, 'session-b4-1'),
+        createSuitTile('bamboo', 4, 'session-b4-2'),
+        createSuitTile('bamboo', 4, 'session-b4-3'),
+        createSuitTile('character', 5, 'session-c5-1'),
+        createSuitTile('character', 5, 'session-c5-2'),
+        createSuitTile('character', 5, 'session-c5-3'),
+        createSuitTile('dot', 6, 'session-d6-1'),
+        createSuitTile('dot', 6, 'session-d6-2'),
+        createSuitTile('dot', 6, 'session-d6-3'),
+        createSuitTile('character', 8, 'session-c8-1'),
+        createSuitTile('character', 8, 'session-c8-2'),
+        createHonorTile('red', 'session-red-1'),
+        createHonorTile('red', 'session-red-2'),
+      ];
+      state.hands.player3 = createNonWinningHand('session-p3');
+      state.hands.player4 = createNonWinningHand('session-p4');
+      state.currentPlayer = 'player1';
+      state.discardPile = [];
+      state.lastDiscard = null;
+      state.lastDiscardPlayer = null;
+      state.claimWindow = null;
+
+      await game.makeMove({ player: 'player1', action: 'discard', tile: discardTile });
+      await game.makeMove({ player: 'player2', action: 'declare_win' });
+
+      expect(state.sessionScores.player2).toBe(34);
+      expect(state.sessionScores.player1).toBe(-18);
+      expect(state.sessionScores.player3).toBe(-8);
+      expect(state.sessionScores.player4).toBe(-8);
+    });
+
+    it('should rotate dealer and seat winds when starting the next hand', async () => {
+      const state = getInternalState(game);
+      const discardTile = createHonorTile('red', 'next-hand-red');
+
+      state.hands.player1 = [discardTile, ...createNonWinningHand('next-p1', 13)];
+      state.hands.player2 = [
+        createSuitTile('bamboo', 4, 'next-b4-1'),
+        createSuitTile('bamboo', 4, 'next-b4-2'),
+        createSuitTile('bamboo', 4, 'next-b4-3'),
+        createSuitTile('character', 5, 'next-c5-1'),
+        createSuitTile('character', 5, 'next-c5-2'),
+        createSuitTile('character', 5, 'next-c5-3'),
+        createSuitTile('dot', 6, 'next-d6-1'),
+        createSuitTile('dot', 6, 'next-d6-2'),
+        createSuitTile('dot', 6, 'next-d6-3'),
+        createSuitTile('character', 8, 'next-c8-1'),
+        createSuitTile('character', 8, 'next-c8-2'),
+        createHonorTile('red', 'next-red-1'),
+        createHonorTile('red', 'next-red-2'),
+      ];
+      state.hands.player3 = createNonWinningHand('next-p3');
+      state.hands.player4 = createNonWinningHand('next-p4');
+      state.currentPlayer = 'player1';
+      state.discardPile = [];
+      state.lastDiscard = null;
+      state.lastDiscardPlayer = null;
+      state.claimWindow = null;
+
+      await game.makeMove({ player: 'player1', action: 'discard', tile: discardTile });
+      await game.makeMove({ player: 'player2', action: 'declare_win' });
+
+      const nextState = await game.startNextHand();
+
+      expect(nextState.roundNumber).toBe(2);
+      expect(nextState.dealer).toBe('player2');
+      expect(nextState.currentPlayer).toBe('player2');
+      expect(nextState.prevalentWind).toBe('east');
+      expect(nextState.seatWinds.player2).toBe('east');
+      expect(nextState.seatWinds.player3).toBe('south');
+      expect(nextState.seatWinds.player4).toBe('west');
+      expect(nextState.seatWinds.player1).toBe('north');
+      expect(nextState.sessionScores.player2).toBe(34);
+      expect(nextState.hands.player2.tileCount).toBe(14);
+      expect(nextState.hands.player1.tileCount).toBe(13);
+      expect(nextState.gameOver).toBe(false);
+      expect(nextState.gamePhase).toBe('playing');
+    });
+  });
+
+  describe('official endgame bonuses', () => {
+    beforeEach(async () => {
+      await game.initializeGame({ playerCount: 4 });
+    });
+
+    it('should end in a draw instead of allowing chi after the last live-wall discard', async () => {
+      const state = getInternalState(game);
+      const discardTile = createSuitTile('bamboo', 5, 'last-tile-discard');
+      const liveWallTile = createHonorTile('white', 'last-live-wall-tile');
+
+      state.hands.player1 = [discardTile, ...createNonWinningHand('last-p1', 12)];
+      state.hands.player2 = [
+        createSuitTile('bamboo', 4, 'last-p2-b4'),
+        createSuitTile('bamboo', 6, 'last-p2-b6'),
+        ...createNonWinningHand('last-p2', 11),
+      ];
+      state.hands.player3 = createNonWinningHand('last-p3');
+      state.hands.player4 = createNonWinningHand('last-p4');
+      state.wall = [
+        liveWallTile,
+        ...Array.from({ length: 14 }, (_, index) =>
+          createSuitTile('character', (index % 9) + 1, 'last-dead-' + index)
+        ),
+      ];
+      state.currentPlayer = 'player1';
+      state.discardPile = [];
+      state.lastDiscard = null;
+      state.lastDiscardPlayer = null;
+      state.claimWindow = null;
+      state.lastTilePointReached = false;
+      state.lastDrawSource = null;
+      state.supplementalDrawsUsed = 0;
+      state.gameOver = false;
+      state.winner = null;
+      state.gamePhase = 'playing';
+
+      await game.makeMove({ player: 'player1', action: 'draw' });
+      expect(state.lastTilePointReached).toBe(true);
+
+      await game.makeMove({ player: 'player1', action: 'discard', tile: discardTile });
+
+      expect(state.claimWindow).toBeNull();
+      expect(state.gameOver).toBe(true);
+      expect(state.winner).toBeNull();
+      expect(state.lastAction?.action).toBe('draw_game');
+    });
+
+    it('should score Last Tile Draw without adding Self Drawn', async () => {
+      const state = getInternalState(game);
+
+      state.hands.player1 = [
+        createSuitTile('bamboo', 1, 'ltd-b1-1'),
+        createSuitTile('bamboo', 1, 'ltd-b1-2'),
+        createSuitTile('bamboo', 3, 'ltd-b3-1'),
+        createSuitTile('bamboo', 3, 'ltd-b3-2'),
+        createSuitTile('character', 5, 'ltd-c5-1'),
+        createSuitTile('character', 5, 'ltd-c5-2'),
+        createSuitTile('character', 7, 'ltd-c7-1'),
+        createSuitTile('character', 7, 'ltd-c7-2'),
+        createSuitTile('dot', 2, 'ltd-d2-1'),
+        createSuitTile('dot', 2, 'ltd-d2-2'),
+        createHonorTile('east', 'ltd-east-1'),
+        createHonorTile('east', 'ltd-east-2'),
+        createHonorTile('white', 'ltd-white-1'),
+      ];
+      state.hands.player2 = createNonWinningHand('ltd-p2');
+      state.hands.player3 = createNonWinningHand('ltd-p3');
+      state.hands.player4 = createNonWinningHand('ltd-p4');
+      state.wall = [
+        createHonorTile('white', 'ltd-white-2'),
+        ...Array.from({ length: 14 }, (_, index) =>
+          createSuitTile('dot', (index % 9) + 1, 'ltd-dead-' + index)
+        ),
+      ];
+      state.currentPlayer = 'player1';
+      state.discardPile = [];
+      state.lastDiscard = null;
+      state.lastDiscardPlayer = null;
+      state.claimWindow = null;
+      state.lastTilePointReached = false;
+      state.lastDrawSource = null;
+      state.supplementalDrawsUsed = 0;
+      state.gameOver = false;
+      state.winner = null;
+      state.gamePhase = 'playing';
+
+      await game.makeMove({ player: 'player1', action: 'draw' });
+      await game.makeMove({ player: 'player1', action: 'declare_win' });
+
+      expect(state.winningResult?.breakdown).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Seven Pairs', fan: 24 }),
+          expect.objectContaining({ name: 'Last Tile Draw', fan: 8 }),
+        ])
+      );
+      expect(state.winningResult?.breakdown.map((item: any) => item.name)).not.toContain('Self Drawn');
+    });
+
+    it('should score Out With Replacement Tile without adding Self Drawn', async () => {
+      const state = getInternalState(game);
+      const kanTile = createHonorTile('red', 'owrt-red-1');
+
+      state.hands.player1 = [
+        kanTile,
+        createHonorTile('red', 'owrt-red-2'),
+        createHonorTile('red', 'owrt-red-3'),
+        createHonorTile('red', 'owrt-red-4'),
+        createSuitTile('bamboo', 4, 'owrt-b4-1'),
+        createSuitTile('bamboo', 4, 'owrt-b4-2'),
+        createSuitTile('bamboo', 4, 'owrt-b4-3'),
+        createSuitTile('character', 5, 'owrt-c5-1'),
+        createSuitTile('character', 5, 'owrt-c5-2'),
+        createSuitTile('character', 5, 'owrt-c5-3'),
+        createSuitTile('character', 8, 'owrt-c8-1'),
+        createSuitTile('character', 8, 'owrt-c8-2'),
+        createSuitTile('dot', 6, 'owrt-d6-1'),
+        createSuitTile('dot', 6, 'owrt-d6-2'),
+      ];
+      state.hands.player2 = createNonWinningHand('owrt-p2');
+      state.hands.player3 = createNonWinningHand('owrt-p3');
+      state.hands.player4 = createNonWinningHand('owrt-p4');
+      state.melds = { player1: [], player2: [], player3: [], player4: [] };
+      state.wall = [
+        ...Array.from({ length: 14 }, (_, index) =>
+          createSuitTile('bamboo', (index % 9) + 1, 'owrt-fill-' + index)
+        ),
+        createSuitTile('dot', 6, 'owrt-d6-3'),
+      ];
+      state.currentPlayer = 'player1';
+      state.discardPile = [];
+      state.lastDiscard = null;
+      state.lastDiscardPlayer = null;
+      state.claimWindow = null;
+      state.lastTilePointReached = false;
+      state.lastDrawSource = null;
+      state.supplementalDrawsUsed = 0;
+      state.gameOver = false;
+      state.winner = null;
+      state.gamePhase = 'playing';
+
+      await game.makeMove({ player: 'player1', action: 'declare_kan', tile: kanTile });
+      await game.makeMove({ player: 'player1', action: 'declare_win' });
+
+      expect(state.winningResult?.breakdown).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Out With Replacement Tile', fan: 8 }),
+          expect.objectContaining({ name: 'All Pungs', fan: 6 }),
+          expect.objectContaining({ name: 'Dragon Pung', fan: 2 }),
+        ])
+      );
+      expect(state.winningResult?.breakdown.map((item: any) => item.name)).not.toContain('Self Drawn');
+    });
+  });
+
+  describe('robbing the kong', () => {
+    beforeEach(async () => {
+      await game.initializeGame({ playerCount: 4 });
+    });
+
+    it('should let another player win by robbing an added kong', async () => {
+      const state = getInternalState(game);
+      const ponTiles = [
+        createHonorTile('white', 'rk-pon-1'),
+        createHonorTile('white', 'rk-pon-2'),
+        createHonorTile('white', 'rk-pon-3'),
+      ];
+      const addedTile = createHonorTile('white', 'rk-added-white');
+
+      state.hands.player1 = [addedTile, ...createNonWinningHand('rk-p1-fill', 10)];
+      state.hands.player2 = [
+        createSuitTile('bamboo', 1, 'rk-b1-1'),
+        createSuitTile('bamboo', 1, 'rk-b1-2'),
+        createSuitTile('bamboo', 3, 'rk-b3-1'),
+        createSuitTile('bamboo', 3, 'rk-b3-2'),
+        createSuitTile('character', 5, 'rk-c5-1'),
+        createSuitTile('character', 5, 'rk-c5-2'),
+        createSuitTile('character', 7, 'rk-c7-1'),
+        createSuitTile('character', 7, 'rk-c7-2'),
+        createSuitTile('dot', 2, 'rk-d2-1'),
+        createSuitTile('dot', 2, 'rk-d2-2'),
+        createHonorTile('east', 'rk-east-1'),
+        createHonorTile('east', 'rk-east-2'),
+        createHonorTile('white', 'rk-white-1'),
+      ];
+      state.hands.player3 = createNonWinningHand('rk-p3');
+      state.hands.player4 = createNonWinningHand('rk-p4');
+      state.melds = { player1: [ponTiles], player2: [], player3: [], player4: [] };
+      state.meldStates = { player1: [], player2: [], player3: [], player4: [] };
+      state.wall = [createSuitTile('dot', 9, 'rk-supplemental')];
+      state.currentPlayer = 'player1';
+      state.discardPile = [];
+      state.lastDiscard = null;
+      state.lastDiscardPlayer = null;
+      state.claimWindow = null;
+      state.pendingAddedKong = null;
+      state.lastTilePointReached = false;
+      state.lastDrawSource = null;
+      state.supplementalDrawsUsed = 0;
+      state.gameOver = false;
+      state.winner = null;
+      state.gamePhase = 'playing';
+
+      await game.makeMove({ player: 'player1', action: 'declare_kan', tile: addedTile });
+
+      expect(state.claimWindow?.source).toBe('rob_kong');
+      expect(state.currentPlayer).toBe('player2');
+
+      await game.makeMove({ player: 'player2', action: 'declare_win' });
+
+      expect(state.gameOver).toBe(true);
+      expect(state.winner).toBe('player2');
+      expect(state.winningResult?.breakdown).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Seven Pairs', fan: 24 }),
+          expect.objectContaining({ name: 'Robbing The Kong', fan: 8 }),
+        ])
+      );
+      expect(state.melds.player1[0]).toHaveLength(3);
+    });
+
+    it('should complete the added kong if every robbing player passes', async () => {
+      const state = getInternalState(game);
+      const ponTiles = [
+        createHonorTile('white', 'rkp-pon-1'),
+        createHonorTile('white', 'rkp-pon-2'),
+        createHonorTile('white', 'rkp-pon-3'),
+      ];
+      const addedTile = createHonorTile('white', 'rkp-added-white');
+      const supplementalTile = createSuitTile('dot', 9, 'rkp-supplemental');
+
+      state.hands.player1 = [addedTile, ...createNonWinningHand('rkp-p1-fill', 10)];
+      state.hands.player2 = [
+        createSuitTile('bamboo', 1, 'rkp-b1-1'),
+        createSuitTile('bamboo', 1, 'rkp-b1-2'),
+        createSuitTile('bamboo', 3, 'rkp-b3-1'),
+        createSuitTile('bamboo', 3, 'rkp-b3-2'),
+        createSuitTile('character', 5, 'rkp-c5-1'),
+        createSuitTile('character', 5, 'rkp-c5-2'),
+        createSuitTile('character', 7, 'rkp-c7-1'),
+        createSuitTile('character', 7, 'rkp-c7-2'),
+        createSuitTile('dot', 2, 'rkp-d2-1'),
+        createSuitTile('dot', 2, 'rkp-d2-2'),
+        createHonorTile('east', 'rkp-east-1'),
+        createHonorTile('east', 'rkp-east-2'),
+        createHonorTile('white', 'rkp-white-1'),
+      ];
+      state.hands.player3 = createNonWinningHand('rkp-p3');
+      state.hands.player4 = createNonWinningHand('rkp-p4');
+      state.melds = { player1: [ponTiles], player2: [], player3: [], player4: [] };
+      state.meldStates = { player1: [], player2: [], player3: [], player4: [] };
+      state.wall = [supplementalTile];
+      state.currentPlayer = 'player1';
+      state.discardPile = [];
+      state.lastDiscard = null;
+      state.lastDiscardPlayer = null;
+      state.claimWindow = null;
+      state.pendingAddedKong = null;
+      state.lastTilePointReached = false;
+      state.lastDrawSource = null;
+      state.supplementalDrawsUsed = 0;
+      state.gameOver = false;
+      state.winner = null;
+      state.gamePhase = 'playing';
+
+      await game.makeMove({ player: 'player1', action: 'declare_kan', tile: addedTile });
+      await game.makeMove({ player: 'player2', action: 'pass_claim' });
+
+      expect(state.claimWindow).toBeNull();
+      expect(state.pendingAddedKong).toBeNull();
+      expect(state.melds.player1[0]).toHaveLength(4);
+      expect(state.hands.player1.some((tile: any) => tile.id === supplementalTile.id)).toBe(true);
+      expect(state.currentPlayer).toBe('player1');
+      expect(state.lastAction?.action).toBe('declare_kan');
+    });
+  });
+
+  describe('special closed hands', () => {
+    beforeEach(async () => {
+      await game.initializeGame({ playerCount: 4 });
+    });
+
+    it('should score Thirteen Orphans as an 88-fan hand', async () => {
+      const state = getInternalState(game);
+
+      state.hands.player1 = [
+        createSuitTile('bamboo', 1, 'to-b1'),
+        createSuitTile('bamboo', 9, 'to-b9'),
+        createSuitTile('character', 1, 'to-c1'),
+        createSuitTile('character', 9, 'to-c9'),
+        createSuitTile('dot', 1, 'to-d1'),
+        createSuitTile('dot', 9, 'to-d9'),
+        createHonorTile('east', 'to-east'),
+        createHonorTile('south', 'to-south'),
+        createHonorTile('west', 'to-west'),
+        createHonorTile('north', 'to-north'),
+        createHonorTile('red', 'to-red'),
+        createHonorTile('green', 'to-green'),
+        createHonorTile('white', 'to-white-1'),
+        createHonorTile('white', 'to-white-2'),
+      ];
+
+      await game.makeMove({ player: 'player1', action: 'declare_win' });
+
+      expect(state.winningResult?.totalFan).toBe(92);
+      expect(state.winningResult?.breakdown).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Thirteen Orphans', fan: 88 }),
+          expect.objectContaining({ name: 'Fully Concealed Hand', fan: 4 }),
+        ])
+      );
+    });
+
+    it('should score Nine Gates as an 88-fan hand', async () => {
+      const state = getInternalState(game);
+
+      state.hands.player1 = [
+        createSuitTile('bamboo', 1, 'ng-b1-1'),
+        createSuitTile('bamboo', 1, 'ng-b1-2'),
+        createSuitTile('bamboo', 1, 'ng-b1-3'),
+        createSuitTile('bamboo', 2, 'ng-b2'),
+        createSuitTile('bamboo', 3, 'ng-b3'),
+        createSuitTile('bamboo', 4, 'ng-b4'),
+        createSuitTile('bamboo', 5, 'ng-b5-1'),
+        createSuitTile('bamboo', 5, 'ng-b5-2'),
+        createSuitTile('bamboo', 6, 'ng-b6'),
+        createSuitTile('bamboo', 7, 'ng-b7'),
+        createSuitTile('bamboo', 8, 'ng-b8'),
+        createSuitTile('bamboo', 9, 'ng-b9-1'),
+        createSuitTile('bamboo', 9, 'ng-b9-2'),
+        createSuitTile('bamboo', 9, 'ng-b9-3'),
+      ];
+
+      await game.makeMove({ player: 'player1', action: 'declare_win' });
+
+      expect(state.winningResult?.totalFan).toBe(92);
+      expect(state.winningResult?.breakdown).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Nine Gates', fan: 88 }),
+          expect.objectContaining({ name: 'Fully Concealed Hand', fan: 4 }),
+        ])
+      );
+    });
+
+    it('should score Seven Shifted Pairs as an 88-fan hand', async () => {
+      const state = getInternalState(game);
+
+      state.hands.player1 = [
+        createSuitTile('bamboo', 1, 'ssp-b1-1'),
+        createSuitTile('bamboo', 1, 'ssp-b1-2'),
+        createSuitTile('bamboo', 2, 'ssp-b2-1'),
+        createSuitTile('bamboo', 2, 'ssp-b2-2'),
+        createSuitTile('bamboo', 3, 'ssp-b3-1'),
+        createSuitTile('bamboo', 3, 'ssp-b3-2'),
+        createSuitTile('bamboo', 4, 'ssp-b4-1'),
+        createSuitTile('bamboo', 4, 'ssp-b4-2'),
+        createSuitTile('bamboo', 5, 'ssp-b5-1'),
+        createSuitTile('bamboo', 5, 'ssp-b5-2'),
+        createSuitTile('bamboo', 6, 'ssp-b6-1'),
+        createSuitTile('bamboo', 6, 'ssp-b6-2'),
+        createSuitTile('bamboo', 7, 'ssp-b7-1'),
+        createSuitTile('bamboo', 7, 'ssp-b7-2'),
+      ];
+
+      await game.makeMove({ player: 'player1', action: 'declare_win' });
+
+      expect(state.winningResult?.totalFan).toBe(92);
+      expect(state.winningResult?.breakdown).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Seven Shifted Pairs', fan: 88 }),
+          expect.objectContaining({ name: 'Fully Concealed Hand', fan: 4 }),
+        ])
+      );
+    });
+  });
+
   describe('tile management', () => {
     beforeEach(async () => {
       await game.initializeGame({ playerCount: 4 });
@@ -1046,6 +1512,7 @@ describe('MahjongGame', () => {
       expect(state.supplementalDrawsUsed).toBe(0);
       expect(state.prevalentWind).toBe('east');
       expect(state.seatWinds.player1).toBe('east');
+      expect(state.sessionScores).toEqual({ player1: 0, player2: 0, player3: 0, player4: 0 });
       expect(state.winningResult).toBeNull();
       expect(state.discardPile).toBeDefined();
 

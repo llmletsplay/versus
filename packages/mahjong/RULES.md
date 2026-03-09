@@ -21,21 +21,21 @@ Complete a Chinese Official winning hand and outscore the table through fan-base
 
 - If you hold 13 effective tiles on your turn, draw from the live wall.
 - If you hold 14 effective tiles across your concealed hand and open melds, discard one tile.
-- After a discard, eligible opponents may declare win, claim pon, claim kan, or the next player may claim chi before the next draw.
-- Players may declare concealed or added kan on their own turn, then immediately take a supplemental draw from the dead-wall reserve.
+- After a discard, eligible opponents may declare win, claim pon, claim kan, or the next player may claim chi before the next draw unless the last live-wall tile has already been drawn.
+- Players may declare concealed or added kan on their own turn, with robbing-the-kong windows on added kan and supplemental draws from the dead-wall reserve.
 - A winning declaration must satisfy both hand structure and the Chinese Official 8-fan minimum implemented by the engine.
 
 ## End Of Game
 
-- The engine accepts standard four-meld-plus-pair hands and seven pairs as winning hands.
-- Winning state includes a fan breakdown, total fan, and per-player payment obligations.
-- If the live wall is exhausted after claim resolution, the round ends in an exhaustive draw.
+- The engine accepts standard hands, seven pairs, thirteen orphans, nine gates, and seven shifted pairs as winning hands.
+- Winning state includes a fan breakdown, total fan, per-player payment obligations, and running session scores.
+- Finished hands can continue through startNextHand(), which rotates dealer and seat winds while advancing the prevalent wind by round.
 ## Engine Notes
 
 - Open melds are tracked in state and reduce the concealed tiles needed for later winning-hand validation.
 - Kan melds count as a single meld for turn-flow and hand-validation purposes while still preserving the fourth tile in state.
-- The current scoring surface includes common Chinese Official patterns such as All Pungs, Full Flush, Seven Pairs, dragon pungs, wind pungs, concealed-hand bonuses, and terminal-or-honor pung bonuses.
+- The implemented scoring surface now includes core Chinese Official patterns plus last-tile bonuses, out-with-replacement-tile, robbing the kong, and several top-tier closed hands.
 
 ## Scope Notes
 
-- The package now targets Chinese Official scoring, but it does not yet cover the full official fan catalog or multi-round wind progression.
+- The package now supports multi-hand dealer/prevalent-wind progression, but it still does not cover the full official fan catalog or side-settlement cases such as kong bonuses and exhaustive-draw ready-hand payments.

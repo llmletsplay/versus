@@ -153,6 +153,8 @@ export class BlackjackGame extends BaseGame {
       this.finishGame(state);
     } else if (this.isBlackjack(state.playerHands[0]!)) {
       this.finishGame(state);
+    } else if (this.isBlackjack(state.dealerHand)) {
+      this.finishGame(state);
     }
   }
 

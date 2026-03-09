@@ -40,6 +40,20 @@ await game.initializeGame();
 const state = await game.getGameState();
 ```
 
+## Using In Your Own App
+
+A host app only needs the package import, a game id, and whatever move data the game expects:
+
+```js
+import { ChessGame } from '@versus/chess';
+
+const game = new ChessGame('demo');
+await game.initializeGame();
+const state = await game.getGameState();
+```
+
+For more realistic copy-pasteable snippets, see [examples/README.md](../../examples/README.md).
+
 ## How The Server Consumes Packages
 
 - [`versus-server/src/games/index.ts`](../../versus-server/src/games/index.ts) imports package classes directly.

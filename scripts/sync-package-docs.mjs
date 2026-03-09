@@ -222,7 +222,7 @@ const docs = {
     notes: ['Pass-direction rotation and moon-shot scoring are part of the implemented engine surface.'],
   },
   mahjong: {
-    summary: 'Drop-in Chinese Official Mahjong engine with 8-fan scoring, discard claims, and kan flow.',
+    summary: 'Drop-in Chinese Official Mahjong engine with 8-fan scoring, session progression, discard claims, and kan flow.',
     objective: 'Complete a Chinese Official winning hand and outscore the table through fan-based payments.',
     players: '2 to 4 players.',
     setup: [
@@ -234,22 +234,23 @@ const docs = {
     turn: [
       'If you hold 13 effective tiles on your turn, draw from the live wall.',
       'If you hold 14 effective tiles across your concealed hand and open melds, discard one tile.',
-      'After a discard, eligible opponents may declare win, claim pon, claim kan, or the next player may claim chi before the next draw.',
-      'Players may declare concealed or added kan on their own turn, then immediately take a supplemental draw from the dead-wall reserve.',
+      'After a discard, eligible opponents may declare win, claim pon, claim kan, or the next player may claim chi before the next draw unless the last live-wall tile has already been drawn.',
+      'Players may declare concealed or added kan on their own turn, with robbing-the-kong windows on added kan and supplemental draws from the dead-wall reserve.',
       'A winning declaration must satisfy both hand structure and the Chinese Official 8-fan minimum implemented by the engine.',
     ],
     end: [
-      'The engine accepts standard four-meld-plus-pair hands and seven pairs as winning hands.',
-      'Winning state includes a fan breakdown, total fan, and per-player payment obligations.',
-      'If the live wall is exhausted after claim resolution, the round ends in an exhaustive draw.',
+      'The engine accepts standard hands, seven pairs, thirteen orphans, nine gates, and seven shifted pairs as winning hands.',
+      'Winning state includes a fan breakdown, total fan, per-player payment obligations, and running session scores.',
+      'Finished hands can continue through startNextHand(), which rotates dealer and seat winds while advancing the prevalent wind by round.',
     ],
     notes: [
       'Open melds are tracked in state and reduce the concealed tiles needed for later winning-hand validation.',
       'Kan melds count as a single meld for turn-flow and hand-validation purposes while still preserving the fourth tile in state.',
-      'The current scoring surface includes common Chinese Official patterns such as All Pungs, Full Flush, Seven Pairs, dragon pungs, wind pungs, concealed-hand bonuses, and terminal-or-honor pung bonuses.',
+      'The implemented scoring surface now includes core Chinese Official patterns plus last-tile bonuses, out-with-replacement-tile, robbing the kong, and several top-tier closed hands.',
     ],
+    api: ['startNextHand()'],
     scopeNotes: [
-      'The package now targets Chinese Official scoring, but it does not yet cover the full official fan catalog or multi-round wind progression.',
+      'The package now supports multi-hand dealer/prevalent-wind progression, but it still does not cover the full official fan catalog or side-settlement cases such as kong bonuses and exhaustive-draw ready-hand payments.',
     ],
   },
   mancala: {
@@ -424,10 +425,18 @@ function renderGameReadme(manifest, className, doc) {
   const scope = doc.scopeNotes?.length
     ? `\n## Scope Notes\n\n${bullets(doc.scopeNotes)}\n`
     : '';
+  const api = [
+    `new ${className}(gameId, database?)`,
+    'initializeGame(config?)',
+    'validateMove(move)',
+    'makeMove(move)',
+    'getGameState()',
+    ...(doc.api ?? []),
+  ];
+  const apiSection = bullets(api.map((entry) => `\`${entry}\``));
 
-  return `# ${manifest.name}\n\n${doc.summary}\n\n## Install\n\n\`\`\`bash\nnpm install ${manifest.name}\n\`\`\`\n\n## Quick Start\n\n\`\`\`js\nimport { ${className} } from '${manifest.name}';\n\nconst game = new ${className}('demo');\nawait game.initializeGame();\nconst state = await game.getGameState();\n\nconsole.log(state.currentPlayer);\n\`\`\`\n\n## What You Get\n\n- ESM build output from \`dist/\`\n- Type declarations for TS consumers\n- In-memory storage by default, with optional database injection when you need persistence\n- Package-local rules in [RULES.md](./RULES.md)\n\n## Public API\n\n- \`new ${className}(gameId, database?)\`\n- \`initializeGame(config?)\`\n- \`validateMove(move)\`\n- \`makeMove(move)\`\n- \`getGameState()\`\n\n## Rules\n\nSee [RULES.md](./RULES.md) for the implemented objective, setup, turn flow, end conditions, and engine notes.\n${scope}\n## Testing\n\nThis package is exercised by the shared game-engine test suite that the server integration layer also consumes.\n`;
+  return `# ${manifest.name}\n\n${doc.summary}\n\n## Install\n\n\`\`\`bash\nnpm install ${manifest.name}\n\`\`\`\n\n## Quick Start\n\n\`\`\`js\nimport { ${className} } from '${manifest.name}';\n\nconst game = new ${className}('demo');\nawait game.initializeGame();\nconst state = await game.getGameState();\n\nconsole.log(state.currentPlayer);\n\`\`\`\n\n## What You Get\n\n- ESM build output from \`dist/\`\n- Type declarations for TS consumers\n- In-memory storage by default, with optional database injection when you need persistence\n- Package-local rules in [RULES.md](./RULES.md)\n\n## Public API\n\n${apiSection}\n\n## Rules\n\nSee [RULES.md](./RULES.md) for the implemented objective, setup, turn flow, end conditions, and engine notes.\n${scope}\n## Testing\n\nThis package is exercised by the shared game-engine test suite that the server integration layer also consumes.\n`;
 }
-
 function renderGameRules(manifest, doc) {
   const notes = doc.notes?.length ? `\n## Engine Notes\n\n${bullets(doc.notes)}\n` : '';
   const scope = doc.scopeNotes?.length ? `\n## Scope Notes\n\n${bullets(doc.scopeNotes)}\n` : '';
@@ -474,4 +483,5 @@ for (const entry of entries) {
 }
 
 console.log('Package README, RULES, LICENSE, and manifest files are synchronized.');
+
 

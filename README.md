@@ -60,6 +60,10 @@ const state = await game.getGameState();
 
 Each game package ships its own `dist/` build, type declarations, and package-local `README.md`, `RULES.md`, and `LICENSE` files. Consumers can use the default in-memory provider or inject their own storage implementation.
 
+## Examples
+
+See [examples/README.md](./examples/README.md) for plain-JS package examples covering zero-config setup, shared storage and restore flows, custom word lexicons, and standalone Mahjong initialization.
+
 ## Development
 
 ```bash

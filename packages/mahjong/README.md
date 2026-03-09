@@ -1,6 +1,6 @@
 # @versus/mahjong
 
-Drop-in Chinese Official Mahjong engine with 8-fan scoring, discard claims, and kan flow.
+Drop-in Chinese Official Mahjong engine with 8-fan scoring, session progression, discard claims, and kan flow.
 
 ## Install
 
@@ -34,6 +34,7 @@ console.log(state.currentPlayer);
 - `validateMove(move)`
 - `makeMove(move)`
 - `getGameState()`
+- `startNextHand()`
 
 ## Rules
 
@@ -41,7 +42,7 @@ See [RULES.md](./RULES.md) for the implemented objective, setup, turn flow, end 
 
 ## Scope Notes
 
-- The package now targets Chinese Official scoring, but it does not yet cover the full official fan catalog or multi-round wind progression.
+- The package now supports multi-hand dealer/prevalent-wind progression, but it still does not cover the full official fan catalog or side-settlement cases such as kong bonuses and exhaustive-draw ready-hand payments.
 
 ## Testing
 
