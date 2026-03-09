@@ -9,7 +9,7 @@ Reusable packages live here:
 - `@llmletsplay/versus-game-core`
 - `@llmletsplay/versus-<game>`
 
-Platform-only concerns stay in [`versus-server/`](../versus-server):
+Application-only concerns stay in `versus-platform`:
 
 - auth
 - rooms
@@ -41,13 +41,13 @@ await game.initializeGame();
 
 Repository-level examples live in [examples/README.md](../examples/README.md) and show zero-config setup, shared storage and restore, custom lexicon configuration, and standalone Mahjong initialization.
 
-## How The Server Uses Them
+## How The Internal Harness Uses Them
 
-- [`versus-server/src/games/index.ts`](../versus-server/src/games/index.ts) registers package classes directly.
-- [`versus-server/src/games/*.ts`](../versus-server/src/games) are compatibility shims for legacy imports.
-- [`versus-server/src/core/base-game.ts`](../versus-server/src/core/base-game.ts) re-exports the shared core package.
+- [`package-test-harness/src/games/index.ts`](../package-test-harness/src/games/index.ts) registers package classes directly.
+- [`package-test-harness/src/games/*.ts`](../package-test-harness/src/games) are compatibility shims for legacy imports.
+- [`package-test-harness/src/core/base-game.ts`](../package-test-harness/src/core/base-game.ts) re-exports the shared core package.
 
-That keeps the packages as the canonical game-logic source while preserving the server's existing import surface.
+That keeps the packages as the canonical game-logic source while preserving the harness's stable import surface.
 
 ## Build And Release Checks
 
@@ -74,7 +74,7 @@ npm run publish:packages:dry-run
 ## Rules And Tests
 
 - Every game package now ships package-local rules in `RULES.md`.
-- Gameplay tests still live in [`versus-server/tests/`](../versus-server/tests), but those tests execute the package implementations through the server-compatible import surface.
+- Gameplay tests still live in [`package-test-harness/tests/`](../package-test-harness/tests), but those tests execute the package implementations through the compatibility import surface.
 
 ## Rule Scope Notes
 
@@ -83,5 +83,3 @@ Most game packages implement the full rule set covered by the current engine tes
 The following packages still have deliberate scope limits and should be documented that way in releases:
 
 - `@llmletsplay/versus-mahjong`: the package now targets Chinese Official scoring with an 8-fan minimum, scored discard/self-draw wins, chi, pon, kan, supplemental draws, multi-hand dealer/prevalent-wind progression, and exhaustive draws, but it still does not cover the full official fan catalog or side-settlement cases such as kong bonuses and exhaustive-draw ready-hand payments.
-
-

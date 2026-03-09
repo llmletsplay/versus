@@ -18,9 +18,8 @@
 npm run build:packages
 npm run check:packages
 npm run test:games
-npm --prefix versus-server run lint
-npm --prefix versus-server run type-check
-npm --prefix versus-client run build
+npm run lint
+npm run type-check
 ```
 
 ## Package Release Flow
@@ -33,23 +32,16 @@ npm --prefix versus-client run build
 
 ## Adding Games
 
-New games should still be package-first:
+New games should stay package-first:
 
 - add the engine in `packages/<game>`
 - expose a clean npm API
 - add concise `README.md` and `RULES.md`
-- test through `versus-server/tests`
+- test through `package-test-harness/tests`
 - keep placeholder assertions out of the suite
 
-## Platform Split
+## Repo Split
 
-Do not replace this repo's `origin` with `versus-platform`.
-
-Instead, clone the new repo separately and export the platform layer from this repo:
-
-```bash
-git clone git@github.com:llmletsplay/versus-platform.git ../versus-platform
-npm run export:platform -- --target ../versus-platform
-```
-
-See [Platform Repo Split](platform-repo.md) for the exact steps.
+- `versus` is the public package repo.
+- `versus-platform` is the application repo.
+- Do not reintroduce product app workspaces into this repo.

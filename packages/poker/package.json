@@ -28,10 +28,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/lightnolimit/versus.git",
+    "url": "https://github.com/llmletsplay/versus.git",
     "directory": "packages/poker"
   },
   "dependencies": {
     "@llmletsplay/versus-game-core": "^0.1.0"
   }
 }
+

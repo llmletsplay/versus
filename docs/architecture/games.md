@@ -1,4 +1,4 @@
-﻿# Games Engine
+# Games Engine
 
 Versus implements game logic in publishable packages that extend the shared `@llmletsplay/versus-game-core` runtime.
 
@@ -61,13 +61,13 @@ Games can be restored in two ways:
 - `restoreFromDatabase(gameStateData)` for full persisted state
 - `restoreFromHistory(history)` when replaying a move log through the shared core
 
-This is the same contract used by the server-side `GameManager` and by the package-backed tests.
+This is the same contract used by the internal harness `GameManager` and by the package-backed tests.
 
 ## Package-First Architecture
 
 - Reusable engines live in [`packages/`](../../packages).
-- The server imports those packages directly through [`versus-server/src/games/index.ts`](../../versus-server/src/games/index.ts).
-- Legacy server import paths remain as thin re-export shims.
+- The internal harness imports those packages directly through [`package-test-harness/src/games/index.ts`](../../package-test-harness/src/games/index.ts).
+- Legacy harness import paths remain as thin re-export shims.
 
 That means there is only one canonical implementation of each game's rules.
 
@@ -79,11 +79,11 @@ Every published game package ships:
 - `RULES.md` with the implemented objective, setup, turn flow, end conditions, and scope notes
 - `LICENSE`
 
-The historical markdown files in `versus-server/docs/rules/` can still be useful references, but package-local rules docs are now the release source of truth.
+The historical markdown files in [`package-test-harness/docs/rules/`](../../package-test-harness/docs/rules) can still be useful references, but package-local rules docs are the release source of truth.
 
 ## Testing Strategy
 
-Gameplay tests live in [`versus-server/tests/`](../../versus-server/tests), where they exercise the package-backed games through the same import surface the server uses.
+Gameplay tests live in [`package-test-harness/tests/`](../../package-test-harness/tests), where they exercise the package-backed games through the same import surface the harness uses.
 
 When adding or tightening a game, prefer:
 
@@ -103,4 +103,3 @@ npm run test:games
 ```
 
 `npm run check:packages` verifies the published-file contract so each package keeps a clean dist-only release surface.
-

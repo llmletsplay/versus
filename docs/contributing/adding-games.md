@@ -1,8 +1,8 @@
-﻿# Adding New Games
+# Adding New Games
 
 New game logic should be added as a reusable package in `packages/<game>`.
 
-The server should consume that package instead of owning a separate copy of the rules.
+The internal `package-test-harness/` should consume that package instead of owning a separate copy of the rules.
 
 ## 1. Create The Package
 
@@ -152,9 +152,9 @@ Every package should ship:
 - `RULES.md` with the implemented objective, setup, turn flow, end conditions, and scope notes
 - `LICENSE`
 
-## 4. Register The Package In The Server
+## 4. Register The Package In The Internal Harness
 
-Add the package class to [`versus-server/src/games/index.ts`](../../versus-server/src/games/index.ts):
+Add the package class to [`package-test-harness/src/games/index.ts`](../../package-test-harness/src/games/index.ts):
 
 ```ts
 import { MyGame } from '@llmletsplay/versus-my-game';
@@ -162,7 +162,7 @@ import { MyGame } from '@llmletsplay/versus-my-game';
 gameManager.registerGame('my-game', MyGame);
 ```
 
-Then add a compatibility shim at [`versus-server/src/games/my-game.ts`](../../versus-server/src/games):
+Then add a compatibility shim at [`package-test-harness/src/games/my-game.ts`](../../package-test-harness/src/games):
 
 ```ts
 export * from '@llmletsplay/versus-my-game';
@@ -212,7 +212,7 @@ npm run test:games
 - [ ] package created in `packages/<game>`
 - [ ] build outputs configured for `dist/`
 - [ ] game class extends `BaseGame`
-- [ ] server registry updated
+- [ ] internal harness registry updated
 - [ ] compatibility shim added
 - [ ] `README.md`, `RULES.md`, and `LICENSE` added
 - [ ] public-API tests added

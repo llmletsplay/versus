@@ -1,65 +1,43 @@
 {
   "name": "versus",
   "version": "1.0.0",
-  "description": "Package-first multiplayer game platform with reusable game engines, platform services, and experimental wagering layers",
+  "description": "Standalone npm game package monorepo for llmletsplay",
   "private": true,
   "type": "module",
   "workspaces": [
     "packages/*",
-    "versus-server",
-    "versus-client",
-    "versus-skill"
+    "package-test-harness"
   ],
   "scripts": {
-    "dev": "concurrently \"bun run dev:server\" \"bun run dev:client\"",
-    "dev:server": "cd versus-server && bun run dev",
-    "dev:client": "cd versus-client && bun run dev",
     "dev:docs": "cd docs && mkdocs serve -a localhost:8000",
-    "build": "npm run build:packages && bun run build:server && bun run build:client",
-    "build:server": "cd versus-server && bun run build",
-    "build:client": "cd versus-client && bun run build",
-    "test": "npm run test:games",
-    "lint": "npm --prefix versus-server run lint",
-    "type-check": "npm --prefix versus-server run type-check",
-    "format": "cd versus-server && bun run format",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "health": "curl -f http://localhost:5556/api/v1/health | jq",
-    "metrics": "curl -f http://localhost:5556/api/v1/metrics | jq",
     "build:packages": "node scripts/build-packages.mjs",
-    "test:games": "npm --prefix versus-server run test:games",
+    "test": "npm run test:games",
+    "test:games": "npm --prefix package-test-harness run test:games",
+    "lint": "npm --prefix package-test-harness run lint",
+    "type-check": "npm --prefix package-test-harness run type-check",
+    "format": "npm --prefix package-test-harness run format",
     "docs:packages": "node scripts/sync-package-docs.mjs",
     "check:packages": "node scripts/check-package-release.mjs",
     "release:packages": "npm run build:packages && npm run check:packages && npm run test:games",
     "pack:packages": "node scripts/publish-packages.mjs --dry-run",
     "publish:packages:dry-run": "npm run release:packages && npm run pack:packages",
-    "publish:packages": "npm run release:packages && node scripts/publish-packages.mjs",
-    "export:platform": "node scripts/export-platform-repo.mjs"
+    "publish:packages": "npm run release:packages && node scripts/publish-packages.mjs"
   },
   "keywords": [
     "games",
-    "multiplayer",
-    "api",
-    "websocket",
-    "ai",
-    "mcp",
+    "game-engines",
+    "npm",
     "chess",
     "poker",
-    "typescript",
-    "react",
-    "bun"
+    "typescript"
   ],
   "author": "",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lightnolimit/versus.git"
+    "url": "https://github.com/llmletsplay/versus.git"
   },
   "engines": {
-    "node": ">=22.0.0",
-    "bun": ">=1.0.0"
-  },
-  "devDependencies": {
-    "concurrently": "^9.1.0"
+    "node": ">=22.0.0"
   }
 }

@@ -27,7 +27,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/lightnolimit/versus.git",
+    "url": "https://github.com/llmletsplay/versus.git",
     "directory": "packages/game-core"
   }
 }
+

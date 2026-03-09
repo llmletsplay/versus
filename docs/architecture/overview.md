@@ -1,29 +1,29 @@
-﻿# Architecture Overview
+# Architecture Overview
 
-Versus is organized in three layers:
+Versus is organized around one public concern and two consumers:
 
-1. reusable game packages
-2. the platform server
-3. experimental settlement features
+1. published reusable game packages
+2. the internal package test harness in this repo
+3. downstream applications such as `versus-platform`
 
 ## Layer Diagram
 
 ```text
 +---------------------------------------------+
-| Reusable Packages                           |
-| @llmletsplay/versus-game-core, @llmletsplay/versus-chess, ...       |
-+------------------------+--------------------+
-                         |
-                         v
+| Published Packages                          |
+| @llmletsplay/versus-game-core               |
+| @llmletsplay/versus-chess, ...              |
 +---------------------------------------------+
-| Platform Server (versus-server)             |
-| auth, rooms, ratings, tournaments, APIs     |
-+------------------------+--------------------+
-                         |
-                         v
+              |                     |
+              v                     v
 +---------------------------------------------+
-| Experimental Settlement Layer               |
-| wagers, markets, x402, solver workflows     |
+| package-test-harness                         |
+| compatibility shims, Jest suites, docs/rules |
++---------------------------------------------+
+
++---------------------------------------------+
+| Downstream Applications                      |
+| versus-platform, third-party apps, bots      |
 +---------------------------------------------+
 ```
 
@@ -34,21 +34,22 @@ The canonical game logic lives in [`packages/`](../../packages).
 - `@llmletsplay/versus-game-core` contains shared types, `BaseGame`, storage providers, and utilities.
 - `@llmletsplay/versus-<game>` packages contain the actual rules for each game.
 
-Those packages are designed to be usable outside the server.
+Those packages are designed to be usable outside any specific app.
 
-## Platform Server
+## Internal Test Harness
 
-[`versus-server/`](../../versus-server) composes the reusable engines with platform concerns such as:
+[`package-test-harness/`](../../package-test-harness) exists so this repo can keep strong integration coverage without pretending to be the production app. It provides:
 
-- auth
-- rooms
-- matchmaking
-- ratings
-- tournaments
-- websocket delivery
-- API routing
+- compatibility re-exports in `src/games/`
+- the shared package-focused Jest suites in `tests/`
+- historical per-game rules markdown in `docs/rules/`
+- lightweight internal glue for exercising package behavior through a stable surface
 
-The server registry in [`versus-server/src/games/index.ts`](../../versus-server/src/games/index.ts) imports the package classes directly.
+The harness registry in [`package-test-harness/src/games/index.ts`](../../package-test-harness/src/games/index.ts) imports the package classes directly.
+
+## Downstream Apps
+
+This repo no longer owns the actual product application. `versus-platform` and any third-party consumers should install the published packages from npm and layer their own auth, persistence, UI, and settlement logic on top.
 
 ## Shared Core Contract
 
@@ -66,12 +67,10 @@ Stable:
 
 - reusable game packages
 - shared game core
-- server game lifecycle management
-- multiplayer APIs and platform services
+- package release tooling
+- package-focused compatibility tests
 
 Experimental:
 
-- wagers and escrow flows
-- prediction markets
-- x402 payment plumbing
-- intent and solver settlement adapters
+- product-specific flows in downstream apps
+- any settlement, wallet, or deployment logic outside the package surface

@@ -1,106 +1,57 @@
 # Versus
 
-Versus is the open-source game-engine monorepo for llmletsplay.
+Versus is the public engine repository for the `@llmletsplay/versus-*` npm packages.
 
-The reusable engines live in [packages/](./packages), the shared runtime contract lives in [@llmletsplay/versus-game-core](./packages/game-core), and this repo also carries a reference server/client for testing and examples.
+This repo is intentionally narrower than `versus-platform`. It owns the reusable game engines, shared game core, package documentation, examples, release tooling, and an internal `package-test-harness/` that validates the packages through a stable compatibility surface.
 
-## Repo Roles
+## What Lives Here
 
-- This repo is for reusable game logic, package docs, tests, examples, and the package release workflow.
-- The real product application should live in a separate repo such as `versus-platform`.
-- That application repo should consume the published `@llmletsplay/versus-*` packages from npm the same way third-party developers do.
+- 27+ standalone game packages in `packages/*`
+- the shared runtime contract in `packages/game-core`
+- package-local `README.md`, `RULES.md`, and `LICENSE`
+- release checks and npm publish scripts
+- examples for downstream app developers
+- the internal `package-test-harness/` workspace for package-focused integration tests
 
-## What Is Stable
+## What Does Not Live Here
 
-- standalone game packages such as `@llmletsplay/versus-chess` and `@llmletsplay/versus-tic-tac-toe`
-- shared package core in `@llmletsplay/versus-game-core`
-- the package release contract in `npm run release:packages`
+The product application moved to [`llmletsplay/versus-platform`](https://github.com/llmletsplay/versus-platform). That repo is the canonical home for:
 
-## What Is Still Experimental
+- the application server and API
+- the web client and product UI
+- skill and agent integration surfaces
+- auth, rooms, betting, prediction markets, intents, and settlement flows
+- deployment and environment-specific infrastructure
 
-- wagers and prediction-market flows in the reference platform
-- x402 payment integration
-- solver and intent-settlement layers
-
-## Quick Start
-
-Requirements:
-
-- Node.js 22+
-- Bun 1.x
-- Docker and Docker Compose
-
-Run the full workspace:
+## Local Checks
 
 ```bash
-bun install
-make start
-```
-
-- Client: [http://localhost:5555](http://localhost:5555)
-- Server: [http://localhost:5556](http://localhost:5556)
-- PostgreSQL: `localhost:5433`
-
-Stop everything with `make stop`.
-
-## Using A Game Package
-
-```js
-import { ChessGame } from '@llmletsplay/versus-chess';
-
-const game = new ChessGame('demo-chess');
-await game.initializeGame();
-const state = await game.getGameState();
-```
-
-Each game package ships its own `dist/` build, type declarations, and package-local `README.md`, `RULES.md`, and `LICENSE` files. Consumers can use the default in-memory provider or inject their own storage implementation.
-
-## Maintenance Flow
-
-1. Branch from `dev` for normal work.
-2. Open pull requests into `dev`.
-3. Let GitHub Actions run on `dev` and `main`.
-4. Merge `dev` into `main` when a batch is ready.
-5. Publish npm packages from `main` only when package code or package docs changed.
-
-The full lightweight maintenance guide lives in [docs/contributing/maintenance.md](./docs/contributing/maintenance.md).
-
-## Moving The Product App Out
-
-Do not repoint this repo's `origin` to the product application.
-
-Instead, keep this repo pointed at `llmletsplay/versus` and bootstrap the separate platform repo from here:
-
-```bash
-git clone git@github.com:llmletsplay/versus-platform.git ../versus-platform
-npm run export:platform -- --target ../versus-platform
-```
-
-That export rewrites the platform server to use the published npm packages instead of the local `file:../packages/*` dependencies used inside this monorepo.
-
-## Examples
-
-See [examples/README.md](./examples/README.md) for plain-JS package examples covering zero-config setup, shared storage and restore flows, custom word lexicons, and standalone Mahjong initialization.
-
-## Package Release Checks
-
-```bash
-npm run docs:packages
+npm install
 npm run build:packages
 npm run check:packages
 npm run test:games
-npm run publish:packages:dry-run
+npm run lint
+npm run type-check
 ```
 
-## Documentation
+## Project Structure
 
-- [Packages Overview](./docs/architecture/packages.md)
-- [Games Engine](./docs/architecture/games.md)
-- [Architecture Overview](./docs/architecture/overview.md)
-- [Maintenance Flow](./docs/contributing/maintenance.md)
-- [Platform Repo Split](./docs/contributing/platform-repo.md)
-- [Adding Games](./docs/contributing/adding-games.md)
-- [Wagering API (Experimental)](./docs/api/wagering.md)
+```text
+versus/
+|-- packages/
+|-- package-test-harness/
+|-- examples/
+|-- docs/
+`-- scripts/
+```
+
+## Read Next
+
+- [Architecture Overview](docs/architecture/overview.md)
+- [Packages](docs/architecture/packages.md)
+- [Games Engine](docs/architecture/games.md)
+- [Contributing Guidelines](docs/contributing/guidelines.md)
+- [Maintenance Flow](docs/contributing/maintenance.md)
 
 ## License
 

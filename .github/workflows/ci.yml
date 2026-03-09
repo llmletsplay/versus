@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   checks:
-    name: Package And Platform Checks
+    name: Package Checks
     runs-on: ubuntu-latest
 
     steps:
@@ -23,11 +23,6 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
 
       - name: Install dependencies
         run: npm ci
@@ -41,14 +36,8 @@ jobs:
       - name: Run game tests
         run: npm run test:games
 
-      - name: Lint server
-        run: npm --prefix versus-server run lint
+      - name: Lint package test harness
+        run: npm run lint
 
-      - name: Type-check server
-        run: npm --prefix versus-server run type-check
-
-      - name: Build server
-        run: npm --prefix versus-server run build
-
-      - name: Build client
-        run: npm --prefix versus-client run build
+      - name: Type-check package test harness
+        run: npm run type-check

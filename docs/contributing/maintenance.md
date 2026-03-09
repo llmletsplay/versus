@@ -29,10 +29,10 @@ Recommended GitHub settings:
 
 Keep this repo focused on package health:
 
-- `ci.yml`: runs package checks, game tests, server lint/type-check, and client build on `dev` and `main`
+- `ci.yml`: runs package checks, game tests, and package-test-harness lint/type-check on `dev` and `main`
 - `publish-packages.yml`: manual workflow that publishes the npm package set from `main`
 
-This repo does not need full production deployment automation because the production application should live in `versus-platform`.
+This repo does not need production deployment automation because the product application lives in `versus-platform`.
 
 ## NPM Publishing
 
