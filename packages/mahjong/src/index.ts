@@ -10,7 +10,9 @@ import type {
 } from '@versus/game-core';
 
 type Suit = 'bamboo' | 'character' | 'dot';
-type Honor = 'east' | 'south' | 'west' | 'north' | 'red' | 'green' | 'white';
+type Wind = 'east' | 'south' | 'west' | 'north';
+type Dragon = 'red' | 'green' | 'white';
+type Honor = Wind | Dragon;
 type TileType = 'suit' | 'honor';
 
 interface MahjongTile {
@@ -19,6 +21,26 @@ interface MahjongTile {
   honor?: Honor;
   value?: number;
   id: string;
+}
+
+export interface MahjongMeldState {
+  tiles: MahjongTile[];
+  type: 'sequence' | 'triplet' | 'kong';
+  concealed: boolean;
+}
+
+export interface MahjongFanBreakdown {
+  name: string;
+  fan: number;
+}
+
+export interface MahjongWinningResult {
+  player: string;
+  method: 'self_draw' | 'discard';
+  totalFan: number;
+  score: number;
+  payments: { [playerId: string]: number };
+  breakdown: MahjongFanBreakdown[];
 }
 
 export interface MahjongState extends GameState {
@@ -33,6 +55,8 @@ export interface MahjongState extends GameState {
   lastDiscard: MahjongTile | null;
   roundNumber: number;
   dealer: string;
+  prevalentWind: Wind;
+  seatWinds: { [playerId: string]: Wind };
   lastAction: {
     action: string;
     player?: string;
@@ -40,6 +64,7 @@ export interface MahjongState extends GameState {
     details?: string;
   } | null;
   melds: { [playerId: string]: MahjongTile[][] };
+  meldStates: { [playerId: string]: MahjongMeldState[] };
   lastDiscardPlayer: string | null;
   claimWindow: {
     tile: MahjongTile;
@@ -49,6 +74,7 @@ export interface MahjongState extends GameState {
     pendingPlayers: string[];
   } | null;
   supplementalDrawsUsed: number;
+  winningResult: MahjongWinningResult | null;
 }
 
 interface MahjongMove {
@@ -64,6 +90,15 @@ interface MahjongMove {
     | 'pass_claim';
   tile?: MahjongTile;
   tiles?: MahjongTile[];
+}
+
+interface MahjongResolvedHand {
+  type: 'standard' | 'seven_pairs';
+  pair?: MahjongTile[];
+  pairGroups?: MahjongTile[][];
+  melds: MahjongMeldState[];
+  tiles: MahjongTile[];
+  concealed: boolean;
 }
 
 export class MahjongGame extends BaseGame {
@@ -85,13 +120,16 @@ export class MahjongGame extends BaseGame {
 
     const hands: { [playerId: string]: MahjongTile[] } = {};
     const melds: { [playerId: string]: MahjongTile[][] } = {};
+    const meldStates: { [playerId: string]: MahjongMeldState[] } = {};
 
     for (const playerId of playerIds) {
       hands[playerId] = wall.splice(0, this.HAND_SIZE);
       melds[playerId] = [];
+      meldStates[playerId] = [];
     }
 
     const dealer = playerIds[0]!;
+    const seatWinds = this.createSeatWinds(playerIds);
     if (wall.length > 0) {
       hands[dealer]!.push(wall.shift()!);
     }
@@ -110,11 +148,15 @@ export class MahjongGame extends BaseGame {
       lastDiscard: null,
       roundNumber: 1,
       dealer,
+      prevalentWind: 'east',
+      seatWinds,
       lastAction: null,
       melds,
+      meldStates,
       lastDiscardPlayer: null,
       claimWindow: null,
       supplementalDrawsUsed: 0,
+      winningResult: null,
     };
 
     this.currentState = initialState;
@@ -161,14 +203,82 @@ export class MahjongGame extends BaseGame {
     }
   }
 
+  private createSeatWinds(playerOrder: string[]): { [playerId: string]: Wind } {
+    const winds: Wind[] = ['east', 'south', 'west', 'north'];
+    const seatWinds: { [playerId: string]: Wind } = {};
+
+    playerOrder.forEach((playerId, index) => {
+      seatWinds[playerId] = winds[index] ?? 'east';
+    });
+
+    return seatWinds;
+  }
+
+  private ensureStateDefaults(state: MahjongState): void {
+    const playerOrder = state.playerOrder ?? Object.keys(state.hands ?? {});
+    state.playerOrder = playerOrder;
+    state.prevalentWind = state.prevalentWind ?? 'east';
+    state.seatWinds = state.seatWinds ?? this.createSeatWinds(playerOrder);
+    state.melds = state.melds ?? {};
+    state.meldStates = state.meldStates ?? {};
+    state.winningResult = state.winningResult ?? null;
+
+    for (const playerId of playerOrder) {
+      state.hands[playerId] = state.hands[playerId] ?? [];
+      state.melds[playerId] = state.melds[playerId] ?? [];
+      const meldStates = state.meldStates[playerId];
+      if (!meldStates || meldStates.length !== state.melds[playerId].length) {
+        state.meldStates[playerId] = state.melds[playerId].map((meld) => ({
+          tiles: this.sortTiles(meld),
+          type: this.classifyMeldType(meld),
+          concealed: false,
+        }));
+      }
+    }
+  }
+
+  private classifyMeldType(meld: MahjongTile[]): 'sequence' | 'triplet' | 'kong' {
+    if (meld.length === 4) {
+      return 'kong';
+    }
+
+    const firstKey = this.getTileKey(meld[0]!);
+    if (meld.every((tile) => this.getTileKey(tile) === firstKey)) {
+      return 'triplet';
+    }
+
+    return 'sequence';
+  }
+
+  private getResolvedMeldStates(playerId: string, state: MahjongState): MahjongMeldState[] {
+    this.ensureStateDefaults(state);
+
+    const meldStates = state.meldStates[playerId] ?? [];
+    const melds = state.melds[playerId] ?? [];
+    if (meldStates.length === melds.length) {
+      return meldStates.map((meldState, index) => ({
+        ...meldState,
+        tiles: this.sortTiles(melds[index] ?? meldState.tiles),
+      }));
+    }
+
+    return melds.map((meld) => ({
+      tiles: this.sortTiles(meld),
+      type: this.classifyMeldType(meld),
+      concealed: false,
+    }));
+  }
+
   private getMeldTileCount(meld: MahjongTile[]): number {
     return meld.length === 4 ? 3 : meld.length;
   }
 
   private getPlayerTileCount(playerId: string, state: MahjongState): number {
+    this.ensureStateDefaults(state);
+
     const concealedTiles = state.hands[playerId]?.length ?? 0;
-    const meldTiles = (state.melds[playerId] ?? []).reduce(
-      (sum, meld) => sum + this.getMeldTileCount(meld),
+    const meldTiles = this.getResolvedMeldStates(playerId, state).reduce(
+      (sum, meld) => sum + this.getMeldTileCount(meld.tiles),
       0
     );
     return concealedTiles + meldTiles;
@@ -316,6 +426,7 @@ export class MahjongGame extends BaseGame {
     state.winner = null;
     state.gamePhase = 'finished';
     state.claimWindow = null;
+    state.winningResult = null;
     state.lastAction = {
       action: 'draw_game',
       details,
@@ -323,6 +434,8 @@ export class MahjongGame extends BaseGame {
   }
 
   private openClaimWindow(state: MahjongState): void {
+    this.ensureStateDefaults(state);
+
     const tile = state.lastDiscard;
     const discardedBy = state.lastDiscardPlayer;
 
@@ -333,7 +446,7 @@ export class MahjongGame extends BaseGame {
 
     const nextPlayer = this.getNextPlayerAfter(discardedBy, state);
     const ronPlayers = this.getClaimPriorityPlayers(discardedBy, state, (playerId) => {
-      return this.checkWinningHand(playerId, state, tile);
+      return this.getWinningResult(playerId, state, 'discard', tile) !== null;
     });
 
     if (ronPlayers.length > 0) {
@@ -384,6 +497,8 @@ export class MahjongGame extends BaseGame {
   }
 
   private advanceClaimWindow(state: MahjongState): void {
+    this.ensureStateDefaults(state);
+
     const claimWindow = state.claimWindow;
     if (!claimWindow) {
       return;
@@ -438,6 +553,7 @@ export class MahjongGame extends BaseGame {
     try {
       const move = moveData as MahjongMove;
       const state = this.currentState as MahjongState;
+      this.ensureStateDefaults(state);
 
       if (!move.player || !move.action) {
         return { valid: false, error: 'Move must include player and action' };
@@ -484,8 +600,11 @@ export class MahjongGame extends BaseGame {
             return { valid: false, error: 'Cannot declare win right now' };
           }
 
-          if (!this.checkWinningHand(move.player, state, state.claimWindow.tile)) {
-            return { valid: false, error: 'Player does not have a winning hand' };
+          if (!this.getWinningResult(move.player, state, 'discard', state.claimWindow.tile)) {
+            return {
+              valid: false,
+              error: 'Player does not have a Chinese Official winning hand worth at least 8 fan',
+            };
           }
 
           return { valid: true };
@@ -596,8 +715,11 @@ export class MahjongGame extends BaseGame {
       }
 
       if (move.action === 'declare_win') {
-        if (!this.checkWinningHand(move.player, state)) {
-          return { valid: false, error: 'Player does not have a winning hand' };
+        if (!this.getWinningResult(move.player, state, 'self_draw')) {
+          return {
+            valid: false,
+            error: 'Player does not have a Chinese Official winning hand worth at least 8 fan',
+          };
         }
       }
 
@@ -610,26 +732,211 @@ export class MahjongGame extends BaseGame {
   private checkWinningHand(
     playerId: string,
     state: MahjongState,
-    claimedTile?: MahjongTile
+    claimedTile?: MahjongTile,
+    method: 'self_draw' | 'discard' = claimedTile ? 'discard' : 'self_draw'
   ): boolean {
-    const hand = [...(state.hands[playerId] || [])];
-    if (claimedTile) {
-      hand.push(claimedTile);
+    return this.getWinningResult(playerId, state, method, claimedTile) !== null;
+  }
+
+  private getWinningResult(
+    playerId: string,
+    state: MahjongState,
+    method: 'self_draw' | 'discard',
+    claimedTile?: MahjongTile
+  ): MahjongWinningResult | null {
+    this.ensureStateDefaults(state);
+
+    const winningHands = this.getWinningHandOptions(playerId, state, claimedTile);
+    let bestResult: MahjongWinningResult | null = null;
+
+    for (const winningHand of winningHands) {
+      const breakdown = this.evaluateChineseOfficialFans(winningHand, state, playerId, method);
+      const totalFan = breakdown.reduce((sum, item) => sum + item.fan, 0);
+      if (totalFan < 8) {
+        continue;
+      }
+
+      const payments = this.calculatePayments(state, playerId, method, totalFan);
+      const score = Object.values(payments).reduce((sum, amount) => sum + amount, 0);
+      const result: MahjongWinningResult = {
+        player: playerId,
+        method,
+        totalFan,
+        score,
+        payments,
+        breakdown,
+      };
+
+      if (
+        !bestResult ||
+        result.totalFan > bestResult.totalFan ||
+        (result.totalFan === bestResult.totalFan && result.score > bestResult.score)
+      ) {
+        bestResult = result;
+      }
     }
 
-    const openMeldCount = state.melds[playerId]?.length ?? 0;
-    const requiredMelds = 4 - openMeldCount;
+    return bestResult;
+  }
+
+  private getWinningHandOptions(
+    playerId: string,
+    state: MahjongState,
+    claimedTile?: MahjongTile
+  ): MahjongResolvedHand[] {
+    this.ensureStateDefaults(state);
+
+    const concealedTiles = [...(state.hands[playerId] ?? [])];
+    if (claimedTile) {
+      concealedTiles.push(claimedTile);
+    }
+
+    const openMelds = this.getResolvedMeldStates(playerId, state);
+    const requiredMelds = 4 - openMelds.length;
     const requiredHandSize = 2 + requiredMelds * 3;
 
-    if (hand.length !== requiredHandSize) {
-      return false;
+    if (concealedTiles.length !== requiredHandSize) {
+      return [];
     }
 
-    if (openMeldCount === 0 && hand.length === this.WINNING_HAND_SIZE && this.isSevenPairs(hand)) {
-      return true;
+    const winningHands: MahjongResolvedHand[] = [];
+    const concealed = openMelds.every((meld) => meld.concealed);
+    const concealedTilesSorted = this.sortTiles(concealedTiles);
+
+    if (
+      openMelds.length === 0 &&
+      concealedTilesSorted.length === this.WINNING_HAND_SIZE &&
+      this.isSevenPairs(concealedTilesSorted)
+    ) {
+      const pairGroups: MahjongTile[][] = [];
+      for (let index = 0; index < concealedTilesSorted.length; index += 2) {
+        pairGroups.push([concealedTilesSorted[index]!, concealedTilesSorted[index + 1]!]);
+      }
+
+      winningHands.push({
+        type: 'seven_pairs',
+        pairGroups,
+        melds: [],
+        tiles: concealedTilesSorted,
+        concealed,
+      });
     }
 
-    return this.canFormWinningHand(hand, requiredMelds);
+    for (const standardHand of this.resolveStandardWinningHands(concealedTilesSorted, requiredMelds)) {
+      winningHands.push({
+        type: 'standard',
+        pair: standardHand.pair,
+        melds: [...openMelds, ...standardHand.melds],
+        tiles: this.sortTiles([
+          ...concealedTilesSorted,
+          ...openMelds.flatMap((meld) => meld.tiles),
+        ]),
+        concealed,
+      });
+    }
+
+    return winningHands;
+  }
+
+  private resolveStandardWinningHands(
+    tiles: MahjongTile[],
+    requiredMelds: number
+  ): Array<{ pair: MahjongTile[]; melds: MahjongMeldState[] }> {
+    const sortedTiles = this.sortTiles(tiles);
+    const uniqueKeys = [...new Set(sortedTiles.map((tile) => this.getTileKey(tile)))];
+    const winningHands: Array<{ pair: MahjongTile[]; melds: MahjongMeldState[] }> = [];
+    const seen = new Set<string>();
+
+    for (const key of uniqueKeys) {
+      const matchingTiles = sortedTiles.filter((tile) => this.getTileKey(tile) === key);
+      if (matchingTiles.length < 2) {
+        continue;
+      }
+
+      const pair = this.sortTiles(matchingTiles.slice(0, 2));
+      const remainingTiles = this.removeTilesByIds(sortedTiles, pair.map((tile) => tile.id));
+      for (const melds of this.resolveMeldCombinations(remainingTiles, requiredMelds)) {
+        const signature = [
+          pair.map((tile) => tile.id).join(','),
+          ...melds.map((meld) => meld.tiles.map((tile) => tile.id).join(',')),
+        ].join('|');
+        if (seen.has(signature)) {
+          continue;
+        }
+
+        seen.add(signature);
+        winningHands.push({ pair, melds });
+      }
+    }
+
+    return winningHands;
+  }
+
+  private resolveMeldCombinations(tiles: MahjongTile[], meldsRemaining: number): MahjongMeldState[][] {
+    if (meldsRemaining === 0) {
+      return tiles.length === 0 ? [[]] : [];
+    }
+
+    if (tiles.length !== meldsRemaining * 3) {
+      return [];
+    }
+
+    const sortedTiles = this.sortTiles(tiles);
+    const firstTile = sortedTiles[0]!;
+    const firstKey = this.getTileKey(firstTile);
+    const results: MahjongMeldState[][] = [];
+    const seen = new Set<string>();
+
+    const matchingTiles = sortedTiles.filter((tile) => this.getTileKey(tile) === firstKey);
+    if (matchingTiles.length >= 3) {
+      const tripletTiles = this.sortTiles(matchingTiles.slice(0, 3));
+      const remainingTiles = this.removeTilesByIds(sortedTiles, tripletTiles.map((tile) => tile.id));
+      for (const remainder of this.resolveMeldCombinations(remainingTiles, meldsRemaining - 1)) {
+        const melds = [{ tiles: tripletTiles, type: 'triplet' as const, concealed: true }, ...remainder];
+        const signature = melds.map((meld) => meld.tiles.map((tile) => tile.id).join(',')).join('|');
+        if (!seen.has(signature)) {
+          seen.add(signature);
+          results.push(melds);
+        }
+      }
+    }
+
+    const sequenceTiles = this.buildSequenceTiles(sortedTiles, firstTile);
+    if (sequenceTiles) {
+      const remainingTiles = this.removeTilesByIds(sortedTiles, sequenceTiles.map((tile) => tile.id));
+      for (const remainder of this.resolveMeldCombinations(remainingTiles, meldsRemaining - 1)) {
+        const melds = [{ tiles: this.sortTiles(sequenceTiles), type: 'sequence' as const, concealed: true }, ...remainder];
+        const signature = melds.map((meld) => meld.tiles.map((tile) => tile.id).join(',')).join('|');
+        if (!seen.has(signature)) {
+          seen.add(signature);
+          results.push(melds);
+        }
+      }
+    }
+
+    return results;
+  }
+
+  private buildSequenceTiles(tiles: MahjongTile[], firstTile: MahjongTile): MahjongTile[] | null {
+    if (firstTile.type !== 'suit' || firstTile.value === undefined || firstTile.value > 7) {
+      return null;
+    }
+
+    const nextKey = firstTile.suit + '-' + (firstTile.value + 1);
+    const thirdKey = firstTile.suit + '-' + (firstTile.value + 2);
+    const nextTile = tiles.find((tile) => this.getTileKey(tile) === nextKey);
+    if (!nextTile) {
+      return null;
+    }
+
+    const thirdTile = tiles.find(
+      (tile) => this.getTileKey(tile) === thirdKey && tile.id !== nextTile.id
+    );
+    if (!thirdTile) {
+      return null;
+    }
+
+    return [firstTile, nextTile, thirdTile];
   }
 
   private isSevenPairs(tiles: MahjongTile[]): boolean {
@@ -643,87 +950,242 @@ export class MahjongGame extends BaseGame {
     return tileCounts.size === 7 && Array.from(tileCounts.values()).every((count) => count === 2);
   }
 
-  private canFormWinningHand(tiles: MahjongTile[], requiredMelds: number): boolean {
-    const sortedTiles = this.sortTiles(tiles);
-    const uniqueKeys = [...new Set(sortedTiles.map((tile) => this.getTileKey(tile)))];
+  private evaluateChineseOfficialFans(
+    winningHand: MahjongResolvedHand,
+    state: MahjongState,
+    playerId: string,
+    method: 'self_draw' | 'discard'
+  ): MahjongFanBreakdown[] {
+    const breakdown: MahjongFanBreakdown[] = [];
+    const addFan = (name: string, fan: number) => {
+      breakdown.push({ name, fan });
+    };
 
-    for (const key of uniqueKeys) {
-      const pairCount = sortedTiles.filter((tile) => this.getTileKey(tile) === key).length;
-      if (pairCount < 2) {
+    const tiles = winningHand.tiles;
+    const melds = winningHand.melds;
+    const tripletLikeMelds = melds.filter((meld) => meld.type !== 'sequence');
+    const suitedTiles = tiles.filter((tile): tile is MahjongTile & { suit: Suit; value: number } => {
+      return tile.type === 'suit' && tile.suit !== undefined && tile.value !== undefined;
+    });
+    const honorTiles = tiles.filter((tile) => tile.type === 'honor');
+    const suitsUsed = new Set<Suit>(suitedTiles.map((tile) => tile.suit));
+    const pairTile = winningHand.pair?.[0];
+
+    const allHonors = tiles.length > 0 && tiles.every((tile) => this.isHonorTile(tile));
+    const allTerminals = tiles.length > 0 && tiles.every((tile) => this.isTerminalTile(tile));
+    const allTerminalsAndHonors =
+      tiles.length > 0 && tiles.every((tile) => this.isHonorTile(tile) || this.isTerminalTile(tile));
+    const fullFlush = suitsUsed.size === 1 && honorTiles.length === 0;
+    const halfFlush = suitsUsed.size === 1 && honorTiles.length > 0 && !allHonors;
+    const allPungs =
+      winningHand.type === 'standard' && melds.length === 4 && melds.every((meld) => meld.type !== 'sequence');
+    const allChows =
+      winningHand.type === 'standard' &&
+      melds.length === 4 &&
+      melds.every((meld) => meld.type === 'sequence') &&
+      pairTile?.type === 'suit' &&
+      honorTiles.length === 0;
+    const allSimples =
+      tiles.length > 0 &&
+      tiles.every(
+        (tile) => tile.type === 'suit' && tile.value !== undefined && tile.value >= 2 && tile.value <= 8
+      );
+    const outsideHand =
+      winningHand.type === 'standard' &&
+      !!pairTile &&
+      (this.isHonorTile(pairTile) || this.isTerminalTile(pairTile)) &&
+      melds.every((meld) => meld.tiles.some((tile) => this.isHonorTile(tile) || this.isTerminalTile(tile)));
+    const allEvenPungs =
+      winningHand.type === 'standard' &&
+      allPungs &&
+      tiles.length > 0 &&
+      tiles.every(
+        (tile) => tile.type === 'suit' && tile.value !== undefined && tile.value % 2 === 0
+      );
+    const oneVoidedSuit = suitsUsed.size === 2;
+    const noHonors = honorTiles.length === 0;
+    const fullyConcealed = winningHand.type === 'standard' && winningHand.concealed && method === 'self_draw';
+    const concealedHand = winningHand.type === 'standard' && winningHand.concealed && method === 'discard';
+
+    const dragonPungs = tripletLikeMelds.filter((meld) => {
+      const tile = meld.tiles[0];
+      return tile?.type === 'honor' && this.isDragonHonor(tile.honor);
+    });
+    const windPungs = tripletLikeMelds.filter((meld) => {
+      const tile = meld.tiles[0];
+      return tile?.type === 'honor' && this.isWindHonor(tile.honor);
+    });
+
+    const bigThreeDragons = dragonPungs.length === 3;
+    const littleThreeDragons =
+      winningHand.type === 'standard' &&
+      dragonPungs.length === 2 &&
+      pairTile?.type === 'honor' &&
+      this.isDragonHonor(pairTile.honor);
+    const bigFourWinds = windPungs.length === 4;
+    const littleFourWinds =
+      winningHand.type === 'standard' &&
+      windPungs.length === 3 &&
+      pairTile?.type === 'honor' &&
+      this.isWindHonor(pairTile.honor);
+
+    if (bigFourWinds) {
+      addFan('Big Four Winds', 88);
+    }
+
+    if (bigThreeDragons) {
+      addFan('Big Three Dragons', 88);
+    }
+
+    if (allHonors) {
+      addFan('All Honors', 64);
+    }
+
+    if (littleFourWinds) {
+      addFan('Little Four Winds', 64);
+    }
+
+    if (littleThreeDragons) {
+      addFan('Little Three Dragons', 64);
+    }
+
+    if (allTerminals) {
+      addFan('All Terminals', 64);
+    } else if (allTerminalsAndHonors) {
+      addFan('All Terminals And Honors', 32);
+    }
+
+    if (winningHand.type === 'seven_pairs') {
+      addFan('Seven Pairs', 24);
+    }
+
+    if (fullFlush) {
+      addFan('Full Flush', 24);
+    }
+
+    if (allEvenPungs) {
+      addFan('All Even Pungs', 24);
+    }
+
+    if (
+      allPungs &&
+      !allEvenPungs &&
+      !bigFourWinds &&
+      !bigThreeDragons &&
+      !littleFourWinds &&
+      !littleThreeDragons &&
+      !allHonors &&
+      !allTerminals &&
+      !allTerminalsAndHonors
+    ) {
+      addFan('All Pungs', 6);
+    }
+
+    if (halfFlush) {
+      addFan('Half Flush', 6);
+    }
+
+    if (outsideHand && !allTerminals && !allTerminalsAndHonors) {
+      addFan('Outside Hand', 4);
+    }
+
+    if (fullyConcealed) {
+      addFan('Fully Concealed Hand', 4);
+    } else if (concealedHand) {
+      addFan('Concealed Hand', 2);
+    } else if (method === 'self_draw') {
+      addFan('Self Drawn', 1);
+    }
+
+    if (allChows) {
+      addFan('All Chows', 2);
+    }
+
+    if (allSimples) {
+      addFan('All Simples', 2);
+    }
+
+    if (!fullFlush && !allSimples && noHonors) {
+      addFan('No Honors', 1);
+    }
+
+    if (
+      !fullFlush &&
+      !halfFlush &&
+      !allHonors &&
+      !allTerminals &&
+      !allTerminalsAndHonors &&
+      oneVoidedSuit
+    ) {
+      addFan('One Voided Suit', 1);
+    }
+
+    const suppressDragonFans = bigThreeDragons || littleThreeDragons || allHonors;
+    const suppressWindFans = bigFourWinds || littleFourWinds || allHonors;
+    const suppressTerminalHonorPung = allHonors || allTerminals || allTerminalsAndHonors;
+
+    for (const meld of tripletLikeMelds) {
+      const tile = meld.tiles[0]!;
+      if (tile.type === 'honor') {
+        if (this.isDragonHonor(tile.honor)) {
+          if (!suppressDragonFans) {
+            addFan('Dragon Pung', 2);
+          }
+          continue;
+        }
+
+        let awardedWindFan = false;
+        if (!suppressWindFans) {
+          if (tile.honor === state.prevalentWind) {
+            addFan('Prevalent Wind', 2);
+            awardedWindFan = true;
+          }
+          if (tile.honor === state.seatWinds[playerId]) {
+            addFan('Seat Wind', 2);
+            awardedWindFan = true;
+          }
+        }
+
+        if (!awardedWindFan && !suppressTerminalHonorPung) {
+          addFan('Pung Of Terminals Or Honors', 1);
+        }
         continue;
       }
 
-      const remainingTiles = this.removeTilesByKey(sortedTiles, key, 2);
-      if (this.canFormMelds(remainingTiles, requiredMelds)) {
-        return true;
+      if (this.isTerminalTile(tile) && !suppressTerminalHonorPung) {
+        addFan('Pung Of Terminals Or Honors', 1);
       }
     }
 
-    return false;
+    return breakdown;
   }
 
-  private canFormMelds(tiles: MahjongTile[], meldsRemaining: number): boolean {
-    if (meldsRemaining === 0) {
-      return tiles.length === 0;
-    }
+  private calculatePayments(
+    state: MahjongState,
+    winner: string,
+    method: 'self_draw' | 'discard',
+    totalFan: number
+  ): { [playerId: string]: number } {
+    const payments: { [playerId: string]: number } = {};
+    for (const playerId of state.playerOrder) {
+      if (playerId === winner) {
+        continue;
+      }
 
-    if (tiles.length !== meldsRemaining * 3) {
-      return false;
-    }
-
-    const sortedTiles = this.sortTiles(tiles);
-    const firstTile = sortedTiles[0]!;
-    const firstKey = this.getTileKey(firstTile);
-    const matchingCount = sortedTiles.filter((tile) => this.getTileKey(tile) === firstKey).length;
-
-    if (matchingCount >= 3) {
-      const withoutTriplet = this.removeTilesByKey(sortedTiles, firstKey, 3);
-      if (this.canFormMelds(withoutTriplet, meldsRemaining - 1)) {
-        return true;
+      payments[playerId] = 8;
+      if (method === 'self_draw' || playerId === state.lastDiscardPlayer) {
+        payments[playerId] += totalFan;
       }
     }
 
-    if (firstTile.type === 'suit' && firstTile.value !== undefined && firstTile.value <= 7) {
-      const nextKey = firstTile.suit + '-' + (firstTile.value + 1);
-      const thirdKey = firstTile.suit + '-' + (firstTile.value + 2);
-
-      if (
-        sortedTiles.some((tile) => this.getTileKey(tile) === nextKey) &&
-        sortedTiles.some((tile) => this.getTileKey(tile) === thirdKey)
-      ) {
-        const withoutSequence = this.removeTilesByKeys(sortedTiles, [firstKey, nextKey, thirdKey]);
-        if (this.canFormMelds(withoutSequence, meldsRemaining - 1)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
+    return payments;
   }
 
-  private removeTilesByKey(tiles: MahjongTile[], key: string, count: number): MahjongTile[] {
-    let remaining = count;
+  private removeTilesByIds(tiles: MahjongTile[], tileIds: string[]): MahjongTile[] {
+    const remainingIds = new Set(tileIds);
     return tiles.filter((tile) => {
-      if (remaining > 0 && this.getTileKey(tile) === key) {
-        remaining--;
-        return false;
-      }
-      return true;
-    });
-  }
-
-  private removeTilesByKeys(tiles: MahjongTile[], keys: string[]): MahjongTile[] {
-    const remainingCounts = new Map<string, number>();
-
-    for (const key of keys) {
-      remainingCounts.set(key, (remainingCounts.get(key) || 0) + 1);
-    }
-
-    return tiles.filter((tile) => {
-      const key = this.getTileKey(tile);
-      const remaining = remainingCounts.get(key) || 0;
-      if (remaining > 0) {
-        remainingCounts.set(key, remaining - 1);
+      if (remainingIds.has(tile.id)) {
+        remainingIds.delete(tile.id);
         return false;
       }
       return true;
@@ -751,16 +1213,33 @@ export class MahjongGame extends BaseGame {
     });
   }
 
+  private isWindHonor(honor?: Honor): honor is Wind {
+    return honor === 'east' || honor === 'south' || honor === 'west' || honor === 'north';
+  }
+
+  private isDragonHonor(honor?: Honor): honor is Dragon {
+    return honor === 'red' || honor === 'green' || honor === 'white';
+  }
+
+  private isHonorTile(tile: MahjongTile): boolean {
+    return tile.type === 'honor';
+  }
+
+  private isTerminalTile(tile: MahjongTile): boolean {
+    return tile.type === 'suit' && (tile.value === 1 || tile.value === 9);
+  }
+
   private getTileKey(tile: MahjongTile): string {
     if (tile.type === 'suit') {
-      return `${tile.suit}-${tile.value}`;
+      return tile.suit + '-' + tile.value;
     }
-    return `honor-${tile.honor}`;
+    return 'honor-' + tile.honor;
   }
 
   protected async applyMove(move: GameMove): Promise<void> {
     const mahjongMove = move.moveData as MahjongMove;
     const state = this.currentState as MahjongState;
+    this.ensureStateDefaults(state);
 
     if (mahjongMove.action === 'draw') {
       this.drawTile(mahjongMove, state);
@@ -785,6 +1264,7 @@ export class MahjongGame extends BaseGame {
     const tile = state.wall.shift()!;
     state.hands[move.player]?.push(tile);
     state.claimWindow = null;
+    state.winningResult = null;
 
     state.lastAction = {
       action: 'draw',
@@ -808,6 +1288,7 @@ export class MahjongGame extends BaseGame {
     state.discardPile.push(tile);
     state.lastDiscard = tile;
     state.lastDiscardPlayer = move.player;
+    state.winningResult = null;
 
     state.lastAction = {
       action: 'discard',
@@ -821,6 +1302,7 @@ export class MahjongGame extends BaseGame {
 
   private passClaim(move: MahjongMove, state: MahjongState): void {
     const claimTile = state.claimWindow?.tile ?? null;
+    state.winningResult = null;
 
     state.lastAction = {
       action: 'pass_claim',
@@ -866,12 +1348,19 @@ export class MahjongGame extends BaseGame {
       playerHand.filter((tile) => this.getTileKey(tile) === claimKey).slice(0, 2).map((tile) => tile.id)
     );
 
-    state.melds[move.player]!.push(this.sortTiles([...claimedTiles, claimTile]));
+    const meldTiles = this.sortTiles([...claimedTiles, claimTile]);
+    state.melds[move.player]!.push(meldTiles);
+    state.meldStates[move.player]!.push({
+      tiles: meldTiles,
+      type: 'triplet',
+      concealed: false,
+    });
     this.removeLastDiscardFromPile(state);
     state.lastDiscard = null;
     state.lastDiscardPlayer = null;
     state.claimWindow = null;
     state.currentPlayer = move.player;
+    state.winningResult = null;
 
     state.lastAction = {
       action: 'claim_pon',
@@ -889,12 +1378,19 @@ export class MahjongGame extends BaseGame {
       (move.tiles ?? []).map((tile) => tile.id)
     );
 
-    state.melds[move.player]!.push(this.sortTiles([...selectedTiles, claimTile]));
+    const meldTiles = this.sortTiles([...selectedTiles, claimTile]);
+    state.melds[move.player]!.push(meldTiles);
+    state.meldStates[move.player]!.push({
+      tiles: meldTiles,
+      type: 'sequence',
+      concealed: false,
+    });
     this.removeLastDiscardFromPile(state);
     state.lastDiscard = null;
     state.lastDiscardPlayer = null;
     state.claimWindow = null;
     state.currentPlayer = move.player;
+    state.winningResult = null;
 
     state.lastAction = {
       action: 'claim_chi',
@@ -925,12 +1421,19 @@ export class MahjongGame extends BaseGame {
         .map((tile) => tile.id)
     );
 
-    state.melds[move.player]!.push(this.sortTiles([...claimedTiles, claimTile]));
+    const meldTiles = this.sortTiles([...claimedTiles, claimTile]);
+    state.melds[move.player]!.push(meldTiles);
+    state.meldStates[move.player]!.push({
+      tiles: meldTiles,
+      type: 'kong',
+      concealed: false,
+    });
     this.removeLastDiscardFromPile(state);
     state.lastDiscard = null;
     state.lastDiscardPlayer = null;
     state.claimWindow = null;
     state.currentPlayer = move.player;
+    state.winningResult = null;
 
     const supplementalTile = this.drawSupplementalTile(state);
     if (!supplementalTile) {
@@ -963,17 +1466,27 @@ export class MahjongGame extends BaseGame {
     let kanType = 'concealed';
 
     if (matchingHandTiles.length >= 4) {
-      const kanTiles = this.removeTilesFromHandByIds(
-        playerHand,
-        matchingHandTiles.slice(0, 4).map((tile) => tile.id)
+      const kanTiles = this.sortTiles(
+        this.removeTilesFromHandByIds(playerHand, matchingHandTiles.slice(0, 4).map((tile) => tile.id))
       );
-      state.melds[move.player]!.push(this.sortTiles(kanTiles));
+      state.melds[move.player]!.push(kanTiles);
+      state.meldStates[move.player]!.push({
+        tiles: kanTiles,
+        type: 'kong',
+        concealed: true,
+      });
     } else if (existingPonIndex !== -1 && matchingHandTiles.length >= 1) {
       const addedTile = this.removeTilesFromHandByIds(playerHand, [matchingHandTiles[0]!.id]);
-      state.melds[move.player]![existingPonIndex] = this.sortTiles([
+      const updatedTiles = this.sortTiles([
         ...state.melds[move.player]![existingPonIndex]!,
         ...addedTile,
       ]);
+      state.melds[move.player]![existingPonIndex] = updatedTiles;
+      state.meldStates[move.player]![existingPonIndex] = {
+        tiles: updatedTiles,
+        type: 'kong',
+        concealed: false,
+      };
       kanType = 'added';
     }
 
@@ -987,6 +1500,7 @@ export class MahjongGame extends BaseGame {
     }
 
     playerHand.push(supplementalTile);
+    state.winningResult = null;
     state.lastAction = {
       action: 'declare_kan',
       player: move.player,
@@ -1002,16 +1516,36 @@ export class MahjongGame extends BaseGame {
   }
 
   private declareWin(move: MahjongMove, state: MahjongState): void {
+    const method = state.claimWindow ? 'discard' : 'self_draw';
+    const claimedTile = state.claimWindow?.tile;
+    const winningResult = this.getWinningResult(move.player, state, method, claimedTile);
+
+    if (!winningResult) {
+      throw new Error('Winning declaration does not satisfy the Chinese Official 8-fan minimum');
+    }
+
+    if (method === 'discard') {
+      this.removeLastDiscardFromPile(state);
+    }
+
     state.gameOver = true;
     state.winner = move.player;
     state.gamePhase = 'finished';
     state.claimWindow = null;
+    state.currentPlayer = move.player;
+    state.winningResult = winningResult;
 
     state.lastAction = {
       action: 'win',
       player: move.player,
-      tile: state.lastDiscard ?? undefined,
-      details: move.player + ' declares Mahjong and wins!',
+      tile: claimedTile ?? state.lastDiscard ?? undefined,
+      details:
+        move.player +
+        ' declares Mahjong and wins with ' +
+        winningResult.totalFan +
+        ' fan for ' +
+        winningResult.score +
+        ' points',
     };
   }
 
@@ -1028,6 +1562,7 @@ export class MahjongGame extends BaseGame {
 
   async getGameState(): Promise<GameState> {
     const state = this.currentState as MahjongState;
+    this.ensureStateDefaults(state);
 
     const sanitizedHands: any = {};
     for (const [playerId, hand] of Object.entries(state.hands)) {
@@ -1055,8 +1590,11 @@ export class MahjongGame extends BaseGame {
       gamePhase: state.gamePhase,
       roundNumber: state.roundNumber,
       dealer: state.dealer,
+      prevalentWind: state.prevalentWind,
+      seatWinds: state.seatWinds,
       lastAction: state.lastAction,
       melds: state.melds,
+      winningResult: state.winningResult,
     };
   }
 
@@ -1073,7 +1611,7 @@ export class MahjongGame extends BaseGame {
   getMetadata(): GameMetadata {
     return {
       name: 'Mahjong',
-      description: 'Traditional Chinese tile-based game of skill and strategy',
+      description: 'Chinese Official style Mahjong engine with draw-discard play, claims, and scored wins',
       minPlayers: 2,
       maxPlayers: 4,
       estimatedDuration: '45-90 minutes',

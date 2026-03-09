@@ -1,6 +1,6 @@
 # @versus/mahjong
 
-Drop-in Mahjong engine for 136-tile draw-discard play with discard claims and kan flow.
+Drop-in Chinese Official Mahjong engine with 8-fan scoring, discard claims, and kan flow.
 
 ## Install
 
@@ -41,7 +41,7 @@ See [RULES.md](./RULES.md) for the implemented objective, setup, turn flow, end 
 
 ## Scope Notes
 
-- Scoring and ruleset-specific yaku systems are not implemented.
+- The package now targets Chinese Official scoring, but it does not yet cover the full official fan catalog or multi-round wind progression.
 
 ## Testing
 

@@ -76,6 +76,6 @@ Most game packages implement the full rule set covered by the current engine tes
 
 The following packages still have deliberate scope limits and should be documented that way in releases:
 
-- `@versus/mahjong`: the engine now supports chi, pon, kan, discard wins, supplemental draws, and exhaustive draws, but scoring and ruleset-specific yaku systems are still out of scope.
+- `@versus/mahjong`: the package now targets Chinese Official scoring with an 8-fan minimum, scored discard/self-draw wins, chi, pon, kan, supplemental draws, and exhaustive draws, but it does not yet cover the full official fan catalog or multi-round wind progression.
 
 

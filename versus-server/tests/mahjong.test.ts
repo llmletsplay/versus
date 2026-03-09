@@ -514,29 +514,12 @@ describe('MahjongGame', () => {
       expect(state.lastDiscard).toBeNull();
     });
 
-    it("should let a player win off another player's discard", async () => {
+    it("should let a player win off another player's discard with a scored Chinese Official hand", async () => {
       const state = getInternalState(game);
-      const discardTile = createSuitTile('bamboo', 3, 'discard-b3');
+      const discardTile = createHonorTile('red', 'discard-red-win');
 
-      state.hands.player1 = [
-        discardTile,
-        createSuitTile('character', 1, 'p1-c1'),
-        createSuitTile('character', 2, 'p1-c2'),
-        createSuitTile('character', 3, 'p1-c3'),
-        createSuitTile('dot', 1, 'p1-d1'),
-        createSuitTile('dot', 2, 'p1-d2'),
-        createSuitTile('dot', 3, 'p1-d3'),
-        createHonorTile('east', 'p1-east'),
-        createHonorTile('south', 'p1-south'),
-        createHonorTile('west', 'p1-west'),
-        createHonorTile('north', 'p1-north'),
-        createHonorTile('red', 'p1-red'),
-        createHonorTile('green', 'p1-green'),
-        createHonorTile('white', 'p1-white'),
-      ];
+      state.hands.player1 = [discardTile, ...createNonWinningHand('p1-win', 13)];
       state.hands.player2 = [
-        createSuitTile('bamboo', 1, 'p2-b1'),
-        createSuitTile('bamboo', 2, 'p2-b2'),
         createSuitTile('bamboo', 4, 'p2-b4-1'),
         createSuitTile('bamboo', 4, 'p2-b4-2'),
         createSuitTile('bamboo', 4, 'p2-b4-3'),
@@ -546,39 +529,13 @@ describe('MahjongGame', () => {
         createSuitTile('dot', 6, 'p2-d6-1'),
         createSuitTile('dot', 6, 'p2-d6-2'),
         createSuitTile('dot', 6, 'p2-d6-3'),
+        createSuitTile('character', 8, 'p2-c8-1'),
+        createSuitTile('character', 8, 'p2-c8-2'),
         createHonorTile('red', 'p2-red-1'),
         createHonorTile('red', 'p2-red-2'),
       ];
-      state.hands.player3 = [
-        createSuitTile('bamboo', 6, 'p3-b6'),
-        createSuitTile('bamboo', 7, 'p3-b7'),
-        createSuitTile('character', 6, 'p3-c6'),
-        createSuitTile('character', 7, 'p3-c7'),
-        createSuitTile('dot', 6, 'p3-d6'),
-        createSuitTile('dot', 7, 'p3-d7'),
-        createHonorTile('east', 'p3-east'),
-        createHonorTile('south', 'p3-south'),
-        createHonorTile('west', 'p3-west'),
-        createHonorTile('north', 'p3-north'),
-        createHonorTile('green', 'p3-green'),
-        createHonorTile('white', 'p3-white'),
-        createSuitTile('dot', 9, 'p3-d9'),
-      ];
-      state.hands.player4 = [
-        createSuitTile('bamboo', 8, 'p4-b8'),
-        createSuitTile('bamboo', 9, 'p4-b9'),
-        createSuitTile('character', 8, 'p4-c8'),
-        createSuitTile('character', 9, 'p4-c9'),
-        createSuitTile('dot', 8, 'p4-d8'),
-        createSuitTile('dot', 9, 'p4-d9'),
-        createHonorTile('east', 'p4-east'),
-        createHonorTile('south', 'p4-south'),
-        createHonorTile('west', 'p4-west'),
-        createHonorTile('north', 'p4-north'),
-        createHonorTile('green', 'p4-green'),
-        createHonorTile('white', 'p4-white'),
-        createSuitTile('character', 1, 'p4-c1'),
-      ];
+      state.hands.player3 = createNonWinningHand('p3-win');
+      state.hands.player4 = createNonWinningHand('p4-win');
       state.currentPlayer = 'player1';
       state.discardPile = [];
       state.lastDiscard = null;
@@ -595,6 +552,11 @@ describe('MahjongGame', () => {
       expect(state.gameOver).toBe(true);
       expect(state.winner).toBe('player2');
       expect(state.gamePhase).toBe('finished');
+      expect(state.winningResult?.method).toBe('discard');
+      expect(state.winningResult?.totalFan).toBe(10);
+      expect(state.winningResult?.payments.player1).toBe(18);
+      expect(state.winningResult?.payments.player3).toBe(8);
+      expect(state.winningResult?.payments.player4).toBe(8);
     });
   });
 
@@ -772,30 +734,24 @@ describe('MahjongGame', () => {
       await game.initializeGame({ playerCount: 4 });
     });
 
-    it('should detect valid winning hand', async () => {
+    it('should score a concealed all-pungs Chinese Official win', async () => {
       const internalState = getInternalState(game);
 
-      // Create a winning hand: 4 triplets + 1 pair
       const winningHand = [
-        // Triplet 1
-        { type: 'suit', suit: 'bamboo', value: 1, id: 'b1-1' },
-        { type: 'suit', suit: 'bamboo', value: 1, id: 'b1-2' },
-        { type: 'suit', suit: 'bamboo', value: 1, id: 'b1-3' },
-        // Triplet 2
-        { type: 'suit', suit: 'bamboo', value: 2, id: 'b2-1' },
-        { type: 'suit', suit: 'bamboo', value: 2, id: 'b2-2' },
-        { type: 'suit', suit: 'bamboo', value: 2, id: 'b2-3' },
-        // Triplet 3
-        { type: 'suit', suit: 'character', value: 3, id: 'c3-1' },
-        { type: 'suit', suit: 'character', value: 3, id: 'c3-2' },
-        { type: 'suit', suit: 'character', value: 3, id: 'c3-3' },
-        // Triplet 4
-        { type: 'suit', suit: 'dot', value: 4, id: 'd4-1' },
-        { type: 'suit', suit: 'dot', value: 4, id: 'd4-2' },
-        { type: 'suit', suit: 'dot', value: 4, id: 'd4-3' },
-        // Pair
-        { type: 'honor', honor: 'red', id: 'red-1' },
-        { type: 'honor', honor: 'red', id: 'red-2' },
+        createSuitTile('bamboo', 1, 'b1-1'),
+        createSuitTile('bamboo', 1, 'b1-2'),
+        createSuitTile('bamboo', 1, 'b1-3'),
+        createSuitTile('bamboo', 2, 'b2-1'),
+        createSuitTile('bamboo', 2, 'b2-2'),
+        createSuitTile('bamboo', 2, 'b2-3'),
+        createSuitTile('character', 3, 'c3-1'),
+        createSuitTile('character', 3, 'c3-2'),
+        createSuitTile('character', 3, 'c3-3'),
+        createHonorTile('red', 'red-1'),
+        createHonorTile('red', 'red-2'),
+        createHonorTile('red', 'red-3'),
+        createSuitTile('dot', 8, 'd8-1'),
+        createSuitTile('dot', 8, 'd8-2'),
       ];
 
       internalState.hands.player1 = winningHand;
@@ -815,26 +771,35 @@ describe('MahjongGame', () => {
       expect(state.gameOver).toBe(true);
       expect(state.winner).toBe('player1');
       expect(state.gamePhase).toBe('finished');
+      expect(state.winningResult.totalFan).toBe(13);
+      expect(state.winningResult.breakdown).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'All Pungs', fan: 6 }),
+          expect.objectContaining({ name: 'Dragon Pung', fan: 2 }),
+          expect.objectContaining({ name: 'Fully Concealed Hand', fan: 4 }),
+          expect.objectContaining({ name: 'Pung Of Terminals Or Honors', fan: 1 }),
+        ])
+      );
     });
 
-    it('should detect a winning hand with sequences', async () => {
+    it('should score a full-flush chow hand under Chinese Official rules', async () => {
       const internalState = getInternalState(game);
 
       const winningHand = [
-        { type: 'suit', suit: 'bamboo', value: 1, id: 'b1-1' },
-        { type: 'suit', suit: 'bamboo', value: 2, id: 'b2-1' },
-        { type: 'suit', suit: 'bamboo', value: 3, id: 'b3-1' },
-        { type: 'suit', suit: 'character', value: 2, id: 'c2-1' },
-        { type: 'suit', suit: 'character', value: 3, id: 'c3-1' },
-        { type: 'suit', suit: 'character', value: 4, id: 'c4-1' },
-        { type: 'suit', suit: 'dot', value: 4, id: 'd4-1' },
-        { type: 'suit', suit: 'dot', value: 5, id: 'd5-1' },
-        { type: 'suit', suit: 'dot', value: 6, id: 'd6-1' },
-        { type: 'suit', suit: 'dot', value: 7, id: 'd7-1' },
-        { type: 'suit', suit: 'dot', value: 8, id: 'd8-1' },
-        { type: 'suit', suit: 'dot', value: 9, id: 'd9-1' },
-        { type: 'honor', honor: 'red', id: 'red-1' },
-        { type: 'honor', honor: 'red', id: 'red-2' },
+        createSuitTile('bamboo', 1, 'b1-1'),
+        createSuitTile('bamboo', 2, 'b2-1'),
+        createSuitTile('bamboo', 3, 'b3-1'),
+        createSuitTile('bamboo', 2, 'b2-2'),
+        createSuitTile('bamboo', 3, 'b3-2'),
+        createSuitTile('bamboo', 4, 'b4-1'),
+        createSuitTile('bamboo', 4, 'b4-2'),
+        createSuitTile('bamboo', 5, 'b5-1'),
+        createSuitTile('bamboo', 6, 'b6-1'),
+        createSuitTile('bamboo', 7, 'b7-1'),
+        createSuitTile('bamboo', 8, 'b8-1'),
+        createSuitTile('bamboo', 9, 'b9-1'),
+        createSuitTile('bamboo', 5, 'b5-2'),
+        createSuitTile('bamboo', 5, 'b5-3'),
       ];
 
       internalState.hands.player1 = winningHand;
@@ -844,26 +809,41 @@ describe('MahjongGame', () => {
         action: 'declare_win',
       });
       expect(result.valid).toBe(true);
+
+      await game.makeMove({
+        player: 'player1',
+        action: 'declare_win',
+      });
+
+      const state = await game.getGameState();
+      expect(state.winningResult.totalFan).toBe(30);
+      expect(state.winningResult.breakdown).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Full Flush', fan: 24 }),
+          expect.objectContaining({ name: 'All Chows', fan: 2 }),
+          expect.objectContaining({ name: 'Fully Concealed Hand', fan: 4 }),
+        ])
+      );
     });
 
     it('should detect a seven-pairs winning hand', async () => {
       const internalState = getInternalState(game);
 
       const winningHand = [
-        { type: 'suit', suit: 'bamboo', value: 1, id: 'b1-1' },
-        { type: 'suit', suit: 'bamboo', value: 1, id: 'b1-2' },
-        { type: 'suit', suit: 'bamboo', value: 3, id: 'b3-1' },
-        { type: 'suit', suit: 'bamboo', value: 3, id: 'b3-2' },
-        { type: 'suit', suit: 'character', value: 5, id: 'c5-1' },
-        { type: 'suit', suit: 'character', value: 5, id: 'c5-2' },
-        { type: 'suit', suit: 'character', value: 7, id: 'c7-1' },
-        { type: 'suit', suit: 'character', value: 7, id: 'c7-2' },
-        { type: 'suit', suit: 'dot', value: 2, id: 'd2-1' },
-        { type: 'suit', suit: 'dot', value: 2, id: 'd2-2' },
-        { type: 'honor', honor: 'east', id: 'east-1' },
-        { type: 'honor', honor: 'east', id: 'east-2' },
-        { type: 'honor', honor: 'white', id: 'white-1' },
-        { type: 'honor', honor: 'white', id: 'white-2' },
+        createSuitTile('bamboo', 1, 'b1-1'),
+        createSuitTile('bamboo', 1, 'b1-2'),
+        createSuitTile('bamboo', 3, 'b3-1'),
+        createSuitTile('bamboo', 3, 'b3-2'),
+        createSuitTile('character', 5, 'c5-1'),
+        createSuitTile('character', 5, 'c5-2'),
+        createSuitTile('character', 7, 'c7-1'),
+        createSuitTile('character', 7, 'c7-2'),
+        createSuitTile('dot', 2, 'd2-1'),
+        createSuitTile('dot', 2, 'd2-2'),
+        createHonorTile('east', 'east-1'),
+        createHonorTile('east', 'east-2'),
+        createHonorTile('white', 'white-1'),
+        createHonorTile('white', 'white-2'),
       ];
 
       internalState.hands.player1 = winningHand;
@@ -873,16 +853,48 @@ describe('MahjongGame', () => {
         action: 'declare_win',
       });
       expect(result.valid).toBe(true);
+
+      await game.makeMove({
+        player: 'player1',
+        action: 'declare_win',
+      });
+
+      const state = await game.getGameState();
+      expect(state.winningResult.totalFan).toBe(25);
+      expect(state.winningResult.breakdown).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Seven Pairs', fan: 24 }),
+          expect.objectContaining({ name: 'Self Drawn', fan: 1 }),
+        ])
+      );
     });
 
-    it('should reject invalid winning declaration', async () => {
-      // Player1 has default hand which is not winning
+    it('should reject a structurally complete hand that does not meet the 8-fan minimum', async () => {
+      const internalState = getInternalState(game);
+
+      internalState.hands.player1 = [
+        createSuitTile('bamboo', 1, 'low-b1'),
+        createSuitTile('bamboo', 2, 'low-b2'),
+        createSuitTile('bamboo', 3, 'low-b3'),
+        createSuitTile('character', 2, 'low-c2'),
+        createSuitTile('character', 3, 'low-c3'),
+        createSuitTile('character', 4, 'low-c4'),
+        createSuitTile('dot', 4, 'low-d4'),
+        createSuitTile('dot', 5, 'low-d5'),
+        createSuitTile('dot', 6, 'low-d6'),
+        createSuitTile('dot', 7, 'low-d7'),
+        createSuitTile('dot', 8, 'low-d8'),
+        createSuitTile('dot', 9, 'low-d9'),
+        createSuitTile('bamboo', 5, 'low-b5-1'),
+        createSuitTile('bamboo', 5, 'low-b5-2'),
+      ];
+
       const result = await game.validateMove({
         player: 'player1',
         action: 'declare_win',
       });
       expect(result.valid).toBe(false);
-      expect(result.error).toBe('Player does not have a winning hand');
+      expect(result.error).toContain('Chinese Official winning hand worth at least 8 fan');
     });
 
     it('should end the round in a draw when only dead wall tiles remain after a discard', async () => {
@@ -1032,6 +1044,9 @@ describe('MahjongGame', () => {
       expect(state.wallSize).toBeDefined();
       expect(state.liveWallSize).toBeDefined();
       expect(state.supplementalDrawsUsed).toBe(0);
+      expect(state.prevalentWind).toBe('east');
+      expect(state.seatWinds.player1).toBe('east');
+      expect(state.winningResult).toBeNull();
       expect(state.discardPile).toBeDefined();
 
       // Check hands are provided with tile counts
