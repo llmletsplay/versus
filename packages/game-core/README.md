@@ -1,11 +1,11 @@
-# @versus/game-core
+# @llmletsplay/versus-game-core
 
 Shared runtime types and helpers for the standalone Versus game packages.
 
 ## Install
 
 ```bash
-npm install @versus/game-core
+npm install @llmletsplay/versus-game-core
 ```
 
 ## What You Get
@@ -18,7 +18,7 @@ npm install @versus/game-core
 ## Quick Start
 
 ```js
-import { BaseGame, InMemoryDatabaseProvider } from '@versus/game-core';
+import { BaseGame, InMemoryDatabaseProvider } from '@llmletsplay/versus-game-core';
 
 const storage = new InMemoryDatabaseProvider();
 console.log(typeof BaseGame, storage.constructor.name);
@@ -26,4 +26,4 @@ console.log(typeof BaseGame, storage.constructor.name);
 
 ## Notes
 
-This package provides infrastructure rather than a playable game. Consumers normally install it transitively through a game package such as `@versus/chess` or `@versus/tic-tac-toe`.
+This package provides infrastructure rather than a playable game. Consumers normally install it transitively through a game package such as `@llmletsplay/versus-chess` or `@llmletsplay/versus-tic-tac-toe`.

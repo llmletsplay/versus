@@ -1,17 +1,17 @@
-# @versus/crazy-cards
+# @llmletsplay/versus-crazy-cards
 
 Drop-in Crazy Cards engine for UNO-style color-and-rank shedding play.
 
 ## Install
 
 ```bash
-npm install @versus/crazy-cards
+npm install @llmletsplay/versus-crazy-cards
 ```
 
 ## Quick Start
 
 ```js
-import { CrazyCardsGame } from '@versus/crazy-cards';
+import { CrazyCardsGame } from '@llmletsplay/versus-crazy-cards';
 
 const game = new CrazyCardsGame('demo');
 await game.initializeGame();

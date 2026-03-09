@@ -11,7 +11,7 @@ Versus is organized in three layers:
 ```text
 +---------------------------------------------+
 | Reusable Packages                           |
-| @versus/game-core, @versus/chess, ...       |
+| @llmletsplay/versus-game-core, @llmletsplay/versus-chess, ...       |
 +------------------------+--------------------+
                          |
                          v
@@ -31,8 +31,8 @@ Versus is organized in three layers:
 
 The canonical game logic lives in [`packages/`](../../packages).
 
-- `@versus/game-core` contains shared types, `BaseGame`, storage providers, and utilities.
-- `@versus/<game>` packages contain the actual rules for each game.
+- `@llmletsplay/versus-game-core` contains shared types, `BaseGame`, storage providers, and utilities.
+- `@llmletsplay/versus-<game>` packages contain the actual rules for each game.
 
 Those packages are designed to be usable outside the server.
 
@@ -52,7 +52,7 @@ The server registry in [`versus-server/src/games/index.ts`](../../versus-server/
 
 ## Shared Core Contract
 
-All game packages extend the shared `BaseGame` from `@versus/game-core` and follow the same lifecycle:
+All game packages extend the shared `BaseGame` from `@llmletsplay/versus-game-core` and follow the same lifecycle:
 
 - `initializeGame()` creates the starting state
 - `validateMove()` checks a proposed move

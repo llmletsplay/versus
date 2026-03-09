@@ -1,6 +1,6 @@
 ﻿# Games Engine
 
-Versus implements game logic in publishable packages that extend the shared `@versus/game-core` runtime.
+Versus implements game logic in publishable packages that extend the shared `@llmletsplay/versus-game-core` runtime.
 
 ## Core Shape
 

@@ -1,4 +1,4 @@
-import type { GameStateData } from '@versus/game-core';
+import type { GameStateData } from '@llmletsplay/versus-game-core';
 
 type RestorableGame = {
   getGameId(): string;

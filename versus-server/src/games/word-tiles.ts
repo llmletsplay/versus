@@ -1,1 +1,1 @@
-export * from '@versus/word-tiles';
+export * from '@llmletsplay/versus-word-tiles';

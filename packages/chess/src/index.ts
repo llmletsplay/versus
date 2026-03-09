@@ -1,13 +1,13 @@
-import { InMemoryDatabaseProvider } from '@versus/game-core';
-import { BaseGame } from '@versus/game-core';
-import type { DatabaseProvider } from '@versus/game-core';
+import { InMemoryDatabaseProvider } from '@llmletsplay/versus-game-core';
+import { BaseGame } from '@llmletsplay/versus-game-core';
+import type { DatabaseProvider } from '@llmletsplay/versus-game-core';
 import type {
   GameState,
   GameConfig,
   MoveValidationResult,
   GameMetadata,
   GameMove,
-} from '@versus/game-core';
+} from '@llmletsplay/versus-game-core';
 
 type Player = 'white' | 'black';
 type PieceType = 'king' | 'queen' | 'rook' | 'bishop' | 'knight' | 'pawn';
@@ -772,7 +772,7 @@ export class ChessGame extends BaseGame<ChessState> {
 
 export function createChessGame(
   gameId: string,
-  database: import('@versus/game-core').DatabaseProvider = new InMemoryDatabaseProvider()
+  database: import('@llmletsplay/versus-game-core').DatabaseProvider = new InMemoryDatabaseProvider()
 ): ChessGame {
   return new ChessGame(gameId, database);
 }

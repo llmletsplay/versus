@@ -1,4 +1,4 @@
-# @versus/tic-tac-toe Rules
+# @llmletsplay/versus-tic-tac-toe Rules
 
 These notes describe the gameplay currently implemented by this package so downstream apps know exactly what the engine expects.
 

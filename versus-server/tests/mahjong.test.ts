@@ -169,16 +169,11 @@ describe('MahjongGame', () => {
       expect(result.error).toBe('Must specify tile to discard');
     });
 
-    it('should reject discard when need to draw first', async () => {
+    it('should reject discard when the player has not drawn yet', async () => {
       const internalState = getInternalState(game);
-      // Discard a tile first
-      await game.makeMove({
-        player: 'player1',
-        action: 'discard',
-        tile: internalState.hands.player1[0],
-      });
+      internalState.currentPlayer = 'player2';
+      internalState.claimWindow = null;
 
-      // Player2 needs to draw before discarding
       const result = await game.validateMove({
         player: 'player2',
         action: 'discard',
@@ -186,6 +181,27 @@ describe('MahjongGame', () => {
       });
       expect(result.valid).toBe(false);
       expect(result.error).toBe('Must draw before discarding');
+    });
+
+    it('should reject discard while discard claims are pending', async () => {
+      const internalState = getInternalState(game);
+      internalState.currentPlayer = 'player2';
+      internalState.claimWindow = {
+        tile: internalState.hands.player1[0],
+        discardedBy: 'player1',
+        nextPlayer: 'player2',
+        phase: 'pon',
+        pendingPlayers: ['player2'],
+        source: 'discard',
+      };
+
+      const result = await game.validateMove({
+        player: 'player2',
+        action: 'discard',
+        tile: internalState.hands.player2[0],
+      });
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('Must resolve discard claims before drawing or discarding');
     });
 
     it("should reject discard with tile player doesn't have", async () => {

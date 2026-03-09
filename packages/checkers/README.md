@@ -1,17 +1,17 @@
-# @versus/checkers
+# @llmletsplay/versus-checkers
 
 Drop-in Checkers engine for standard two-player draughts play.
 
 ## Install
 
 ```bash
-npm install @versus/checkers
+npm install @llmletsplay/versus-checkers
 ```
 
 ## Quick Start
 
 ```js
-import { CheckersGame } from '@versus/checkers';
+import { CheckersGame } from '@llmletsplay/versus-checkers';
 
 const game = new CheckersGame('demo');
 await game.initializeGame();

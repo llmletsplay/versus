@@ -1,5 +1,5 @@
-import { InMemoryDatabaseProvider } from '@versus/game-core';
-import { BaseGame } from '@versus/game-core';
+import { InMemoryDatabaseProvider } from '@llmletsplay/versus-game-core';
+import { BaseGame } from '@llmletsplay/versus-game-core';
 import type {
   DatabaseProvider,
   GameConfig,
@@ -8,7 +8,7 @@ import type {
   GameState,
   GameStateData,
   MoveValidationResult,
-} from '@versus/game-core';
+} from '@llmletsplay/versus-game-core';
 
 interface Position {
   row: number;
@@ -901,7 +901,7 @@ export class ShogiGame extends BaseGame<ShogiGameState> {
 
 export function createShogiGame(
   gameId: string,
-  database: import('@versus/game-core').DatabaseProvider = new InMemoryDatabaseProvider()
+  database: import('@llmletsplay/versus-game-core').DatabaseProvider = new InMemoryDatabaseProvider()
 ): ShogiGame {
   return new ShogiGame(gameId, database);
 }

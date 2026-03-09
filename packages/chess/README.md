@@ -1,17 +1,17 @@
-# @versus/chess
+# @llmletsplay/versus-chess
 
 Drop-in Chess engine with legal move validation and end-state detection.
 
 ## Install
 
 ```bash
-npm install @versus/chess
+npm install @llmletsplay/versus-chess
 ```
 
 ## Quick Start
 
 ```js
-import { ChessGame } from '@versus/chess';
+import { ChessGame } from '@llmletsplay/versus-chess';
 
 const game = new ChessGame('demo');
 await game.initializeGame();

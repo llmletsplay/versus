@@ -1,5 +1,5 @@
 {
-  "name": "@versus/poker",
+  "name": "@llmletsplay/versus-poker",
   "version": "0.1.0",
   "description": "Standalone Versus poker engine package",
   "license": "MIT",
@@ -32,6 +32,6 @@
     "directory": "packages/poker"
   },
   "dependencies": {
-    "@versus/game-core": "^0.1.0"
+    "@llmletsplay/versus-game-core": "^0.1.0"
   }
 }

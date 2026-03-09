@@ -1,17 +1,17 @@
-# @versus/cuttle
+# @llmletsplay/versus-cuttle
 
 Drop-in Cuttle engine for point-race card combat.
 
 ## Install
 
 ```bash
-npm install @versus/cuttle
+npm install @llmletsplay/versus-cuttle
 ```
 
 ## Quick Start
 
 ```js
-import { CuttleGame } from '@versus/cuttle';
+import { CuttleGame } from '@llmletsplay/versus-cuttle';
 
 const game = new CuttleGame('demo');
 await game.initializeGame();

@@ -1,17 +1,17 @@
-# @versus/go
+# @llmletsplay/versus-go
 
 Drop-in Go engine with captures, ko tracking, passing, and scoring.
 
 ## Install
 
 ```bash
-npm install @versus/go
+npm install @llmletsplay/versus-go
 ```
 
 ## Quick Start
 
 ```js
-import { GoGame } from '@versus/go';
+import { GoGame } from '@llmletsplay/versus-go';
 
 const game = new GoGame('demo');
 await game.initializeGame();

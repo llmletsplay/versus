@@ -134,3 +134,4 @@ opencode.json
 .coderabbit.yml
 **/coderabbit.yml
 **/.coderabbit.yml
+.npm-cache/

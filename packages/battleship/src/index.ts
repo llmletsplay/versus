@@ -1,13 +1,13 @@
-import { InMemoryDatabaseProvider } from '@versus/game-core';
-import { BaseGame } from '@versus/game-core';
-import type { DatabaseProvider } from '@versus/game-core';
+import { InMemoryDatabaseProvider } from '@llmletsplay/versus-game-core';
+import { BaseGame } from '@llmletsplay/versus-game-core';
+import type { DatabaseProvider } from '@llmletsplay/versus-game-core';
 import type {
   GameState,
   GameConfig,
   MoveValidationResult,
   GameMetadata,
   GameMove,
-} from '@versus/game-core';
+} from '@llmletsplay/versus-game-core';
 
 type Player = 'player1' | 'player2';
 type CellState = 'empty' | 'ship' | 'hit' | 'miss';
@@ -322,7 +322,7 @@ export class BattleshipGame extends BaseGame {
 
 export function createBattleshipGame(
   gameId: string,
-  database: import('@versus/game-core').DatabaseProvider = new InMemoryDatabaseProvider()
+  database: import('@llmletsplay/versus-game-core').DatabaseProvider = new InMemoryDatabaseProvider()
 ): BattleshipGame {
   return new BattleshipGame(gameId, database);
 }

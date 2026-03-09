@@ -1,17 +1,17 @@
-# @versus/poker
+# @llmletsplay/versus-poker
 
 Drop-in Texas Hold'em engine with betting streets and showdown evaluation.
 
 ## Install
 
 ```bash
-npm install @versus/poker
+npm install @llmletsplay/versus-poker
 ```
 
 ## Quick Start
 
 ```js
-import { PokerGame } from '@versus/poker';
+import { PokerGame } from '@llmletsplay/versus-poker';
 
 const game = new PokerGame('demo');
 await game.initializeGame();

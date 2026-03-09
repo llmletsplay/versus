@@ -1,1 +1,1 @@
-export * from '@versus/catan';
+export * from '@llmletsplay/versus-catan';

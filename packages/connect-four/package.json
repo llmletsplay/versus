@@ -1,5 +1,5 @@
 {
-  "name": "@versus/connect-four",
+  "name": "@llmletsplay/versus-connect-four",
   "version": "0.1.0",
   "description": "Standalone Versus connect-four engine package",
   "license": "MIT",
@@ -32,6 +32,6 @@
     "directory": "packages/connect-four"
   },
   "dependencies": {
-    "@versus/game-core": "^0.1.0"
+    "@llmletsplay/versus-game-core": "^0.1.0"
   }
 }

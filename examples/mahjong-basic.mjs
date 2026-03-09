@@ -1,4 +1,4 @@
-import { MahjongGame } from '@versus/mahjong';
+import { MahjongGame } from '@llmletsplay/versus-mahjong';
 
 const game = new MahjongGame('mahjong-demo');
 await game.initializeGame();

@@ -1,17 +1,17 @@
-# @versus/chinese-checkers
+# @llmletsplay/versus-chinese-checkers
 
 Drop-in Chinese Checkers engine with the official 121-hole star board and chained jumps.
 
 ## Install
 
 ```bash
-npm install @versus/chinese-checkers
+npm install @llmletsplay/versus-chinese-checkers
 ```
 
 ## Quick Start
 
 ```js
-import { ChineseCheckersGame } from '@versus/chinese-checkers';
+import { ChineseCheckersGame } from '@llmletsplay/versus-chinese-checkers';
 
 const game = new ChineseCheckersGame('demo');
 await game.initializeGame();

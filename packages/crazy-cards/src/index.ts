@@ -1,13 +1,13 @@
-import { InMemoryDatabaseProvider } from '@versus/game-core';
-import { BaseGame } from '@versus/game-core';
-import type { DatabaseProvider } from '@versus/game-core';
+import { InMemoryDatabaseProvider } from '@llmletsplay/versus-game-core';
+import { BaseGame } from '@llmletsplay/versus-game-core';
+import type { DatabaseProvider } from '@llmletsplay/versus-game-core';
 import type {
   GameState,
   GameConfig,
   MoveValidationResult,
   GameMetadata,
   GameMove,
-} from '@versus/game-core';
+} from '@llmletsplay/versus-game-core';
 
 type CrazyColor = 'red' | 'blue' | 'green' | 'yellow' | 'wild';
 type CrazyValue =
@@ -572,7 +572,7 @@ export class CrazyCardsGame extends BaseGame {
 
 export function createCrazyCardsGame(
   gameId: string,
-  database: import('@versus/game-core').DatabaseProvider = new InMemoryDatabaseProvider()
+  database: import('@llmletsplay/versus-game-core').DatabaseProvider = new InMemoryDatabaseProvider()
 ): CrazyCardsGame {
   return new CrazyCardsGame(gameId, database);
 }

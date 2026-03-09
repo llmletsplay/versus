@@ -1,17 +1,17 @@
-# @versus/mahjong
+# @llmletsplay/versus-mahjong
 
 Drop-in Chinese Official Mahjong engine with 8-fan scoring, session progression, discard claims, and kan flow.
 
 ## Install
 
 ```bash
-npm install @versus/mahjong
+npm install @llmletsplay/versus-mahjong
 ```
 
 ## Quick Start
 
 ```js
-import { MahjongGame } from '@versus/mahjong';
+import { MahjongGame } from '@llmletsplay/versus-mahjong';
 
 const game = new MahjongGame('demo');
 await game.initializeGame();

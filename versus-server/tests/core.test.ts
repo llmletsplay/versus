@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from '@jest/globals';
 import { BaseGame } from '../src/core/base-game.js';
-import { InMemoryDatabaseProvider } from '@versus/game-core';
+import { InMemoryDatabaseProvider } from '@llmletsplay/versus-game-core';
 import { TicTacToeGame } from '../src/games/tic-tac-toe.js';
 import { ChessGame } from '../src/games/chess.js';
 

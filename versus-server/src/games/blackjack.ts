@@ -1,1 +1,1 @@
-export * from '@versus/blackjack';
+export * from '@llmletsplay/versus-blackjack';

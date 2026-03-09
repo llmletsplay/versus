@@ -1,17 +1,17 @@
-# @versus/thirteen
+# @llmletsplay/versus-thirteen
 
 Drop-in Thirteen engine for Tien Len style climbing and shedding.
 
 ## Install
 
 ```bash
-npm install @versus/thirteen
+npm install @llmletsplay/versus-thirteen
 ```
 
 ## Quick Start
 
 ```js
-import { ThirteenGame } from '@versus/thirteen';
+import { ThirteenGame } from '@llmletsplay/versus-thirteen';
 
 const game = new ThirteenGame('demo');
 await game.initializeGame();

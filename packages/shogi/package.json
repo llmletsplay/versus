@@ -1,5 +1,5 @@
 {
-  "name": "@versus/shogi",
+  "name": "@llmletsplay/versus-shogi",
   "version": "0.1.0",
   "description": "Standalone Versus shogi engine package",
   "license": "MIT",
@@ -32,6 +32,6 @@
     "directory": "packages/shogi"
   },
   "dependencies": {
-    "@versus/game-core": "^0.1.0"
+    "@llmletsplay/versus-game-core": "^0.1.0"
   }
 }

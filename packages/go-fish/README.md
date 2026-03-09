@@ -1,17 +1,17 @@
-# @versus/go-fish
+# @llmletsplay/versus-go-fish
 
 Drop-in Go Fish engine for rank-asking and book collection.
 
 ## Install
 
 ```bash
-npm install @versus/go-fish
+npm install @llmletsplay/versus-go-fish
 ```
 
 ## Quick Start
 
 ```js
-import { GoFishGame } from '@versus/go-fish';
+import { GoFishGame } from '@llmletsplay/versus-go-fish';
 
 const game = new GoFishGame('demo');
 await game.initializeGame();

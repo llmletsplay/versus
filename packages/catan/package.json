@@ -1,5 +1,5 @@
 {
-  "name": "@versus/catan",
+  "name": "@llmletsplay/versus-catan",
   "version": "0.1.0",
   "description": "Standalone Versus catan engine package",
   "license": "MIT",
@@ -32,6 +32,6 @@
     "directory": "packages/catan"
   },
   "dependencies": {
-    "@versus/game-core": "^0.1.0"
+    "@llmletsplay/versus-game-core": "^0.1.0"
   }
 }

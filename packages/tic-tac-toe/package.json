@@ -1,5 +1,5 @@
 {
-  "name": "@versus/tic-tac-toe",
+  "name": "@llmletsplay/versus-tic-tac-toe",
   "version": "0.1.0",
   "description": "Standalone Versus tic-tac-toe engine package",
   "license": "MIT",
@@ -32,6 +32,6 @@
     "directory": "packages/tic-tac-toe"
   },
   "dependencies": {
-    "@versus/game-core": "^0.1.0"
+    "@llmletsplay/versus-game-core": "^0.1.0"
   }
 }

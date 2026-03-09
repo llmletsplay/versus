@@ -1,17 +1,17 @@
-# @versus/mancala
+# @llmletsplay/versus-mancala
 
 Drop-in Mancala engine for classic Kalah-style sowing play.
 
 ## Install
 
 ```bash
-npm install @versus/mancala
+npm install @llmletsplay/versus-mancala
 ```
 
 ## Quick Start
 
 ```js
-import { MancalaGame } from '@versus/mancala';
+import { MancalaGame } from '@llmletsplay/versus-mancala';
 
 const game = new MancalaGame('demo');
 await game.initializeGame();

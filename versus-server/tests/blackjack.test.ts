@@ -235,6 +235,7 @@ describe('BlackjackGame', () => {
     });
 
     test('should handle hit action', async () => {
+      setControlledPlayingState(game);
       const initialState = await game.getGameState();
       const initialCardCount = initialState.playerHands[0].cards.length;
 

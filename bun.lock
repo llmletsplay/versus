@@ -10,189 +10,189 @@
     },
     },
     "packages/battleship": {
-      "name": "@versus/battleship",
+      "name": "@llmletsplay/versus-battleship",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/bingo": {
-      "name": "@versus/bingo",
+      "name": "@llmletsplay/versus-bingo",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/blackjack": {
-      "name": "@versus/blackjack",
+      "name": "@llmletsplay/versus-blackjack",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/bullshit": {
-      "name": "@versus/bullshit",
+      "name": "@llmletsplay/versus-bullshit",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/catan": {
-      "name": "@versus/catan",
+      "name": "@llmletsplay/versus-catan",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/checkers": {
-      "name": "@versus/checkers",
+      "name": "@llmletsplay/versus-checkers",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/chess": {
-      "name": "@versus/chess",
+      "name": "@llmletsplay/versus-chess",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/chinese-checkers": {
-      "name": "@versus/chinese-checkers",
+      "name": "@llmletsplay/versus-chinese-checkers",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/connect-four": {
-      "name": "@versus/connect-four",
+      "name": "@llmletsplay/versus-connect-four",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/crazy-cards": {
-      "name": "@versus/crazy-cards",
+      "name": "@llmletsplay/versus-crazy-cards",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/cuttle": {
-      "name": "@versus/cuttle",
+      "name": "@llmletsplay/versus-cuttle",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/game-core": {
-      "name": "@versus/game-core",
+      "name": "@llmletsplay/versus-game-core",
       "version": "0.1.0",
     },
     "packages/go": {
-      "name": "@versus/go",
+      "name": "@llmletsplay/versus-go",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/go-fish": {
-      "name": "@versus/go-fish",
+      "name": "@llmletsplay/versus-go-fish",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/hearts": {
-      "name": "@versus/hearts",
+      "name": "@llmletsplay/versus-hearts",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/mahjong": {
-      "name": "@versus/mahjong",
+      "name": "@llmletsplay/versus-mahjong",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/mancala": {
-      "name": "@versus/mancala",
+      "name": "@llmletsplay/versus-mancala",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/martial-tactics": {
-      "name": "@versus/martial-tactics",
+      "name": "@llmletsplay/versus-martial-tactics",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/omok": {
-      "name": "@versus/omok",
+      "name": "@llmletsplay/versus-omok",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/othello": {
-      "name": "@versus/othello",
+      "name": "@llmletsplay/versus-othello",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/poker": {
-      "name": "@versus/poker",
+      "name": "@llmletsplay/versus-poker",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/shogi": {
-      "name": "@versus/shogi",
+      "name": "@llmletsplay/versus-shogi",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/spades": {
-      "name": "@versus/spades",
+      "name": "@llmletsplay/versus-spades",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/thirteen": {
-      "name": "@versus/thirteen",
+      "name": "@llmletsplay/versus-thirteen",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/tic-tac-toe": {
-      "name": "@versus/tic-tac-toe",
+      "name": "@llmletsplay/versus-tic-tac-toe",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/war": {
-      "name": "@versus/war",
+      "name": "@llmletsplay/versus-war",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "packages/word-tiles": {
-      "name": "@versus/word-tiles",
+      "name": "@llmletsplay/versus-word-tiles",
       "version": "0.1.0",
       "dependencies": {
-        "@versus/game-core": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
       },
     },
     "versus-client": {
@@ -218,33 +218,33 @@
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.15.0",
         "@types/uuid": "^10.0.0",
-        "@versus/battleship": "workspace:*",
-        "@versus/bingo": "workspace:*",
-        "@versus/blackjack": "workspace:*",
-        "@versus/bullshit": "workspace:*",
-        "@versus/catan": "workspace:*",
-        "@versus/checkers": "workspace:*",
-        "@versus/chess": "workspace:*",
-        "@versus/chinese-checkers": "workspace:*",
-        "@versus/connect-four": "workspace:*",
-        "@versus/crazy-cards": "workspace:*",
-        "@versus/cuttle": "workspace:*",
-        "@versus/game-core": "workspace:*",
-        "@versus/go": "workspace:*",
-        "@versus/go-fish": "workspace:*",
-        "@versus/hearts": "workspace:*",
-        "@versus/mahjong": "workspace:*",
-        "@versus/mancala": "workspace:*",
-        "@versus/martial-tactics": "workspace:*",
-        "@versus/omok": "workspace:*",
-        "@versus/othello": "workspace:*",
-        "@versus/poker": "workspace:*",
-        "@versus/shogi": "workspace:*",
-        "@versus/spades": "workspace:*",
-        "@versus/thirteen": "workspace:*",
-        "@versus/tic-tac-toe": "workspace:*",
-        "@versus/war": "workspace:*",
-        "@versus/word-tiles": "workspace:*",
+        "@llmletsplay/versus-battleship": "workspace:*",
+        "@llmletsplay/versus-bingo": "workspace:*",
+        "@llmletsplay/versus-blackjack": "workspace:*",
+        "@llmletsplay/versus-bullshit": "workspace:*",
+        "@llmletsplay/versus-catan": "workspace:*",
+        "@llmletsplay/versus-checkers": "workspace:*",
+        "@llmletsplay/versus-chess": "workspace:*",
+        "@llmletsplay/versus-chinese-checkers": "workspace:*",
+        "@llmletsplay/versus-connect-four": "workspace:*",
+        "@llmletsplay/versus-crazy-cards": "workspace:*",
+        "@llmletsplay/versus-cuttle": "workspace:*",
+        "@llmletsplay/versus-game-core": "workspace:*",
+        "@llmletsplay/versus-go": "workspace:*",
+        "@llmletsplay/versus-go-fish": "workspace:*",
+        "@llmletsplay/versus-hearts": "workspace:*",
+        "@llmletsplay/versus-mahjong": "workspace:*",
+        "@llmletsplay/versus-mancala": "workspace:*",
+        "@llmletsplay/versus-martial-tactics": "workspace:*",
+        "@llmletsplay/versus-omok": "workspace:*",
+        "@llmletsplay/versus-othello": "workspace:*",
+        "@llmletsplay/versus-poker": "workspace:*",
+        "@llmletsplay/versus-shogi": "workspace:*",
+        "@llmletsplay/versus-spades": "workspace:*",
+        "@llmletsplay/versus-thirteen": "workspace:*",
+        "@llmletsplay/versus-tic-tac-toe": "workspace:*",
+        "@llmletsplay/versus-war": "workspace:*",
+        "@llmletsplay/versus-word-tiles": "workspace:*",
         "@x402/core": "2.3.1",
         "@x402/evm": "2.3.1",
         "@x402/fetch": "2.3.0",
@@ -790,59 +790,59 @@
 
     "@unrs/resolver-binding-win32-x64-msvc": ["@unrs/resolver-binding-win32-x64-msvc@1.11.1", "", { "os": "win32", "cpu": "x64" }, "sha512-lrW200hZdbfRtztbygyaq/6jP6AKE8qQN2KvPcJ+x7wiD038YtnYtZ82IMNJ69GJibV7bwL3y9FgK+5w/pYt6g=="],
 
-    "@versus/battleship": ["@versus/battleship@workspace:packages/battleship"],
+    "@llmletsplay/versus-battleship": ["@llmletsplay/versus-battleship@workspace:packages/battleship"],
 
-    "@versus/bingo": ["@versus/bingo@workspace:packages/bingo"],
+    "@llmletsplay/versus-bingo": ["@llmletsplay/versus-bingo@workspace:packages/bingo"],
 
-    "@versus/blackjack": ["@versus/blackjack@workspace:packages/blackjack"],
+    "@llmletsplay/versus-blackjack": ["@llmletsplay/versus-blackjack@workspace:packages/blackjack"],
 
-    "@versus/bullshit": ["@versus/bullshit@workspace:packages/bullshit"],
+    "@llmletsplay/versus-bullshit": ["@llmletsplay/versus-bullshit@workspace:packages/bullshit"],
 
-    "@versus/catan": ["@versus/catan@workspace:packages/catan"],
+    "@llmletsplay/versus-catan": ["@llmletsplay/versus-catan@workspace:packages/catan"],
 
-    "@versus/checkers": ["@versus/checkers@workspace:packages/checkers"],
+    "@llmletsplay/versus-checkers": ["@llmletsplay/versus-checkers@workspace:packages/checkers"],
 
-    "@versus/chess": ["@versus/chess@workspace:packages/chess"],
+    "@llmletsplay/versus-chess": ["@llmletsplay/versus-chess@workspace:packages/chess"],
 
-    "@versus/chinese-checkers": ["@versus/chinese-checkers@workspace:packages/chinese-checkers"],
+    "@llmletsplay/versus-chinese-checkers": ["@llmletsplay/versus-chinese-checkers@workspace:packages/chinese-checkers"],
 
-    "@versus/connect-four": ["@versus/connect-four@workspace:packages/connect-four"],
+    "@llmletsplay/versus-connect-four": ["@llmletsplay/versus-connect-four@workspace:packages/connect-four"],
 
-    "@versus/crazy-cards": ["@versus/crazy-cards@workspace:packages/crazy-cards"],
+    "@llmletsplay/versus-crazy-cards": ["@llmletsplay/versus-crazy-cards@workspace:packages/crazy-cards"],
 
-    "@versus/cuttle": ["@versus/cuttle@workspace:packages/cuttle"],
+    "@llmletsplay/versus-cuttle": ["@llmletsplay/versus-cuttle@workspace:packages/cuttle"],
 
-    "@versus/game-core": ["@versus/game-core@workspace:packages/game-core"],
+    "@llmletsplay/versus-game-core": ["@llmletsplay/versus-game-core@workspace:packages/game-core"],
 
-    "@versus/go": ["@versus/go@workspace:packages/go"],
+    "@llmletsplay/versus-go": ["@llmletsplay/versus-go@workspace:packages/go"],
 
-    "@versus/go-fish": ["@versus/go-fish@workspace:packages/go-fish"],
+    "@llmletsplay/versus-go-fish": ["@llmletsplay/versus-go-fish@workspace:packages/go-fish"],
 
-    "@versus/hearts": ["@versus/hearts@workspace:packages/hearts"],
+    "@llmletsplay/versus-hearts": ["@llmletsplay/versus-hearts@workspace:packages/hearts"],
 
-    "@versus/mahjong": ["@versus/mahjong@workspace:packages/mahjong"],
+    "@llmletsplay/versus-mahjong": ["@llmletsplay/versus-mahjong@workspace:packages/mahjong"],
 
-    "@versus/mancala": ["@versus/mancala@workspace:packages/mancala"],
+    "@llmletsplay/versus-mancala": ["@llmletsplay/versus-mancala@workspace:packages/mancala"],
 
-    "@versus/martial-tactics": ["@versus/martial-tactics@workspace:packages/martial-tactics"],
+    "@llmletsplay/versus-martial-tactics": ["@llmletsplay/versus-martial-tactics@workspace:packages/martial-tactics"],
 
-    "@versus/omok": ["@versus/omok@workspace:packages/omok"],
+    "@llmletsplay/versus-omok": ["@llmletsplay/versus-omok@workspace:packages/omok"],
 
-    "@versus/othello": ["@versus/othello@workspace:packages/othello"],
+    "@llmletsplay/versus-othello": ["@llmletsplay/versus-othello@workspace:packages/othello"],
 
-    "@versus/poker": ["@versus/poker@workspace:packages/poker"],
+    "@llmletsplay/versus-poker": ["@llmletsplay/versus-poker@workspace:packages/poker"],
 
-    "@versus/shogi": ["@versus/shogi@workspace:packages/shogi"],
+    "@llmletsplay/versus-shogi": ["@llmletsplay/versus-shogi@workspace:packages/shogi"],
 
-    "@versus/spades": ["@versus/spades@workspace:packages/spades"],
+    "@llmletsplay/versus-spades": ["@llmletsplay/versus-spades@workspace:packages/spades"],
 
-    "@versus/thirteen": ["@versus/thirteen@workspace:packages/thirteen"],
+    "@llmletsplay/versus-thirteen": ["@llmletsplay/versus-thirteen@workspace:packages/thirteen"],
 
-    "@versus/tic-tac-toe": ["@versus/tic-tac-toe@workspace:packages/tic-tac-toe"],
+    "@llmletsplay/versus-tic-tac-toe": ["@llmletsplay/versus-tic-tac-toe@workspace:packages/tic-tac-toe"],
 
-    "@versus/war": ["@versus/war@workspace:packages/war"],
+    "@llmletsplay/versus-war": ["@llmletsplay/versus-war@workspace:packages/war"],
 
-    "@versus/word-tiles": ["@versus/word-tiles@workspace:packages/word-tiles"],
+    "@llmletsplay/versus-word-tiles": ["@llmletsplay/versus-word-tiles@workspace:packages/word-tiles"],
 
     "@vitejs/plugin-react": ["@vitejs/plugin-react@4.7.0", "", { "dependencies": { "@babel/core": "^7.28.0", "@babel/plugin-transform-react-jsx-self": "^7.27.1", "@babel/plugin-transform-react-jsx-source": "^7.27.1", "@rolldown/pluginutils": "1.0.0-beta.27", "@types/babel__core": "^7.20.5", "react-refresh": "^0.17.0" }, "peerDependencies": { "vite": "^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0" } }, "sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA=="],
 

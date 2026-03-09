@@ -1,4 +1,4 @@
-# @versus/mancala Rules
+# @llmletsplay/versus-mancala Rules
 
 These notes describe the gameplay currently implemented by this package so downstream apps know exactly what the engine expects.
 

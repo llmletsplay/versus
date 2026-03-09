@@ -1,5 +1,5 @@
 {
-  "name": "@versus/chess",
+  "name": "@llmletsplay/versus-chess",
   "version": "0.1.0",
   "description": "Standalone Versus chess engine package",
   "license": "MIT",
@@ -32,6 +32,6 @@
     "directory": "packages/chess"
   },
   "dependencies": {
-    "@versus/game-core": "^0.1.0"
+    "@llmletsplay/versus-game-core": "^0.1.0"
   }
 }

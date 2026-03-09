@@ -22,7 +22,7 @@ Your `package.json` should publish built artifacts, not raw source:
 
 ```json
 {
-  "name": "@versus/my-game",
+  "name": "@llmletsplay/versus-my-game",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -39,7 +39,7 @@ Your `package.json` should publish built artifacts, not raw source:
     "prepack": "npm run build"
   },
   "dependencies": {
-    "@versus/game-core": "^0.1.0"
+    "@llmletsplay/versus-game-core": "^0.1.0"
   }
 }
 ```
@@ -47,7 +47,7 @@ Your `package.json` should publish built artifacts, not raw source:
 ## 2. Implement The Game Class
 
 ```ts
-import { BaseGame, InMemoryDatabaseProvider } from '@versus/game-core';
+import { BaseGame, InMemoryDatabaseProvider } from '@llmletsplay/versus-game-core';
 import type {
   DatabaseProvider,
   GameConfig,
@@ -55,7 +55,7 @@ import type {
   GameMove,
   GameState,
   MoveValidationResult,
-} from '@versus/game-core';
+} from '@llmletsplay/versus-game-core';
 
 interface MyGameState extends GameState {
   board: number[];
@@ -122,7 +122,7 @@ export class MyGame extends BaseGame<MyGameState> {
     };
   }
 
-  async restoreFromDatabase(gameStateData: import('@versus/game-core').GameStateData): Promise<void> {
+  async restoreFromDatabase(gameStateData: import('@llmletsplay/versus-game-core').GameStateData): Promise<void> {
     await super.restoreFromDatabase(gameStateData);
   }
 }
@@ -157,7 +157,7 @@ Every package should ship:
 Add the package class to [`versus-server/src/games/index.ts`](../../versus-server/src/games/index.ts):
 
 ```ts
-import { MyGame } from '@versus/my-game';
+import { MyGame } from '@llmletsplay/versus-my-game';
 
 gameManager.registerGame('my-game', MyGame);
 ```
@@ -165,7 +165,7 @@ gameManager.registerGame('my-game', MyGame);
 Then add a compatibility shim at [`versus-server/src/games/my-game.ts`](../../versus-server/src/games):
 
 ```ts
-export * from '@versus/my-game';
+export * from '@llmletsplay/versus-my-game';
 ```
 
 ## 5. Write Real Tests

@@ -1,17 +1,17 @@
-# @versus/bullshit
+# @llmletsplay/versus-bullshit
 
 Drop-in bluffing and shedding engine for Bullshit / Cheat style play.
 
 ## Install
 
 ```bash
-npm install @versus/bullshit
+npm install @llmletsplay/versus-bullshit
 ```
 
 ## Quick Start
 
 ```js
-import { BullshitGame } from '@versus/bullshit';
+import { BullshitGame } from '@llmletsplay/versus-bullshit';
 
 const game = new BullshitGame('demo');
 await game.initializeGame();

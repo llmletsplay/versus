@@ -1,15 +1,15 @@
-import { InMemoryDatabaseProvider } from '@versus/game-core';
-import { BaseGame } from '@versus/game-core';
+import { InMemoryDatabaseProvider } from '@llmletsplay/versus-game-core';
+import { BaseGame } from '@llmletsplay/versus-game-core';
 import type {
   GameState,
   GameConfig,
   MoveValidationResult,
   GameMetadata,
   GameMove,
-} from '@versus/game-core';
-import type { DatabaseProvider } from '@versus/game-core';
-import { logger } from '@versus/game-core';
-import type { LogContext } from '@versus/game-core';
+} from '@llmletsplay/versus-game-core';
+import type { DatabaseProvider } from '@llmletsplay/versus-game-core';
+import { logger } from '@llmletsplay/versus-game-core';
+import type { LogContext } from '@llmletsplay/versus-game-core';
 
 type Suit = 'spades' | 'hearts' | 'diamonds' | 'clubs';
 type Rank = '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A' | '2';
@@ -728,7 +728,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
 
 export function createThirteenGame(
   gameId: string,
-  database: import('@versus/game-core').DatabaseProvider = new InMemoryDatabaseProvider()
+  database: import('@llmletsplay/versus-game-core').DatabaseProvider = new InMemoryDatabaseProvider()
 ): ThirteenGame {
   return new ThirteenGame(gameId, database);
 }

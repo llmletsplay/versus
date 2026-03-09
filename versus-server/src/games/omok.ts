@@ -1,1 +1,1 @@
-export * from '@versus/omok';
+export * from '@llmletsplay/versus-omok';

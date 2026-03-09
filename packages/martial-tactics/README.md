@@ -1,17 +1,17 @@
-# @versus/martial-tactics
+# @llmletsplay/versus-martial-tactics
 
 Drop-in Martial Tactics engine for card-driven dojo duels.
 
 ## Install
 
 ```bash
-npm install @versus/martial-tactics
+npm install @llmletsplay/versus-martial-tactics
 ```
 
 ## Quick Start
 
 ```js
-import { MartialTacticsGame } from '@versus/martial-tactics';
+import { MartialTacticsGame } from '@llmletsplay/versus-martial-tactics';
 
 const game = new MartialTacticsGame('demo');
 await game.initializeGame();

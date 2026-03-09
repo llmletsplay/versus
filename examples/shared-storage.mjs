@@ -1,5 +1,5 @@
-import { ChessGame } from '@versus/chess';
-import { InMemoryDatabaseProvider } from '@versus/game-core';
+import { ChessGame } from '@llmletsplay/versus-chess';
+import { InMemoryDatabaseProvider } from '@llmletsplay/versus-game-core';
 
 const storage = new InMemoryDatabaseProvider();
 await storage.initialize();

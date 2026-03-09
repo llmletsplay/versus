@@ -1,17 +1,17 @@
-# @versus/blackjack
+# @llmletsplay/versus-blackjack
 
 Drop-in Blackjack engine for a single player versus the dealer.
 
 ## Install
 
 ```bash
-npm install @versus/blackjack
+npm install @llmletsplay/versus-blackjack
 ```
 
 ## Quick Start
 
 ```js
-import { BlackjackGame } from '@versus/blackjack';
+import { BlackjackGame } from '@llmletsplay/versus-blackjack';
 
 const game = new BlackjackGame('demo');
 await game.initializeGame();

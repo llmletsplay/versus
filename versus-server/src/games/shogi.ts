@@ -1,1 +1,1 @@
-export * from '@versus/shogi';
+export * from '@llmletsplay/versus-shogi';

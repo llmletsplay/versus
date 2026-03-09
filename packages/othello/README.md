@@ -1,17 +1,17 @@
-# @versus/othello
+# @llmletsplay/versus-othello
 
 Drop-in Othello engine with legal-flip validation and pass handling.
 
 ## Install
 
 ```bash
-npm install @versus/othello
+npm install @llmletsplay/versus-othello
 ```
 
 ## Quick Start
 
 ```js
-import { OthelloGame } from '@versus/othello';
+import { OthelloGame } from '@llmletsplay/versus-othello';
 
 const game = new OthelloGame('demo');
 await game.initializeGame();

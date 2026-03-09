@@ -30,7 +30,10 @@
     "test:games": "npm --prefix versus-server run test:games",
     "docs:packages": "node scripts/sync-package-docs.mjs",
     "check:packages": "node scripts/check-package-release.mjs",
-    "release:packages": "npm run build:packages && npm run check:packages && npm run test:games"
+    "release:packages": "npm run build:packages && npm run check:packages && npm run test:games",
+    "pack:packages": "node scripts/publish-packages.mjs --dry-run",
+    "publish:packages:dry-run": "npm run release:packages && npm run pack:packages",
+    "publish:packages": "npm run release:packages && node scripts/publish-packages.mjs"
   },
   "keywords": [
     "games",

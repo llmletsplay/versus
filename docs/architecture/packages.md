@@ -6,8 +6,8 @@ Versus separates reusable game engines from platform services so the rule engine
 
 Reusable packages:
 
-- `@versus/game-core`
-- `@versus/<game>`
+- `@llmletsplay/versus-game-core`
+- `@llmletsplay/versus-<game>`
 
 Platform-only code:
 
@@ -33,7 +33,7 @@ Every standalone package should provide:
 Example:
 
 ```js
-import { PokerGame } from '@versus/poker';
+import { PokerGame } from '@llmletsplay/versus-poker';
 
 const game = new PokerGame('table-1');
 await game.initializeGame();
@@ -45,7 +45,7 @@ const state = await game.getGameState();
 A host app only needs the package import, a game id, and whatever move data the game expects:
 
 ```js
-import { ChessGame } from '@versus/chess';
+import { ChessGame } from '@llmletsplay/versus-chess';
 
 const game = new ChessGame('demo');
 await game.initializeGame();
@@ -58,13 +58,14 @@ For more realistic copy-pasteable snippets, see [examples/README.md](../../examp
 
 - [`versus-server/src/games/index.ts`](../../versus-server/src/games/index.ts) imports package classes directly.
 - [`versus-server/src/games/*.ts`](../../versus-server/src/games) re-export those packages for compatibility.
-- [`versus-server/src/core/base-game.ts`](../../versus-server/src/core/base-game.ts) re-exports `@versus/game-core`.
+- [`versus-server/src/core/base-game.ts`](../../versus-server/src/core/base-game.ts) re-exports `@llmletsplay/versus-game-core`.
 
 ## Tests, Rules, And Release Checks
 
 - Gameplay tests live in [`versus-server/tests/`](../../versus-server/tests) and exercise the package implementations.
 - Rules live beside each published package in `packages/<game>/RULES.md`.
 - `npm run check:packages` validates the publish contract so releases stay clean.
+- `npm run publish:packages:dry-run` verifies the tarball surface for the `@llmletsplay/versus-*` packages before a real publish.
 
 Because the server uses the packages directly, the shared game suite still verifies the package behavior rather than a separate copy.
 

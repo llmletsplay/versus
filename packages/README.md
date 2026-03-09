@@ -6,8 +6,8 @@
 
 Reusable packages live here:
 
-- `@versus/game-core`
-- `@versus/<game>`
+- `@llmletsplay/versus-game-core`
+- `@llmletsplay/versus-<game>`
 
 Platform-only concerns stay in [`versus-server/`](../versus-server):
 
@@ -31,7 +31,7 @@ Each game package is shaped like a normal npm library:
 Example:
 
 ```js
-import { TicTacToeGame } from '@versus/tic-tac-toe';
+import { TicTacToeGame } from '@llmletsplay/versus-tic-tac-toe';
 
 const game = new TicTacToeGame('demo');
 await game.initializeGame();
@@ -65,9 +65,11 @@ npm run docs:packages
 npm run build:packages
 npm run check:packages
 npm run test:games
+npm run publish:packages:dry-run
 ```
 
 `npm run check:packages` verifies the publish contract so releases only ship built artifacts plus the package docs and license.
+`npm run publish:packages` publishes `@llmletsplay/versus-*` in dependency order once npm credentials are available.
 
 ## Rules And Tests
 
@@ -80,6 +82,6 @@ Most game packages implement the full rule set covered by the current engine tes
 
 The following packages still have deliberate scope limits and should be documented that way in releases:
 
-- `@versus/mahjong`: the package now targets Chinese Official scoring with an 8-fan minimum, scored discard/self-draw wins, chi, pon, kan, supplemental draws, multi-hand dealer/prevalent-wind progression, and exhaustive draws, but it still does not cover the full official fan catalog or side-settlement cases such as kong bonuses and exhaustive-draw ready-hand payments.
+- `@llmletsplay/versus-mahjong`: the package now targets Chinese Official scoring with an 8-fan minimum, scored discard/self-draw wins, chi, pon, kan, supplemental draws, multi-hand dealer/prevalent-wind progression, and exhaustive draws, but it still does not cover the full official fan catalog or side-settlement cases such as kong bonuses and exhaustive-draw ready-hand payments.
 
 

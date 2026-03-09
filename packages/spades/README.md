@@ -1,17 +1,17 @@
-# @versus/spades
+# @llmletsplay/versus-spades
 
 Drop-in Spades engine with bidding, trick-taking, and partnership scoring.
 
 ## Install
 
 ```bash
-npm install @versus/spades
+npm install @llmletsplay/versus-spades
 ```
 
 ## Quick Start
 
 ```js
-import { SpadesGame } from '@versus/spades';
+import { SpadesGame } from '@llmletsplay/versus-spades';
 
 const game = new SpadesGame('demo');
 await game.initializeGame();

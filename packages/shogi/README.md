@@ -1,17 +1,17 @@
-# @versus/shogi
+# @llmletsplay/versus-shogi
 
 Drop-in Shogi engine with promotions, drops, and check-state validation.
 
 ## Install
 
 ```bash
-npm install @versus/shogi
+npm install @llmletsplay/versus-shogi
 ```
 
 ## Quick Start
 
 ```js
-import { ShogiGame } from '@versus/shogi';
+import { ShogiGame } from '@llmletsplay/versus-shogi';
 
 const game = new ShogiGame('demo');
 await game.initializeGame();

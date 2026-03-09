@@ -1,17 +1,17 @@
-# @versus/catan
+# @llmletsplay/versus-catan
 
 Drop-in Catan engine with setup, production, building, trading, and development cards.
 
 ## Install
 
 ```bash
-npm install @versus/catan
+npm install @llmletsplay/versus-catan
 ```
 
 ## Quick Start
 
 ```js
-import { CatanGame } from '@versus/catan';
+import { CatanGame } from '@llmletsplay/versus-catan';
 
 const game = new CatanGame('demo');
 await game.initializeGame();

@@ -1,4 +1,4 @@
-import { ChessGame } from '@versus/chess';
+import { ChessGame } from '@llmletsplay/versus-chess';
 
 const game = new ChessGame('example-chess');
 await game.initializeGame();

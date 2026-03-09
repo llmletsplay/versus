@@ -1,4 +1,4 @@
-import { WordTilesGame } from '@versus/word-tiles';
+import { WordTilesGame } from '@llmletsplay/versus-word-tiles';
 
 const game = new WordTilesGame(
   'custom-lexicon-demo',

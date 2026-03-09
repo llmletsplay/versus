@@ -1,17 +1,17 @@
-# @versus/word-tiles
+# @llmletsplay/versus-word-tiles
 
 Drop-in Word Tiles engine for Scrabble-style placement and scoring.
 
 ## Install
 
 ```bash
-npm install @versus/word-tiles
+npm install @llmletsplay/versus-word-tiles
 ```
 
 ## Quick Start
 
 ```js
-import { WordTilesGame } from '@versus/word-tiles';
+import { WordTilesGame } from '@llmletsplay/versus-word-tiles';
 
 const game = new WordTilesGame('demo');
 await game.initializeGame();

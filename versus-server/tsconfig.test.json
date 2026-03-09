@@ -14,7 +14,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@versus/*": ["../packages/*/src/index.ts"]
+      "@llmletsplay/versus-*": ["../packages/*/src/index.ts"]
     }
   },
   "include": ["tests/**/*", "src/**/*"],

@@ -210,7 +210,7 @@ export async function createApp(config: AppConfig) {
         experimental: ['wagers', 'x402', 'prediction markets', 'intent settlement'],
       },
       packages: {
-        core: '@versus/game-core',
+        core: '@llmletsplay/versus-game-core',
         games: 'packages/*',
       },
       endpoints: {

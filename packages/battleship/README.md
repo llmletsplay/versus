@@ -1,17 +1,17 @@
-# @versus/battleship
+# @llmletsplay/versus-battleship
 
 Drop-in Battleship engine for hidden-grid naval duels.
 
 ## Install
 
 ```bash
-npm install @versus/battleship
+npm install @llmletsplay/versus-battleship
 ```
 
 ## Quick Start
 
 ```js
-import { BattleshipGame } from '@versus/battleship';
+import { BattleshipGame } from '@llmletsplay/versus-battleship';
 
 const game = new BattleshipGame('demo');
 await game.initializeGame();

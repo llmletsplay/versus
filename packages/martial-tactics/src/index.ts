@@ -1,13 +1,13 @@
-import { InMemoryDatabaseProvider } from '@versus/game-core';
-import { BaseGame } from '@versus/game-core';
-import type { DatabaseProvider } from '@versus/game-core';
+import { InMemoryDatabaseProvider } from '@llmletsplay/versus-game-core';
+import { BaseGame } from '@llmletsplay/versus-game-core';
+import type { DatabaseProvider } from '@llmletsplay/versus-game-core';
 import type {
   GameState,
   GameConfig,
   MoveValidationResult,
   GameMetadata,
   GameMove,
-} from '@versus/game-core';
+} from '@llmletsplay/versus-game-core';
 
 type Player = 'red' | 'blue';
 type PieceType = 'master' | 'student' | null;
@@ -458,7 +458,7 @@ export class MartialTacticsGame extends BaseGame {
 
 export function createMartialTacticsGame(
   gameId: string,
-  database: import('@versus/game-core').DatabaseProvider = new InMemoryDatabaseProvider()
+  database: import('@llmletsplay/versus-game-core').DatabaseProvider = new InMemoryDatabaseProvider()
 ): MartialTacticsGame {
   return new MartialTacticsGame(gameId, database);
 }

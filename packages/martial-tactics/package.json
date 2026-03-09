@@ -1,5 +1,5 @@
 {
-  "name": "@versus/martial-tactics",
+  "name": "@llmletsplay/versus-martial-tactics",
   "version": "0.1.0",
   "description": "Standalone Versus martial-tactics engine package",
   "license": "MIT",
@@ -32,6 +32,6 @@
     "directory": "packages/martial-tactics"
   },
   "dependencies": {
-    "@versus/game-core": "^0.1.0"
+    "@llmletsplay/versus-game-core": "^0.1.0"
   }
 }

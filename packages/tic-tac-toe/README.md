@@ -1,17 +1,17 @@
-# @versus/tic-tac-toe
+# @llmletsplay/versus-tic-tac-toe
 
 Drop-in Tic-Tac-Toe engine for classic 3x3 play.
 
 ## Install
 
 ```bash
-npm install @versus/tic-tac-toe
+npm install @llmletsplay/versus-tic-tac-toe
 ```
 
 ## Quick Start
 
 ```js
-import { TicTacToeGame } from '@versus/tic-tac-toe';
+import { TicTacToeGame } from '@llmletsplay/versus-tic-tac-toe';
 
 const game = new TicTacToeGame('demo');
 await game.initializeGame();

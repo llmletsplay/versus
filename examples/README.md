@@ -15,7 +15,7 @@ node examples/mahjong-basic.mjs
 ## In Your Own App
 
 ```bash
-npm install @versus/chess @versus/mahjong @versus/word-tiles @versus/game-core
+npm install @llmletsplay/versus-chess @llmletsplay/versus-mahjong @llmletsplay/versus-word-tiles @llmletsplay/versus-game-core
 ```
 
 Each package exposes a normal ESM entrypoint plus type declarations, so the same patterns work in Node, Bun, Vite, Next.js, Hono, and other modern JS runtimes.

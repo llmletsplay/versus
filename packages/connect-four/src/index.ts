@@ -1,13 +1,13 @@
-import { InMemoryDatabaseProvider } from '@versus/game-core';
-import { BaseGame } from '@versus/game-core';
+import { InMemoryDatabaseProvider } from '@llmletsplay/versus-game-core';
+import { BaseGame } from '@llmletsplay/versus-game-core';
 import type {
   GameState,
   GameConfig,
   MoveValidationResult,
   GameMetadata,
   GameMove,
-} from '@versus/game-core';
-import type { DatabaseProvider } from '@versus/game-core';
+} from '@llmletsplay/versus-game-core';
+import type { DatabaseProvider } from '@llmletsplay/versus-game-core';
 
 type Player = 'R' | 'Y'; // Red and Yellow
 type Cell = Player | null;
@@ -209,7 +209,7 @@ export class ConnectFourGame extends BaseGame {
 
 export function createConnectFourGame(
   gameId: string,
-  database: import('@versus/game-core').DatabaseProvider = new InMemoryDatabaseProvider()
+  database: import('@llmletsplay/versus-game-core').DatabaseProvider = new InMemoryDatabaseProvider()
 ): ConnectFourGame {
   return new ConnectFourGame(gameId, database);
 }

@@ -1,1 +1,1 @@
-export * from '@versus/spades';
+export * from '@llmletsplay/versus-spades';

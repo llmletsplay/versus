@@ -1,17 +1,17 @@
-# @versus/omok
+# @llmletsplay/versus-omok
 
 Drop-in Omok engine for five-in-a-row placement play.
 
 ## Install
 
 ```bash
-npm install @versus/omok
+npm install @llmletsplay/versus-omok
 ```
 
 ## Quick Start
 
 ```js
-import { OmokGame } from '@versus/omok';
+import { OmokGame } from '@llmletsplay/versus-omok';
 
 const game = new OmokGame('demo');
 await game.initializeGame();

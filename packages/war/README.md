@@ -1,17 +1,17 @@
-# @versus/war
+# @llmletsplay/versus-war
 
 Drop-in War engine for automated battle and tie-resolution play.
 
 ## Install
 
 ```bash
-npm install @versus/war
+npm install @llmletsplay/versus-war
 ```
 
 ## Quick Start
 
 ```js
-import { WarGame } from '@versus/war';
+import { WarGame } from '@llmletsplay/versus-war';
 
 const game = new WarGame('demo');
 await game.initializeGame();

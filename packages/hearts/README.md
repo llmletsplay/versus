@@ -1,17 +1,17 @@
-# @versus/hearts
+# @llmletsplay/versus-hearts
 
 Drop-in Hearts engine with passing, trick play, and penalty scoring.
 
 ## Install
 
 ```bash
-npm install @versus/hearts
+npm install @llmletsplay/versus-hearts
 ```
 
 ## Quick Start
 
 ```js
-import { HeartsGame } from '@versus/hearts';
+import { HeartsGame } from '@llmletsplay/versus-hearts';
 
 const game = new HeartsGame('demo');
 await game.initializeGame();

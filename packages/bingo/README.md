@@ -1,17 +1,17 @@
-# @versus/bingo
+# @llmletsplay/versus-bingo
 
 Drop-in Bingo engine with generated cards and configurable win patterns.
 
 ## Install
 
 ```bash
-npm install @versus/bingo
+npm install @llmletsplay/versus-bingo
 ```
 
 ## Quick Start
 
 ```js
-import { BingoGame } from '@versus/bingo';
+import { BingoGame } from '@llmletsplay/versus-bingo';
 
 const game = new BingoGame('demo');
 await game.initializeGame();

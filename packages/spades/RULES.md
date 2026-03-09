@@ -1,4 +1,4 @@
-# @versus/spades Rules
+# @llmletsplay/versus-spades Rules
 
 These notes describe the gameplay currently implemented by this package so downstream apps know exactly what the engine expects.
 

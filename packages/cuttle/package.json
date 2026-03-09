@@ -1,5 +1,5 @@
 {
-  "name": "@versus/cuttle",
+  "name": "@llmletsplay/versus-cuttle",
   "version": "0.1.0",
   "description": "Standalone Versus cuttle engine package",
   "license": "MIT",
@@ -32,6 +32,6 @@
     "directory": "packages/cuttle"
   },
   "dependencies": {
-    "@versus/game-core": "^0.1.0"
+    "@llmletsplay/versus-game-core": "^0.1.0"
   }
 }

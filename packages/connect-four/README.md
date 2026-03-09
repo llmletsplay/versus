@@ -1,17 +1,17 @@
-# @versus/connect-four
+# @llmletsplay/versus-connect-four
 
 Drop-in Connect Four engine for classic vertical alignment play.
 
 ## Install
 
 ```bash
-npm install @versus/connect-four
+npm install @llmletsplay/versus-connect-four
 ```
 
 ## Quick Start
 
 ```js
-import { ConnectFourGame } from '@versus/connect-four';
+import { ConnectFourGame } from '@llmletsplay/versus-connect-four';
 
 const game = new ConnectFourGame('demo');
 await game.initializeGame();

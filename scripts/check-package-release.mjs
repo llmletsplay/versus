@@ -1,12 +1,29 @@
-﻿import { access, readFile, readdir } from 'node:fs/promises';
+import { access, readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import process from 'node:process';
 
 const root = process.cwd();
 const packagesDir = join(root, 'packages');
 
-async function ensureFile(path) {
-  await access(path);
+async function ensureFile(filePath) {
+  await access(filePath);
+}
+
+async function assertNoCompiledSourceArtifacts(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      await assertNoCompiledSourceArtifacts(fullPath);
+      continue;
+    }
+
+    if (/\.(?:js|js\.map|d\.ts|d\.ts\.map)$/.test(entry.name)) {
+      throw new Error(`Compiled source artifact found in package source tree: ${fullPath}`);
+    }
+  }
 }
 
 const entries = await readdir(packagesDir, { withFileTypes: true });
@@ -24,6 +41,29 @@ for (const entry of entries) {
   const expectedFiles = isGamePackage
     ? ['dist', 'README.md', 'RULES.md', 'LICENSE']
     : ['dist', 'README.md', 'LICENSE'];
+  const expectedName = isGamePackage
+    ? `@llmletsplay/versus-${entry.name}`
+    : '@llmletsplay/versus-game-core';
+
+  if (manifest.name !== expectedName) {
+    throw new Error(`${entry.name} must publish as ${expectedName}`);
+  }
+
+  if (manifest.publishConfig?.access !== 'public') {
+    throw new Error(`${manifest.name} must publish publicly`);
+  }
+
+  if (manifest.repository?.directory !== `packages/${entry.name}`) {
+    throw new Error(`${manifest.name} must declare its package directory in repository.directory`);
+  }
+
+  for (const groupName of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
+    for (const dependencyName of Object.keys(manifest[groupName] ?? {})) {
+      if (dependencyName.startsWith('@versus/')) {
+        throw new Error(`${manifest.name} still references legacy scope dependency ${dependencyName}`);
+      }
+    }
+  }
 
   if (JSON.stringify(manifest.files) !== JSON.stringify(expectedFiles)) {
     throw new Error(`${manifest.name} has an unexpected files array: ${JSON.stringify(manifest.files)}`);
@@ -65,6 +105,7 @@ for (const entry of entries) {
 
   await ensureFile(join(packageDir, 'dist', 'index.js'));
   await ensureFile(join(packageDir, 'dist', 'index.d.ts'));
+  await assertNoCompiledSourceArtifacts(join(packageDir, 'src'));
 }
 
 console.log('All packages satisfy the release docs, manifest, and built-artifact contract.');

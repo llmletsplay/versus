@@ -1,1 +1,1 @@
-export * from '@versus/checkers';
+export * from '@llmletsplay/versus-checkers';
