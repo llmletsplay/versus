@@ -703,22 +703,37 @@ describe('SpadesGame', () => {
     });
 
     test('should have trick winner lead next trick', async () => {
-      // Complete one trick
-      for (let i = 0; i < 4; i++) {
-        const currentState = await game.getGameState();
-        const player = currentState.currentPlayer;
-        const card = currentState.hands[player][0];
+      const internalState = getInternalState(game);
 
-        await game.makeMove({
-          player,
-          action: 'play',
-          card,
-        });
-      }
+      internalState.hands.west = [{ suit: 'hearts', rank: '7', value: 7 }];
+      internalState.hands.north = [{ suit: 'hearts', rank: 'K', value: 13 }];
+      internalState.hands.east = [{ suit: 'hearts', rank: '9', value: 9 }];
+      internalState.hands.south = [{ suit: 'hearts', rank: 'Q', value: 12 }];
+
+      await game.makeMove({
+        player: 'west',
+        action: 'play',
+        card: { suit: 'hearts', rank: '7', value: 7 },
+      });
+      await game.makeMove({
+        player: 'north',
+        action: 'play',
+        card: { suit: 'hearts', rank: 'K', value: 13 },
+      });
+      await game.makeMove({
+        player: 'east',
+        action: 'play',
+        card: { suit: 'hearts', rank: '9', value: 9 },
+      });
+      await game.makeMove({
+        player: 'south',
+        action: 'play',
+        card: { suit: 'hearts', rank: 'Q', value: 12 },
+      });
 
       const finalState = await game.getGameState();
-      const winner = finalState.completedTricks[0]?.winner;
-      expect(finalState.currentPlayer).toBe(winner);
+      expect(finalState.completedTricks[0]?.winner).toBe('north');
+      expect(finalState.currentPlayer).toBe('north');
     });
   });
 
