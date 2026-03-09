@@ -292,13 +292,15 @@ export class GameManager {
         const state = await game.getGameState();
         if (state.status === 'active' || state.status === 'waiting') {
           // CRITICAL: Persist game state to database
+          const status: 'active' | 'waiting' | 'completed' =
+            state.gameOver ? 'completed' : state.status === 'waiting' ? 'waiting' : 'active';
           const gameStateData = {
             gameId,
             gameType: game.getGameType(),
             gameState: state,
             moveHistory: game.getHistory(),
             players: this.extractPlayersFromGameState(state),
-            status: state.gameOver ? 'completed' : state.status === 'waiting' ? 'waiting' : 'active',
+            status,
           };
           await this.database.saveGameState(gameStateData);
         }

@@ -49,7 +49,7 @@ export function createTournamentRoutes(tournamentService: TournamentService) {
   /** GET /:tournamentId — Get tournament details */
   app.get('/:tournamentId', async (c) => {
     try {
-      const tournamentId = c.req.param('tournamentId');
+      const tournamentId = c.req.param('tournamentId')!;
       const tournament = await tournamentService.getTournament(tournamentId);
       if (!tournament) {
         return c.json(
@@ -70,7 +70,7 @@ export function createTournamentRoutes(tournamentService: TournamentService) {
   /** GET /:tournamentId/standings — Get tournament standings */
   app.get('/:tournamentId/standings', async (c) => {
     try {
-      const tournamentId = c.req.param('tournamentId');
+      const tournamentId = c.req.param('tournamentId')!;
       const standings = await tournamentService.getStandings(tournamentId);
       return c.json({ success: true, data: standings });
     } catch (error) {
@@ -85,7 +85,7 @@ export function createTournamentRoutes(tournamentService: TournamentService) {
   /** GET /:tournamentId/participants — Get participants */
   app.get('/:tournamentId/participants', async (c) => {
     try {
-      const tournamentId = c.req.param('tournamentId');
+      const tournamentId = c.req.param('tournamentId')!;
       const participants = await tournamentService.getParticipants(tournamentId);
       return c.json({ success: true, data: participants });
     } catch (error) {
@@ -101,7 +101,7 @@ export function createTournamentRoutes(tournamentService: TournamentService) {
   app.post('/:tournamentId/register', requireAuth, async (c) => {
     try {
       const userId = getAuthUserId(c);
-      const tournamentId = c.req.param('tournamentId');
+      const tournamentId = c.req.param('tournamentId')!;
       const body = (await c.req.json().catch(() => ({}))) as { agentId?: string };
       const participant = await tournamentService.registerParticipant(
         tournamentId,
@@ -124,7 +124,7 @@ export function createTournamentRoutes(tournamentService: TournamentService) {
   /** POST /:tournamentId/start — Start the tournament (admin) */
   app.post('/:tournamentId/start', async (c) => {
     try {
-      const tournamentId = c.req.param('tournamentId');
+      const tournamentId = c.req.param('tournamentId')!;
       const matches = await tournamentService.startTournament(tournamentId);
       return c.json({ success: true, data: { status: 'started', matches } });
     } catch (error) {
@@ -137,7 +137,7 @@ export function createTournamentRoutes(tournamentService: TournamentService) {
   /** GET /:tournamentId/rounds/:round — Get matches for a round */
   app.get('/:tournamentId/rounds/:round', async (c) => {
     try {
-      const tournamentId = c.req.param('tournamentId');
+      const tournamentId = c.req.param('tournamentId')!;
       const round = parseInt(c.req.param('round'));
       const matches = await tournamentService.getRoundMatches(tournamentId, round);
       return c.json({ success: true, data: matches });

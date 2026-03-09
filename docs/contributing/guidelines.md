@@ -1,131 +1,55 @@
 # Contributing Guidelines
 
-Thank you for contributing to Versus!
+## Repo Roles
 
-## Code of Conduct
+- `versus` is the public engine and package repo.
+- `versus-platform` is the application repo for the betting, intents, markets, and other product-specific flows.
 
-- Be respectful and inclusive
-- Focus on constructive feedback
-- Help others learn and grow
+## Branch Flow
 
-## Getting Started
+1. Branch from `dev`.
+2. Open a pull request into `dev`.
+3. Merge `dev` into `main` when the batch is ready.
+4. Publish npm packages from `main` only when the package surface changed.
 
-### Prerequisites
-
-- Node.js 22
-- Bun 1.x
-- Docker and Docker Compose
-- Git
-
-### Setup
+## Local Checks
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/versus.git
-cd versus
-bun install
-make start
+npm run build:packages
+npm run check:packages
+npm run test:games
+npm --prefix versus-server run lint
+npm --prefix versus-server run type-check
+npm --prefix versus-client run build
 ```
 
-## Development Workflow
+## Package Release Flow
 
-### Create Branch
+1. Land package changes in `dev`.
+2. Merge `dev` into `main`.
+3. Bump package versions.
+4. Run the manual GitHub Action or `npm run publish:packages` from `main`.
+5. Only publish when package code, package docs, or examples changed.
+
+## Adding Games
+
+New games should still be package-first:
+
+- add the engine in `packages/<game>`
+- expose a clean npm API
+- add concise `README.md` and `RULES.md`
+- test through `versus-server/tests`
+- keep placeholder assertions out of the suite
+
+## Platform Split
+
+Do not replace this repo's `origin` with `versus-platform`.
+
+Instead, clone the new repo separately and export the platform layer from this repo:
 
 ```bash
-git checkout -b feature/your-feature-name
+git clone git@github.com:llmletsplay/versus-platform.git ../versus-platform
+npm run export:platform -- --target ../versus-platform
 ```
 
-### Make Changes
-
-```bash
-make test
-make type-check
-make lint
-make build
-```
-
-### Commit Changes
-
-Follow [Conventional Commits](https://conventionalcommits.org/):
-
-```
-feat: add new game type
-fix: resolve move validation bug
-docs: update API documentation
-test: add test for chess castling
-refactor: simplify game state logic
-```
-
-### Submit Pull Request
-
-1. Push to your fork
-2. Create PR against `main`
-3. Fill out PR template
-4. Wait for CI and review
-
-## Code Standards
-
-### TypeScript
-
-- Use strict mode
-- Explicit types for functions
-- Avoid `any` when possible
-- Use interfaces for objects
-
-### Style
-
-- 2-space indentation
-- Single quotes for strings
-- Semicolons required
-- Max line length: 100
-
-### File Organization
-
-```
-packages/         # Reusable game packages
-versus-server/    # Server/platform code
-versus-client/    # React client
-docs/             # Documentation
-```
-
-## Testing
-
-### Run Tests
-
-```bash
-bun run test                # All tests
-bun run test -- chess.test.ts  # Specific file
-bun run test -- --coverage     # With coverage
-```
-
-### Write Tests
-
-```typescript
-describe('MyGame', () => {
-  let game: MyGame;
-
-  beforeEach(async () => {
-    game = new MyGame('test-id', database);
-    await game.initializeGame();
-  });
-  
-  test('should initialize correctly', async () => {
-    const state = await game.getGameState();
-    expect(state.isGameOver).toBe(false);
-  });
-});
-```
-
-## Pull Request Process
-
-1. Tests must pass
-2. Code must be linted
-3. Types must check
-4. Coverage must not decrease
-5. Documentation updated
-6. New game logic should be package-first unless there is a strong reason not to
-
-## Questions?
-
-- Open an issue for bugs
-- Use discussions for questions
-- Join our Discord community
+See [Platform Repo Split](platform-repo.md) for the exact steps.

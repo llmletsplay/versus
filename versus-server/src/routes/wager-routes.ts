@@ -103,7 +103,7 @@ export function createWagerRoutes(
 
   app.get('/:wagerId', async (c) => {
     try {
-      const wagerId = c.req.param('wagerId');
+      const wagerId = c.req.param('wagerId')!;
       const wager = await wagerService.getWager(wagerId);
 
       if (!wager) {
@@ -119,7 +119,7 @@ export function createWagerRoutes(
 
   app.post('/:wagerId/commit', requireAuth, zValidator('json', commitStakeSchema), async (c) => {
     try {
-      const wagerId = c.req.param('wagerId');
+      const wagerId = c.req.param('wagerId')!;
       const body = c.req.valid('json');
 
       const result = await wagerService.commitStake({
@@ -144,7 +144,7 @@ export function createWagerRoutes(
 
   app.post('/:wagerId/start', requireAuth, async (c) => {
     try {
-      const wagerId = c.req.param('wagerId');
+      const wagerId = c.req.param('wagerId')!;
       const body = await c.req.json();
       const gameId = body.gameId;
 
@@ -166,7 +166,7 @@ export function createWagerRoutes(
 
   app.post('/:wagerId/settle', requireAuth, zValidator('json', settleWagerSchema), async (c) => {
     try {
-      const wagerId = c.req.param('wagerId');
+      const wagerId = c.req.param('wagerId')!;
       const body = c.req.valid('json');
 
       const wager = await wagerService.settleWager({
@@ -184,7 +184,7 @@ export function createWagerRoutes(
 
   app.post('/:wagerId/cancel', requireAuth, async (c) => {
     try {
-      const wagerId = c.req.param('wagerId');
+      const wagerId = c.req.param('wagerId')!;
       const body = await c.req.json();
       const reason = body.reason ?? 'User requested';
 
@@ -199,7 +199,7 @@ export function createWagerRoutes(
 
   app.get('/:wagerId/state', async (c) => {
     try {
-      const wagerId = c.req.param('wagerId');
+      const wagerId = c.req.param('wagerId')!;
       const state = await wagerService.getWagerState(wagerId);
 
       if (!state) {
@@ -218,7 +218,7 @@ export function createWagerRoutes(
 
   app.get('/:wagerId/intents', async (c) => {
     try {
-      const wagerId = c.req.param('wagerId');
+      const wagerId = c.req.param('wagerId')!;
       const intents = await intentService.getIntentsByEvent(wagerId);
 
       return c.json({ success: true, data: intents });

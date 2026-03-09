@@ -1,18 +1,24 @@
-﻿# Versus
+# Versus
 
-Versus is a package-first multiplayer game platform.
+Versus is the open-source game-engine monorepo for llmletsplay.
 
-The reusable game engines live in [`packages/`](./packages), the platform server lives in [`versus-server/`](./versus-server), and the web client lives in [`versus-client/`](./versus-client).
+The reusable engines live in [packages/](./packages), the shared runtime contract lives in [@llmletsplay/versus-game-core](./packages/game-core), and this repo also carries a reference server/client for testing and examples.
+
+## Repo Roles
+
+- This repo is for reusable game logic, package docs, tests, examples, and the package release workflow.
+- The real product application should live in a separate repo such as `versus-platform`.
+- That application repo should consume the published `@llmletsplay/versus-*` packages from npm the same way third-party developers do.
 
 ## What Is Stable
 
 - standalone game packages such as `@llmletsplay/versus-chess` and `@llmletsplay/versus-tic-tac-toe`
 - shared package core in `@llmletsplay/versus-game-core`
-- the server platform layer for auth, rooms, matchmaking, ratings, tournaments, and game APIs
+- the package release contract in `npm run release:packages`
 
 ## What Is Still Experimental
 
-- wagers and prediction-market flows
+- wagers and prediction-market flows in the reference platform
 - x402 payment integration
 - solver and intent-settlement layers
 
@@ -37,17 +43,6 @@ make start
 
 Stop everything with `make stop`.
 
-## Workspace Layout
-
-```text
-versus/
-|-- packages/        reusable game core + per-game packages
-|-- versus-server/   platform server and API layer
-|-- versus-client/   React client
-|-- docs/            MkDocs documentation
-`-- Makefile         local development commands
-```
-
 ## Using A Game Package
 
 ```js
@@ -60,22 +55,34 @@ const state = await game.getGameState();
 
 Each game package ships its own `dist/` build, type declarations, and package-local `README.md`, `RULES.md`, and `LICENSE` files. Consumers can use the default in-memory provider or inject their own storage implementation.
 
+## Maintenance Flow
+
+1. Branch from `dev` for normal work.
+2. Open pull requests into `dev`.
+3. Let GitHub Actions run on `dev` and `main`.
+4. Merge `dev` into `main` when a batch is ready.
+5. Publish npm packages from `main` only when package code or package docs changed.
+
+The full lightweight maintenance guide lives in [docs/contributing/maintenance.md](./docs/contributing/maintenance.md).
+
+## Moving The Product App Out
+
+Do not repoint this repo's `origin` to the product application.
+
+Instead, keep this repo pointed at `llmletsplay/versus` and bootstrap the separate platform repo from here:
+
+```bash
+git clone git@github.com:llmletsplay/versus-platform.git ../versus-platform
+npm run export:platform -- --target ../versus-platform
+```
+
+That export rewrites the platform server to use the published npm packages instead of the local `file:../packages/*` dependencies used inside this monorepo.
+
 ## Examples
 
 See [examples/README.md](./examples/README.md) for plain-JS package examples covering zero-config setup, shared storage and restore flows, custom word lexicons, and standalone Mahjong initialization.
 
-## Development
-
-```bash
-make start
-make stop
-make test
-make lint
-make type-check
-make build
-```
-
-Package-only release prep:
+## Package Release Checks
 
 ```bash
 npm run docs:packages
@@ -85,15 +92,13 @@ npm run test:games
 npm run publish:packages:dry-run
 ```
 
-The server test suite in [`versus-server/tests/`](./versus-server/tests) exercises the package-backed game engines through the server registry and compatibility shims.
-
-`npm run publish:packages` publishes the package set in dependency order once npm auth is configured for the `@llmletsplay` scope.
-
 ## Documentation
 
 - [Packages Overview](./docs/architecture/packages.md)
 - [Games Engine](./docs/architecture/games.md)
 - [Architecture Overview](./docs/architecture/overview.md)
+- [Maintenance Flow](./docs/contributing/maintenance.md)
+- [Platform Repo Split](./docs/contributing/platform-repo.md)
 - [Adding Games](./docs/contributing/adding-games.md)
 - [Wagering API (Experimental)](./docs/api/wagering.md)
 

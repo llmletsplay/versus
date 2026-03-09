@@ -108,7 +108,7 @@ export function createRoomRoutes(roomService: RoomService): Hono {
   // -------------------------------------------------------------------------
   app.get('/:roomId', async (c) => {
     try {
-      const roomId = c.req.param('roomId');
+      const roomId = c.req.param('roomId')!;
       const room = await roomService.getRoom(roomId);
 
       if (!room) {
@@ -130,7 +130,7 @@ export function createRoomRoutes(roomService: RoomService): Hono {
   app.post('/:roomId/join', requireAuth, zValidator('json', joinRoomSchema), async (c) => {
     try {
       const userId = getAuthUserId(c);
-      const roomId = c.req.param('roomId');
+      const roomId = c.req.param('roomId')!;
       const body = c.req.valid('json');
 
       const participant = await roomService.joinRoom(roomId, userId, body);
@@ -155,7 +155,7 @@ export function createRoomRoutes(roomService: RoomService): Hono {
   app.post('/:roomId/leave', requireAuth, async (c) => {
     try {
       const userId = getAuthUserId(c);
-      const roomId = c.req.param('roomId');
+      const roomId = c.req.param('roomId')!;
 
       await roomService.leaveRoom(roomId, userId);
 
@@ -178,7 +178,7 @@ export function createRoomRoutes(roomService: RoomService): Hono {
   app.post('/:roomId/ready', requireAuth, async (c) => {
     try {
       const userId = getAuthUserId(c);
-      const roomId = c.req.param('roomId');
+      const roomId = c.req.param('roomId')!;
 
       await roomService.readyUp(roomId, userId);
 
@@ -201,7 +201,7 @@ export function createRoomRoutes(roomService: RoomService): Hono {
   app.post('/:roomId/unready', requireAuth, async (c) => {
     try {
       const userId = getAuthUserId(c);
-      const roomId = c.req.param('roomId');
+      const roomId = c.req.param('roomId')!;
 
       await roomService.unready(roomId, userId);
 

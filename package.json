@@ -33,7 +33,8 @@
     "release:packages": "npm run build:packages && npm run check:packages && npm run test:games",
     "pack:packages": "node scripts/publish-packages.mjs --dry-run",
     "publish:packages:dry-run": "npm run release:packages && npm run pack:packages",
-    "publish:packages": "npm run release:packages && node scripts/publish-packages.mjs"
+    "publish:packages": "npm run release:packages && node scripts/publish-packages.mjs",
+    "export:platform": "node scripts/export-platform-repo.mjs"
   },
   "keywords": [
     "games",

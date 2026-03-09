@@ -89,6 +89,8 @@ nav:
     - Monitoring: deployment/monitoring.md
   - Contributing:
     - Guidelines: contributing/guidelines.md
+    - Maintenance Flow: contributing/maintenance.md
+    - Platform Repo Split: contributing/platform-repo.md
     - Adding Games: contributing/adding-games.md
 
 extra:
