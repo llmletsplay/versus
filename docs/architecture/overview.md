@@ -4,7 +4,7 @@ Versus is organized around one public concern and two consumers:
 
 1. published reusable game packages
 2. the internal package test harness in this repo
-3. downstream applications such as `versus-platform`
+3. downstream applications, bots, and custom servers
 
 ## Layer Diagram
 
@@ -17,13 +17,13 @@ Versus is organized around one public concern and two consumers:
               |                     |
               v                     v
 +---------------------------------------------+
-| package-test-harness                         |
+| package-test-harness                        |
 | compatibility shims, Jest suites, docs/rules |
 +---------------------------------------------+
 
 +---------------------------------------------+
-| Downstream Applications                      |
-| versus-platform, third-party apps, bots      |
+| Downstream Applications                     |
+| third-party apps, bots, custom servers      |
 +---------------------------------------------+
 ```
 
@@ -38,22 +38,27 @@ Those packages are designed to be usable outside any specific app.
 
 ## Internal Test Harness
 
-[`package-test-harness/`](../../package-test-harness) exists so this repo can keep strong integration coverage without pretending to be the production app. It provides:
+[`package-test-harness/`](../../package-test-harness) exists so this repo can keep strong
+integration coverage without pretending to be a host application. It provides:
 
 - compatibility re-exports in `src/games/`
 - the shared package-focused Jest suites in `tests/`
 - historical per-game rules markdown in `docs/rules/`
 - lightweight internal glue for exercising package behavior through a stable surface
 
-The harness registry in [`package-test-harness/src/games/index.ts`](../../package-test-harness/src/games/index.ts) imports the package classes directly.
+The harness registry in
+[`package-test-harness/src/games/index.ts`](../../package-test-harness/src/games/index.ts)
+imports the package classes directly.
 
 ## Downstream Apps
 
-This repo no longer owns the actual product application. `versus-platform` and any third-party consumers should install the published packages from npm and layer their own auth, persistence, UI, and settlement logic on top.
+Host applications should install the published packages from npm and layer their own
+auth, persistence, UI, transport, and economic logic on top.
 
 ## Shared Core Contract
 
-All game packages extend the shared `BaseGame` from `@llmletsplay/versus-game-core` and follow the same lifecycle:
+All game packages extend the shared `BaseGame` from `@llmletsplay/versus-game-core`
+and follow the same lifecycle:
 
 - `initializeGame()` creates the starting state
 - `validateMove()` checks a proposed move
@@ -72,5 +77,5 @@ Stable:
 
 Experimental:
 
-- product-specific flows in downstream apps
-- any settlement, wallet, or deployment logic outside the package surface
+- any host-application flow outside the package surface
+- settlement, wallet, or deployment logic built on top of the packages

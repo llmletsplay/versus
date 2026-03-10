@@ -9,7 +9,7 @@ Reusable packages live here:
 - `@llmletsplay/versus-game-core`
 - `@llmletsplay/versus-<game>`
 
-Application-only concerns stay in `versus-platform`:
+Application-only concerns stay in host applications:
 
 - auth
 - rooms
@@ -37,9 +37,17 @@ const game = new TicTacToeGame('demo');
 await game.initializeGame();
 ```
 
+Install directly from npm:
+
+```bash
+npm install @llmletsplay/versus-tic-tac-toe
+```
+
 ## Examples
 
-Repository-level examples live in [examples/README.md](../examples/README.md) and show zero-config setup, shared storage and restore, custom lexicon configuration, and standalone Mahjong initialization.
+Repository-level examples live in [examples/README.md](../examples/README.md) and
+show zero-config setup, shared storage and restore, custom lexicon configuration,
+and standalone Mahjong initialization.
 
 ## How The Internal Harness Uses Them
 

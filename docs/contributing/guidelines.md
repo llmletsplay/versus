@@ -1,9 +1,8 @@
 # Contributing Guidelines
 
-## Repo Roles
+## Repo Role
 
 - `versus` is the public engine and package repo.
-- `versus-platform` is the application repo for the betting, intents, markets, and other product-specific flows.
 
 ## Branch Flow
 
@@ -40,8 +39,8 @@ New games should stay package-first:
 - test through `package-test-harness/tests`
 - keep placeholder assertions out of the suite
 
-## Repo Split
+## Repo Boundary
 
 - `versus` is the public package repo.
-- `versus-platform` is the application repo.
+- Keep application-specific auth, UI, payment, and deployment code outside this repo.
 - Do not reintroduce product app workspaces into this repo.

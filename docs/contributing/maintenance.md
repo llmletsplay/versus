@@ -1,11 +1,14 @@
 # Maintenance Flow
 
-This repo is meant to stay pretty calm. The game engines should not change dramatically very often, so the workflow can stay lightweight.
+This repo is meant to stay pretty calm. The game engines should not change
+dramatically very often, so the workflow can stay lightweight.
 
-## Repo Roles
+## Repo Focus
 
-- `versus`: reusable game engines, package docs, package tests, examples, and npm publishing
-- `versus-platform`: the real application repo for rooms, auth, betting, prediction markets, intents, and deployment-specific code
+- reusable game engines
+- package docs and examples
+- package-focused tests
+- npm publishing and release checks
 
 ## Day-To-Day Git Flow
 
@@ -32,7 +35,8 @@ Keep this repo focused on package health:
 - `ci.yml`: runs package checks, game tests, and package-test-harness lint/type-check on `dev` and `main`
 - `publish-packages.yml`: manual workflow that publishes the npm package set from `main`
 
-This repo does not need production deployment automation because the product application lives in `versus-platform`.
+This repo does not need application deployment automation because it is the package
+library itself, not a host product.
 
 ## NPM Publishing
 
@@ -53,7 +57,7 @@ Use an `NPM_TOKEN` secret in GitHub for the manual package publish workflow.
 - avoid publishing for every tiny internal tweak
 - keep docs succinct and current
 - keep tests real and deterministic
-- let the product app repo evolve in its own repo without disturbing the public engine repo
+- keep app-specific concerns outside the public engine repo
 
 ## Suggested Rhythm
 
@@ -62,4 +66,4 @@ A relaxed maintenance cadence is enough:
 - fix bugs and docs as they come up on `dev`
 - merge to `main` when a batch feels worth releasing
 - publish packages when consumers actually benefit from the change
-- keep the product app repo moving independently
+- let host applications upgrade on their own cadence

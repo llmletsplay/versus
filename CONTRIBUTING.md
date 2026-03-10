@@ -1,6 +1,7 @@
 # Contributing to Versus
 
-Versus is the reusable game-engine and package repository for llmletsplay. The real product application lives in a separate repo, `versus-platform`, and consumes the published npm packages from there.
+Versus is the reusable game-engine and package repository for the
+`@llmletsplay/versus-*` npm packages.
 
 ## Branch Flow
 
@@ -28,11 +29,11 @@ npm run type-check
 - shared release tooling for the npm packages
 - the internal `package-test-harness/` workspace that exercises the packages in this monorepo
 
-## What Belongs In versus-platform
+## What Does Not Belong Here
 
-- betting and prediction-market product flows
-- NEAR intents and settlement integrations you want to ship as a product
-- deployment secrets, infrastructure glue, and product-specific UX
+- app-specific auth, rooms, and product UI
+- wallet, payment, escrow, or settlement orchestration
+- deployment secrets and infrastructure glue
 - anything private or fast-moving that should not be bundled into the public engine repo
 
 ## Docs

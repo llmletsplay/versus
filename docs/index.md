@@ -1,8 +1,11 @@
 # Versus
 
-Versus is the public engine repository for the `@llmletsplay/versus-*` npm packages.
+Versus is a standalone game-engine monorepo for the published
+`@llmletsplay/versus-*` npm packages.
 
-This repo is intentionally narrower than `versus-platform`. It owns the reusable game engines, shared game core, package documentation, examples, release tooling, and an internal `package-test-harness/` that validates the packages through a stable compatibility surface.
+This repo owns the reusable rule engines, the shared game core, package
+documentation, examples, release tooling, and an internal `package-test-harness/`
+workspace that validates the packages through a stable compatibility surface.
 
 ## What Lives Here
 
@@ -15,13 +18,20 @@ This repo is intentionally narrower than `versus-platform`. It owns the reusable
 
 ## What Does Not Live Here
 
-The product application moved to [`llmletsplay/versus-platform`](https://github.com/llmletsplay/versus-platform). That repo is the canonical home for:
+This repo intentionally does not include host-application concerns such as:
 
-- the application server and API
-- the web client and product UI
-- skill and agent integration surfaces
-- auth, rooms, betting, prediction markets, intents, and settlement flows
-- deployment and environment-specific infrastructure
+- auth, accounts, or user management
+- rooms, matchmaking, and product UI
+- wallets, escrow, payments, or settlement rails
+- deployment-specific infrastructure or secrets
+
+Those concerns should live in whatever application consumes the packages.
+
+## Install
+
+```bash
+npm install @llmletsplay/versus-chess @llmletsplay/versus-game-core
+```
 
 ## Local Checks
 
@@ -32,17 +42,6 @@ npm run check:packages
 npm run test:games
 npm run lint
 npm run type-check
-```
-
-## Project Structure
-
-```text
-versus/
-|-- packages/
-|-- package-test-harness/
-|-- examples/
-|-- docs/
-`-- scripts/
 ```
 
 ## Read Next

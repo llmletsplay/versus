@@ -1,6 +1,7 @@
 # Package Test Harness Architecture
 
-`package-test-harness/` is an internal workspace that exercises the published game packages through a stable compatibility layer.
+`package-test-harness/` is an internal workspace that exercises the published game
+packages through a stable compatibility layer.
 
 ## Purpose
 
@@ -11,7 +12,8 @@ The harness exists so the package repo can keep:
 - lightweight integration glue such as `GameManager`
 - historical per-game rules notes in `docs/rules/`
 
-It is not the canonical application server. The real product app lives in `versus-platform`, and there is intentionally no product route, auth, or deployment layer left in this workspace.
+It is not meant to be an application server. There is intentionally no product route,
+auth, payment, or deployment layer in this workspace.
 
 ## Main Pieces
 
@@ -22,8 +24,9 @@ It is not the canonical application server. The real product app lives in `versu
 
 ## Design Rule
 
-If logic belongs in a reusable engine, put it in `packages/<game>` or `packages/game-core`.
+If logic belongs in a reusable engine, put it in `packages/<game>` or
+`packages/game-core`.
 
 If logic is only needed to verify packages inside this repo, keep it here.
 
-If logic is product-specific, move it to `versus-platform`.
+If logic is application-specific, keep it outside this repo.
