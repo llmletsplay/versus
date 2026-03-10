@@ -1,4 +1,5 @@
 import { logger } from './logger.js';
+import { isDevelopmentRuntime, isProductionRuntime } from './runtime-env.js';
 
 /* eslint-disable no-unused-vars */
 export enum ErrorCode {
@@ -241,13 +242,13 @@ export class ErrorHandler {
       default:
         statusCode = 500;
         // In production, don't expose internal error details
-        if (process.env.NODE_ENV === 'production' && !error.isOperational) {
+        if (isProductionRuntime() && !error.isOperational) {
           errorMessage = 'Internal server error';
         }
     }
 
     // Add error details for development or operational errors
-    if (process.env.NODE_ENV === 'development' || error.isOperational) {
+    if (isDevelopmentRuntime() || error.isOperational) {
       details = {
         context: error.context,
         timestamp: error.context.timestamp,

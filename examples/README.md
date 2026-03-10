@@ -2,6 +2,8 @@
 
 These examples show how to use the publishable game packages directly in a plain JavaScript or TypeScript app without depending on the Versus server.
 
+They are intentionally host-owned UI examples. Versus does not ship a styled component library; app developers are expected to render game state with their own UI.
+
 ## Run From This Repo
 
 ```bash

@@ -1,7 +1,7 @@
 import { InMemoryDatabaseProvider } from '@llmletsplay/versus-game-core';
 import { BaseGame } from '@llmletsplay/versus-game-core';
 import type { DatabaseProvider } from '@llmletsplay/versus-game-core';
-import { logger, type LogContext } from '@llmletsplay/versus-game-core';
+import { logger, type LogContext, isDevelopmentRuntime } from '@llmletsplay/versus-game-core';
 import type {
   GameState,
   GameConfig,
@@ -722,7 +722,7 @@ export class CatanGame extends BaseGame {
       logger.error('Error validating move:', errorContext);
 
       // In development, include stack trace
-      if (process.env.NODE_ENV === 'development') {
+      if (isDevelopmentRuntime()) {
         logger.error(
           'Stack trace:',
           error instanceof Error ? error : new Error('No stack trace available')
@@ -2286,7 +2286,6 @@ export function createCatanGame(
 ): CatanGame {
   return new CatanGame(gameId, database);
 }
-
 
 
 

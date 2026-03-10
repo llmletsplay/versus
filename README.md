@@ -19,6 +19,16 @@ See:
 - [examples/agent-turn-loop.mjs](examples/agent-turn-loop.mjs) for a plain JavaScript host loop
 - [examples/react-agent-omok.tsx](examples/react-agent-omok.tsx) for a React component pattern
 
+## UI Boundary
+
+Versus is intentionally headless. The packages ship game rules, move validation, state transitions, and persistence helpers, but they do not ship a styled UI kit.
+
+That boundary is deliberate:
+
+- host apps own their rendering, layout, animation, and design system
+- packages stay portable across React, vanilla JS, canvas, terminal, server, and agent runtimes
+- consumers avoid fighting prebuilt styling opinions they did not ask for
+
 ## What Lives Here
 
 - 27+ standalone game packages in `packages/*`

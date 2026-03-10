@@ -1,4 +1,6 @@
 /* eslint-disable no-unused-vars */
+import { getEnvValue, isDevelopmentRuntime } from './runtime-env.js';
+
 export enum LogLevel {
   DEBUG = 0,
   INFO = 1,
@@ -22,8 +24,8 @@ export class Logger {
   private isDevelopment: boolean;
 
   private constructor() {
+    this.isDevelopment = isDevelopmentRuntime();
     this.logLevel = this.getLogLevelFromEnv();
-    this.isDevelopment = process.env.NODE_ENV === 'development';
   }
 
   public static getInstance(): Logger {
@@ -34,7 +36,7 @@ export class Logger {
   }
 
   private getLogLevelFromEnv(): LogLevel {
-    const level = process.env.LOG_LEVEL?.toUpperCase();
+    const level = getEnvValue('LOG_LEVEL')?.toUpperCase();
     switch (level) {
       case 'DEBUG':
         return LogLevel.DEBUG;

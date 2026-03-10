@@ -2,6 +2,8 @@
 
 Shared runtime types and helpers for the standalone Versus game packages.
 
+This package is headless infrastructure. It does not include any bundled UI components or styling primitives.
+
 ## Install
 
 ```bash

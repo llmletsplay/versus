@@ -10,6 +10,7 @@ import type {
 import type { DatabaseProvider } from '@llmletsplay/versus-game-core';
 import { logger } from '@llmletsplay/versus-game-core';
 import type { LogContext } from '@llmletsplay/versus-game-core';
+import { isDevelopmentRuntime } from '@llmletsplay/versus-game-core';
 
 type Suit = 'spades' | 'hearts' | 'diamonds' | 'clubs';
 type Rank = '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A' | '2';
@@ -289,7 +290,7 @@ export class ThirteenGame extends BaseGame<ThirteenState> {
       logger.error('Error validating move:', errorContext);
 
       // In development, include stack trace
-      if (process.env.NODE_ENV === 'development') {
+      if (isDevelopmentRuntime()) {
         logger.error(
           'Stack trace:',
           error instanceof Error ? error : new Error('No stack trace available')
@@ -732,5 +733,4 @@ export function createThirteenGame(
 ): ThirteenGame {
   return new ThirteenGame(gameId, database);
 }
-
 

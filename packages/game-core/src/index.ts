@@ -6,6 +6,7 @@ export * from './utils/game-constants.js';
 export * from './utils/game-mixins.js';
 export * from './utils/logger.js';
 export * from './utils/player-manager.js';
+export * from './utils/runtime-env.js';
 export {
   STANDARD_RANKS,
   STANDARD_SUITS,
