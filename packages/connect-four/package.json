@@ -1,6 +1,6 @@
 {
   "name": "@llmletsplay/versus-connect-four",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Standalone Versus connect-four engine package",
   "license": "MIT",
   "type": "module",
@@ -32,7 +32,6 @@
     "directory": "packages/connect-four"
   },
   "dependencies": {
-    "@llmletsplay/versus-game-core": "^0.1.0"
+    "@llmletsplay/versus-game-core": "^0.1.1"
   }
 }
-

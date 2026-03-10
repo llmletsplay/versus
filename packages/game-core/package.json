@@ -1,6 +1,6 @@
 {
   "name": "@llmletsplay/versus-game-core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared core types and helpers for standalone Versus game packages",
   "license": "MIT",
   "type": "module",
@@ -31,4 +31,3 @@
     "directory": "packages/game-core"
   }
 }
-
