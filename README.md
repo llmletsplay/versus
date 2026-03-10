@@ -7,6 +7,31 @@ This repo owns the reusable rule engines, the shared game core, package
 documentation, examples, release tooling, and an internal `package-test-harness/`
 workspace that validates the packages through a stable compatibility surface.
 
+## Embedding Pattern
+
+Versus packages are designed to sit inside your app runtime, not behind a required service. A typical host app:
+
+1. creates a game instance in memory
+2. mirrors `getGameState()` into local UI state
+3. validates user moves locally before sending them anywhere
+4. asks an external agent or backend for the reply move
+5. validates that reply against the same engine before applying it
+
+See:
+
+- [examples/agent-turn-loop.mjs](examples/agent-turn-loop.mjs) for a plain JavaScript host loop
+- [examples/react-agent-omok.tsx](examples/react-agent-omok.tsx) for a React component pattern
+
+## UI Boundary
+
+Versus is intentionally headless. The packages ship game rules, move validation, state transitions, and persistence helpers, but they do not ship a styled UI kit.
+
+That boundary is deliberate:
+
+- host apps own their rendering, layout, animation, and design system
+- packages stay portable across React, vanilla JS, canvas, terminal, server, and agent runtimes
+- consumers avoid fighting prebuilt styling opinions they did not ask for
+
 ## What Lives Here
 
 - 27+ standalone game packages in `packages/*`
@@ -69,6 +94,7 @@ versus/
 - [Architecture Overview](docs/architecture/overview.md)
 - [Packages](docs/architecture/packages.md)
 - [Games Engine](docs/architecture/games.md)
+- [Examples](examples/README.md)
 - [Contributing Guidelines](docs/contributing/guidelines.md)
 - [Maintenance Flow](docs/contributing/maintenance.md)
 

@@ -2,6 +2,8 @@
 
 Shared runtime types and helpers for the standalone Versus game packages.
 
+This package is headless infrastructure. It does not include any bundled UI components or styling primitives.
+
 ## Install
 
 ```bash
@@ -23,6 +25,15 @@ import { BaseGame, InMemoryDatabaseProvider } from '@llmletsplay/versus-game-cor
 const storage = new InMemoryDatabaseProvider();
 console.log(typeof BaseGame, storage.constructor.name);
 ```
+
+## Host App Pattern
+
+Most apps should keep a game instance in memory, reflect `getGameState()` into local UI state, and validate both user and agent moves against that same instance.
+
+See:
+
+- `examples/agent-turn-loop.mjs`
+- `examples/react-agent-omok.tsx`
 
 ## Notes
 
