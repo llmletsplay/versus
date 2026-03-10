@@ -9,11 +9,22 @@ await mkdir(npmCacheDir, { recursive: true });
 
 const rawArgs = process.argv.slice(2);
 const dryRun = rawArgs.includes('--dry-run');
-const publishArgs = rawArgs.filter((arg) => arg !== '--dry-run');
+const fromArg = rawArgs.find((arg) => arg.startsWith('--from='));
+const fromPackage = fromArg ? fromArg.slice('--from='.length) : null;
+const publishArgs = rawArgs.filter((arg) => arg !== '--dry-run' && !arg.startsWith('--from='));
 const manifests = await getWorkspacePackages(root);
 const orderedPackages = orderWorkspacePackages(manifests);
+const startIndex = fromPackage
+  ? orderedPackages.findIndex(({ manifest }) => manifest.name === fromPackage)
+  : 0;
 
-for (const { cwd, manifest } of orderedPackages) {
+if (fromPackage && startIndex === -1) {
+  throw new Error(`Unknown package passed to --from: ${fromPackage}`);
+}
+
+const packagesToProcess = orderedPackages.slice(startIndex);
+
+for (const { cwd, manifest } of packagesToProcess) {
   console.log(`\n==> ${dryRun ? 'Packing' : 'Publishing'} ${manifest.name}`);
 
   if (dryRun) {
