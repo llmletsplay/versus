@@ -20,6 +20,27 @@ const state = await game.getGameState();
 console.log(state.currentPlayer);
 ```
 
+## Host App Pattern
+
+This package works well as a local rules engine for React, Vite, Next.js, Bun, or agent-hosted apps.
+
+```js
+const userMove = {
+  player: 'black',
+  row: 7,
+  col: 7,
+};
+
+await game.validateMove(userMove);
+const afterUserMove = await game.makeMove(userMove);
+
+const agentMove = await askAgent(afterUserMove);
+await game.validateMove(agentMove);
+const afterAgentMove = await game.makeMove(agentMove);
+```
+
+For copy-pasteable host examples, see `examples/agent-turn-loop.mjs` and `examples/react-agent-omok.tsx`.
+
 ## What You Get
 
 - ESM build output from `dist/`

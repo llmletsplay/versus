@@ -20,6 +20,28 @@ const state = await game.getGameState();
 console.log(state.currentPlayer);
 ```
 
+## Host App Pattern
+
+The engine is meant to live inside your app runtime, whether that runtime is a browser, server action, or agent worker.
+
+```js
+const userMove = {
+  player: 'black',
+  action: 'place',
+  row: 3,
+  col: 3,
+};
+
+await game.validateMove(userMove);
+const afterUserMove = await game.makeMove(userMove);
+
+const agentMove = await askAgent(afterUserMove);
+await game.validateMove(agentMove);
+const afterAgentMove = await game.makeMove(agentMove);
+```
+
+For copy-pasteable host examples, see `examples/agent-turn-loop.mjs` and `examples/react-agent-omok.tsx`.
+
 ## What You Get
 
 - ESM build output from `dist/`

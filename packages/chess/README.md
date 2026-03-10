@@ -20,6 +20,27 @@ const state = await game.getGameState();
 console.log(state.currentPlayer);
 ```
 
+## Host App Pattern
+
+Use the engine inside your UI runtime, validate the user move locally, then validate the agent reply against the same instance before committing it.
+
+```js
+const userMove = {
+  player: 'white',
+  from: { row: 6, col: 4 },
+  to: { row: 4, col: 4 },
+};
+
+await game.validateMove(userMove);
+const afterUserMove = await game.makeMove(userMove);
+
+const agentMove = await askAgent(afterUserMove);
+await game.validateMove(agentMove);
+const afterAgentMove = await game.makeMove(agentMove);
+```
+
+For copy-pasteable host examples, see `examples/agent-turn-loop.mjs` and `examples/react-agent-omok.tsx`.
+
 ## What You Get
 
 - ESM build output from `dist/`
